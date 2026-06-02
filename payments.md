@@ -10,16 +10,28 @@ Core billing logic never imports gateway code. Each gateway implements:
 
 ```python
 class GatewayAdapter:
-    def setup_payment_method(self, team, setup_data) -> dict
-    def validate_payment_method(self, payment_method) -> bool   # micro-charge
+    # universal (every gateway implements)
+    def setup_payment_method(self, team, setup_data) -> dict   # SetupIntent / mandate order
+    def validate_payment_method(self, payment_method) -> bool  # micro-charge (Stripe)
     def charge(self, invoice, payment_method, idempotency_key) -> PaymentResult
     def refund(self, payment_attempt, amount, reason) -> RefundResult
     def verify_webhook_signature(self, payload: bytes, headers: dict) -> bool
-    def parse_webhook_event(self, payload: dict) -> NormalisedEvent
+    def parse_webhook_event(self, payload: dict, headers: dict | None) -> NormalisedEvent
     def get_transaction_status(self, gateway_txn_id: str) -> str
+
+    # optional, gateway-specific (base default raises GatewayUnsupported)
+    def create_customer(self, team) -> str
+    def verify_payment_signature(self, data: dict) -> bool     # checkout callback (Razorpay)
+    def cancel_mandate(self, mandate_reference, customer_reference=None) -> bool
+    def get_mandate_status(self, mandate_reference: str) -> str
 ```
 
-Implemented: Stripe (USD, Payment Intents), Razorpay (INR, card + UPI Autopay mandate). PayPal to follow — one adapter class, no core changes.
+Notes on the seam:
+- `parse_webhook_event` receives headers because Razorpay's dedupe id is in the `X-Razorpay-Event-Id` header while Stripe's is in the body.
+- `verify_payment_signature` is the **client checkout callback** verification (Razorpay UPI Autopay authorisation / one-time order) — distinct from `verify_webhook_signature`. Stripe confirms via intent status, so it leaves this unsupported.
+- Declines return a failed `PaymentResult`; transient/network failures raise `GatewayTimeout` so a retry reuses the same idempotency key.
+
+Implemented: Stripe (USD, Payment Intents, SetupIntent, micro-charge), Razorpay (INR, UPI Autopay mandate order + recurring charge). PayPal to follow — one adapter class, no core changes.
 
 ## Payment Gateway (config)
 
