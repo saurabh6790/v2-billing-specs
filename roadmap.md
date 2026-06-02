@@ -2,9 +2,9 @@
 
 ## Targets
 
-Demoable by **30 June 2026**. Feature-complete by **31 July 2026**.
+Two delivery milestones, in order: a working **Demo** (end-to-end money path), then **feature-complete**.
 
-## Phase 1 — Foundation (by June 13)
+## Phase 1 — Foundation
 
 - Scaffold `cloud_billing` and `subscription_agent` apps.
 - **Gateway Integrations (front-loaded workstream — see below).**
@@ -23,7 +23,7 @@ The gateway layer is what this project rewrites away from `frappe/payments` (see
 - **Port the existing v1 / `frappe-payments` Stripe & Razorpay integrations into the adapter model and decommission the old path** — one integration surface, no gateway code imported by core billing.
 - PayPal adapter — *to follow, post-launch.*
 
-## Phase 2 — Subscriptions & usage (by June 20)
+## Phase 2 — Subscriptions & usage
 
 - `Subscription` (intent) + `Subscription Change`; two-axis state.
 - Price-lock ledger (keyed by `resource_id`).
@@ -33,7 +33,7 @@ The gateway layer is what this project rewrites away from `frappe/payments` (see
 
 **Checkpoint:** subscribe → event logged + pushed → token authorises provision → credit top-up works.
 
-## Phase 3 — Invoicing & payment (by June 27)
+## Phase 3 — Invoicing & payment
 
 - Two-phase invoice generation (28th draft, 1st open+collect), parallel dispatch.
 - Usage computation (day-weighted × locked price, `max(1,…)` floor; engine generic over `billing_interval`).
@@ -44,9 +44,9 @@ The gateway layer is what this project rewrites away from `frappe/payments` (see
 - `invoice_type = cost_report` for free/trial.
 - ERPNext async push queue.
 
-**Checkpoint (June 30 — Demo):** subscribe → use → invoice on 1st → charged via Stripe/Razorpay → `Paid` → ERPNext synced async; free/trial subsidy shown.
+**Checkpoint (Demo):** subscribe → use → invoice on 1st → charged via Stripe/Razorpay → `Paid` → ERPNext synced async; free/trial subsidy shown.
 
-## Phase 4 — Dashboard, hardening (by July 31)
+## Phase 4 — Dashboard, hardening
 
 - Admin + customer dashboards; subsidy panel; payment analytics; forecast.
 - Full notification suite (success/failure/retry/overdue/credit-low/card-expiry).
@@ -54,7 +54,7 @@ The gateway layer is what this project rewrites away from `frappe/payments` (see
 - **Reconciliation job** — resolve the "charged-but-never-webhooked" terminal state. *(Single most important hardening task.)*
 - Security pass (signatures, replay, SQL audit); load test (1000-subscription run, concurrent webhooks).
 
-> **Migration is deliberately not a launch task** — gradual, per-team, ~6 months post-launch. See [migration.md](migration.md).
+> **Migration is deliberately not a launch task** — gradual, per-team, post-launch. See [migration.md](migration.md).
 
 ## Future considerations
 

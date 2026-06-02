@@ -70,5 +70,5 @@ GET    /api/method/cloud_billing.admin.get_team_subscription?team=TEAM-001
 
 ## Notes
 
-- The create endpoint records intent; the real subscription event (with `resource_id`, `shown_price`) is born at the cluster and reported by the Agent. Central reconciles intent against the Agent event.
+- The create endpoint records intent; the real subscription event (with `resource_id`, `shown_rate`) is born at the cluster and reported by the Agent. Central reconciles intent against the Agent event.
 - Enforcement (suspension) is covered in [provisioning-and-entitlements.md](provisioning-and-entitlements.md).

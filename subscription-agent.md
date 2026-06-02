@@ -6,7 +6,7 @@ The thin regional app installed at each cluster manager. Authoritative for **wha
 
 ## Responsibilities
 
-- Record an immutable, append-only event log of plan changes (subscribed / changed / cancelled), each with `resource_id` and `shown_price`.
+- Record an immutable, append-only event log of plan changes (subscribed / changed / cancelled), each with `resource_id` and `shown_rate`.
 - Record metered-usage rollups (see [metering.md](metering.md)).
 - Cache plans (+ display price) pushed from Central, so the Bench Manager can render without calling Central.
 - Verify Central-issued entitlement tokens **locally** and enforce caps + suspend directives (see [provisioning-and-entitlements.md](provisioning-and-entitlements.md)).
@@ -16,15 +16,15 @@ It makes no gateway calls, computes no invoices, holds no pricing logic, and *de
 
 ## Data Model — 4 DocTypes
 
-**Plan Cache** — plans pushed from Central; read-only locally. Carries a *display* price (display only).
+**Plan Cache** — bundles pushed from Central; read-only locally. Carries display rates only (display only).
 
-| Field | Type |
-|-------|------|
-| name / title | Data |
-| resources_json | Long Text |
-| unit_price / currency | Currency / Data |
-| billing_interval | Select |
-| pushed_at | Datetime |
+| Field | Type | Notes |
+|-------|------|-------|
+| name / title | Data | Bundle identity + display title |
+| billing_cycle | Data | monthly / annual |
+| includes_json | Long Text | Composition (resource_type, quantity, unit) — spec only |
+| rates_json | Long Text | Full rate set: list of `{cluster, currency, rate}` |
+| pushed_at | Datetime | |
 
 **Plan Subscription Log** — immutable, append-only; one row per plan change per resource.
 
@@ -33,7 +33,8 @@ It makes no gateway calls, computes no invoices, holds no pricing logic, and *de
 | team | Data | |
 | resource_id | Data | Stable physical resource identity — the price-lock key on Central |
 | plan | Link → Plan Cache | |
-| shown_price | Currency | Price displayed at provision — Central locks this |
+| shown_rate | Currency | Rate displayed at provision (resolved for currency + cluster) — Central locks this |
+| currency | Data | Currency the rate was shown/resolved in |
 | event_type | Select | subscribed / changed / cancelled |
 | effective_from / effective_to | Datetime | effective_to null = active |
 | changed_by | Data | |

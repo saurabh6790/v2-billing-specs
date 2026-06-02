@@ -12,7 +12,7 @@ Frappe Cloud v1 (Press) billing accumulated structural debt: prepaid credits as 
 
 **Cloud Billing** (Central — `billing.frappe.cloud`) — sole system of record for **money and the customer's monetary standing**. Owns gateway config, payment methods, plans + pricing, the customer's subscription *intent/contract*, invoices, credit ledger, trust tiers, entitlement tokens, tax, notifications, dashboards. The only component that talks to payment gateways.
 
-**Subscription Agent** (per regional cluster) — deliberately thin, but **authoritative for what actually ran**. Records an immutable event log (subscribed/changed/cancelled, with `resource_id` and `shown_price`), records metered-usage rollups, enforces Central-issued entitlement tokens locally, and syncs to Central. No financial logic, no gateway calls, no invoice computation — it carries numbers and applies directives; Central decides their meaning.
+**Subscription Agent** (per regional cluster) — deliberately thin, but **authoritative for what actually ran**. Records an immutable event log (subscribed/changed/cancelled, with `resource_id` and `shown_rate`), records metered-usage rollups, enforces Central-issued entitlement tokens locally, and syncs to Central. No financial logic, no gateway calls, no invoice computation — it carries numbers and applies directives; Central decides their meaning.
 
 ## Source-of-truth split
 
