@@ -7,12 +7,21 @@ Demoable by **30 June 2026**. Feature-complete by **31 July 2026**.
 ## Phase 1 — Foundation (by June 13)
 
 - Scaffold `cloud_billing` and `subscription_agent` apps.
-- `GatewayAdapter` interface + base; Stripe (Payment Intents) and Razorpay (card + UPI mandate) adapters with idempotency + refund.
-- Secure webhook receiver (signature-first, idempotent event store).
+- **Gateway Integrations (front-loaded workstream — see below).**
 - `Plan` + `Plan Resource` CRUD; plan push to Agent.
 - Agent's 4 DocTypes.
 
 **Checkpoint:** gateways configured, plans defined + synced, webhooks received safely.
+
+### Gateway Integrations (first-class workstream, Phase 1)
+
+The gateway layer is what this project rewrites away from `frappe/payments` (see [misc.md](misc.md)), so it is a first-class, front-loaded milestone rather than a single bullet:
+
+- `GatewayAdapter` interface + base + secure webhook receiver (signature-first, idempotent event store).
+- Stripe adapter (Payment Intents, idempotency, refund).
+- Razorpay adapter (card + UPI mandate, refund); mandate `max_amount` = trust-tier cap wires up alongside trust tiers (Phase 2).
+- **Port the existing v1 / `frappe-payments` Stripe & Razorpay integrations into the adapter model and decommission the old path** — one integration surface, no gateway code imported by core billing.
+- PayPal adapter — *to follow, post-launch.*
 
 ## Phase 2 — Subscriptions & usage (by June 20)
 

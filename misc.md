@@ -25,6 +25,8 @@ Cross-cutting rationale that doesn't belong to a single domain file.
 
 **Decision:** build a thin **`GatewayAdapter`** layer owned by Cloud Billing (see [payments.md](payments.md)). Reusing `frappe/payments` would mean bending its checkout abstractions around a recurring-billing engine and inheriting webhook patterns we explicitly want to redesign — more friction than writing a focused adapter.
 
+**Tracked as:** the Gateway Integrations milestone — porting the existing Stripe/Razorpay integrations into the adapter model and retiring the old path is [issue #24](issues/24-gateway-integration-port-decommission.md).
+
 **What we still borrow:** the underlying gateway SDKs (the `stripe` / `razorpay` Python libraries) and `frappe/payments` as a *reference* for gateway quirks. We are not reinventing gateway protocols — only the billing-side orchestration around them.
 
 **Revisit if:** a future need is genuinely one-off-checkout shaped (e.g. a standalone "buy a one-time add-on" flow with no subscription), where `frappe/payments` might be the simpler path for that surface alone.
