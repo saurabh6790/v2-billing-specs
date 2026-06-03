@@ -86,27 +86,47 @@ bench --site agent.local   execute press_billing_agent.demo.seed
 bench start          # or:  ! bench start
 ```
 
-**Scenario teams** (Central) — one team per state, all navigable from the Desk
-**Billing** workspace or `get_team_billing`:
+**Catalog** (Central): **3 clusters** — `in-mumbai` (India), `eu-frankfurt` (EU),
+`me-dubai` (Middle East) — and **5 plan sizes** (1→16 vCPU), each priced **per
+cluster × currency** (INR / EUR / USD). The same five plans are offered in every
+region, so a team paying in one currency can subscribe to **any** region. **4
+trust tiers** (`t0` trial → `t3` enterprise) with rising spend caps and promotion
+thresholds. One metered **Bandwidth Overage** add-on, priced per GB per currency.
 
-| Team | Demonstrates |
-|---|---|
-| `demo` | Happy path — Paid May + Open June (fixed + metered + GST), wallet, card |
-| `demo-overdue` | Dunning — Overdue invoice, `past_due`, 3 failed retries, still running |
-| `demo-suspended` | Escalated — `suspended` + cap-0 suspend directive token |
-| `demo-trial` | Free/trial — entry tier → `cost_report` (computed, not charged) |
-| `demo-credits` | Credits-only — credits applied first, Open remainder, wallet-gated |
-| `demo-refund` | Refunds — full dispute→source (stays Paid) + partial overcharge→wallet |
-| `demo-sez` | Tax — SEZ zero-rating (tax 0 **with** `sez_lut` reason) |
-| `demo-tds` | Tax — TDS withholding (`expected_collection` < `total`) |
-| `demo-recon` | Reconciliation — an ambiguous initiated attempt awaiting the job |
-| `demo-razorpay` | Razorpay UPI Autopay mandate (ceiling = trust-tier cap) |
+A team runs **multiple instances** — droplet/EC2-style: any plan in any region,
+capped by its tier — but **bills in a single currency** wherever they run. Each
+region's instances are grouped into **one invoice per region per month** (multiple
+day-weighted line items); a team thus has one Subscription and one invoice stream
+per region it occupies.
 
-**Agent records** (`agent.local`): Plan Cache, a multi-segment Plan Subscription
-Log (subscribed→changed→cancelled, some unsynced), counter + gauge Usage Meters,
-and three Entitlement Tokens whose `enforcement_state` shows the key distinction
-— `demo` → **running**, `demo-suspended` → **stopped**, `demo-expired` →
-**running** (a stale token never stops a customer's resources).
+**Ten teams** (Central) — spread across tiers, currencies, regions and states,
+all navigable from the Desk **Billing** workspace, the `/billing` portal team
+switcher, or `get_team_billing`. Higher tiers carry ~10 months of paid invoices
+**per region**:
+
+| Team | Tier | Currency | Instances (region · plan) | Demonstrates |
+|---|---|---|---|---|
+| `acme-corp` | t3 | INR | in·8vcpu + in·2vcpu, eu·4vcpu, me·1vcpu | **Grandfathering** — in·8vcpu billed at locked ₹9,360 vs ₹12,000 catalog; 4 instances / 3 regions |
+| `globex` | t3 | EUR | eu·16vcpu + eu·4vcpu, in·2vcpu | Enterprise, €-billed, multi-region, 10-month history |
+| `initech` | t2 | USD | me·4vcpu + me·1vcpu, eu·2vcpu | Growth tier, $-billed, 3 instances |
+| `umbrella` | t2 | INR | eu·4vcpu, in·2vcpu | **Cross-region** — INR-billed team running in **EU + India** |
+| `wayne-ent` | t2 | INR | me·2vcpu, in·1vcpu | **Cross-region** INR → ME + India, on a **Razorpay UPI mandate** |
+| `stark-ind` | t1 | INR | in·2vcpu | Dunning — `past_due`, 3 failed retries, still running |
+| `cyberdyne` | t1 | EUR | eu·2vcpu | Escalated — `suspended` + cap-0 suspend token |
+| `hooli` | t1 | INR | in·1vcpu | Prepaid credits — under-funded wallet → **shortfall alert** |
+| `soylent` | t1 | USD | me·2vcpu | Refund — partial overcharge → wallet |
+| `piedpiper` | t0 | INR | in·1vcpu | Free trial — entry tier, computed not charged |
+
+Each active team's first instance carries a **metered transfer overage** on the
+current month, so an open invoice shows fixed plan line(s) **and** an overage line.
+
+**Agent records** (`agent.local`) mirror the Central teams: the pushed **Plan
+Cache** (5 plans), an immutable **Plan Subscription Log** per resource (one
+re-provisioned/`changed` segment, some unsynced), per-resource **Usage Meters**
+feeding the overage, **Sync Logs**, and **Entitlement Tokens** whose
+`enforcement_state` shows the key distinction — `acme-corp`/`globex` → **running**,
+`cyberdyne` → **stopped** (suspend token), `stark-ind` → **running** despite an
+**expired** token (a stale token never stops a customer's resources).
 
 > Gateway SDKs: `stripe>=15` + `razorpay` are declared in
 > `press_billing/pyproject.toml` (the old `stripe 2.56` breaks on Python 3.14).
@@ -121,31 +141,46 @@ and three Entitlement Tokens whose `enforcement_state` shows the key distinction
 
 Open **`http://billing.local:8000/app/billing`** (log in as Administrator).
 
-The seed builds a `demo` team showing the whole pipeline in real records:
+The seed lands the admin on `acme-corp` (a t3 enterprise team) with the whole
+pipeline in real records:
 
-- **Invoices** → `INV-2026-05-…` **Paid** ₹3,776 (₹3,200 + 18% GST) and
-  `INV-2026-06-…` **Open** ₹5,018.93 — open the June invoice to see **two
-  day-weighted fixed line items** (11 days @ ₹3,200 + 19 days @ ₹4,800 from a
-  mid-month plan change) **plus a metered** transfer-overage line **plus GST**.
-- **Price Lock** → the grandfathered rate segments behind those line items.
-- **Credit Ledger** → a ₹5,000 top-up.
-- **Payment Methods** → an active Visa ····4242.
-- **Catalog & Config** → Plan / Add-on / Tax Profile / Trust Tier / Gateway.
+- **Invoices** → one invoice stream **per region** (acme runs in 3), each with ~10
+  months of **Paid** invoices + an **Open** June invoice. Open the June **in-mumbai**
+  invoice (₹14,773.60) to see acme's two India instances grouped as **two fixed
+  plan lines** ("Pro · 8 vCPU / 16 GB" @ the **grandfathered** ₹9,360 + "Basic ·
+  2 vCPU / 4 GB" @ ₹3,000, 30 days each) **plus a metered Bandwidth Overage** line
+  ("200 GB over 800 GB included" @ ₹0.80/GB) **plus 18% GST**. Each line reads in
+  plain language — plan/add-on **titles**, the included allowance, what drove it.
+- **Price Lock** → acme's lock carries `discrepancy = 1`: `locked_rate` ₹9,360 vs
+  `central_rate` ₹12,000 — the grandfathering made visible.
+- **Credit Ledger / Payment Methods / Catalog & Config** → wallet ledger, the
+  active card or UPI mandate, and the 5-plan × 3-cluster × 3-currency catalog.
 
 > Talking point: the invoice is *computed* from the Agent's event log joined to
-> Central's locked prices — not from a stored "amount". Day-weighting,
-> new-plan-wins-the-day, and the max(1-day) floor are all visible in the lines.
+> Central's locked prices — not from a stored "amount". The grandfathered rate
+> rides the price-lock forever even as the catalog price rises.
 
 ### 4b. The customer portal — **Frappe-UI** SPA
 
 Open **`http://billing.local:8000/billing`** (press-parity UI; the `frappe-ui`
 tailwind preset is the sole colour source — no bespoke palette).
 
-- **Overview** — current-month **forecast** (projected bill vs credit balance,
-  shortfall, days remaining) + active subscriptions.
-- **Invoices** — history with status badges.
-- **Payment Methods** — cards on file (no gateway secrets ever leave the server).
-- **Credits** — wallet balance + ledger.
+A **team switcher** (top of the sidebar) flips between all ten teams for the demo,
+and a **customer ⇄ admin** toggle swaps the two shells. Amounts render in the
+team's own currency (₹ / € / $) throughout — switch to `globex` to see everything
+in **EUR**, `initech` in **USD**.
+
+- **Overview** — trust tier / cap / standing, **instances across regions**, billing
+  currency, a one-line **This-Month projection** (→ Forecast), a **credit-shortfall
+  alert** when a prepaid wallet can't cover the projection (see `hooli`), and
+  **mode-aware** payment details (postpaid → card, prepaid → credits).
+- **Forecast** *(own tab)* — the month-end projection itemised: each **service +
+  metered overage** (plan titles, not slugs) with usage, subtotal + tax, and (for
+  prepaid) wallet balance vs shortfall — in the team's currency.
+- **Invoices** — history with status badges (`current`→**Active**, `past_due`→**Past
+  Due**); click through to the itemised dialog (per-region instances + overage).
+- **Payment Methods** — cards/mandates on file; remove or set-default.
+- **Credits** — wallet balance + ledger, in the team's currency.
 
 Every endpoint is **auto-scoped to the caller's team** — passing another team's
 name is rejected, not widened.
@@ -153,8 +188,19 @@ name is rejected, not widened.
 ### 4c. The admin dashboard
 
 Open **`/billing/admin`** (gated to the `Billing Admin` role; a customer or the
-Agent key gets 403). Total billed / collected / outstanding, spend by cluster,
-and the **free/trial subsidy** (true cost of non-paying teams).
+Agent key gets 403). Sidebar: **Overview / Teams / Analytics**.
+
+- **Overview** — MRR (₹73,050, **INR-normalised** across currencies), teams,
+  on-time vs delinquent, suspended, payment failures.
+- **Teams** — per-team tier, standing, resources, MRR, invoices; click a team to
+  drill into its subscriptions / invoices / payments.
+- **Analytics** — drill-downs the demo asked for: **payment-failure** list (which
+  invoice, reason), **delinquent** teams + outstanding, **cluster-wise** and
+  **plan-wise** consumption (INR run-rate), **trial subsidy** (converted vs not),
+  and **conversion rate** (90% — 9 paid of 10).
+
+> All run-rate/MRR figures are normalised to INR via each plan's INR catalog rate,
+> so EUR/USD regions are comparable on one axis (cluster totals = plan totals = MRR).
 
 ### 4d. Flows worth narrating (each backed by tests)
 
@@ -173,13 +219,21 @@ and the **free/trial subsidy** (true cost of non-paying teams).
 - **Refunds** — full dispute → source (invoice stays Paid); partial overcharge →
   wallet credit applied next cycle.
 
+### 4e. The Agent operator dashboard
+
+Open **`http://agent.local:8000/cluster`** — a press-style operator view over the
+Agent's local state (same Frappe-UI design language): **Overview**, **Event Log**
+(run segments + locked rate + sync state), **Usage Meters** (counter/gauge),
+**Plan Cache**, **Entitlements** (enforcement: running / stopped / terminated),
+and **Sync Log**. This is the cluster-side mirror of the Central teams.
+
 ---
 
 ## 5. Verify it
 
 ```bash
 cd /Users/frappe/workspace-2/dev-bench
-bench --site billing.local run-tests --app press_billing        # 215 tests
+bench --site billing.local run-tests --app press_billing        # 222 tests
 bench --site agent.local   run-tests --app press_billing_agent  #  34 tests
 ```
 
@@ -198,4 +252,6 @@ Agent.
 - ERPNext sync, gateway charges, and webhooks run against **mocked/test-mode**
   endpoints — no live credentials wired.
 - **Migration tooling (#23)** is deferred pending a go-ahead.
-- Single billing currency per team (multi-currency per invoice is future).
+- Each team bills in **one** currency (the catalog is multi-currency across teams:
+  INR / EUR / USD, with INR-normalised admin run-rates). Prepaid credit wallets
+  are INR-denominated.
