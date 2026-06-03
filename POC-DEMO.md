@@ -78,12 +78,35 @@ bench --site agent.local  migrate
 # 2. Build the customer/admin SPA (Frappe-UI)
 cd apps/press_billing/dashboard && yarn install && yarn build && cd -
 
-# 3. Seed a rich demo team end-to-end
-bench --site billing.local execute press_billing.demo.seed
+# 3. Seed demo data covering every scenario (both sites)
+bench --site billing.local execute press_billing.demo_scenarios.seed_all
+bench --site agent.local   execute press_billing_agent.demo.seed
 
 # 4. Run the server
 bench start          # or:  ! bench start
 ```
+
+**Scenario teams** (Central) — one team per state, all navigable from the Desk
+**Billing** workspace or `get_team_billing`:
+
+| Team | Demonstrates |
+|---|---|
+| `demo` | Happy path — Paid May + Open June (fixed + metered + GST), wallet, card |
+| `demo-overdue` | Dunning — Overdue invoice, `past_due`, 3 failed retries, still running |
+| `demo-suspended` | Escalated — `suspended` + cap-0 suspend directive token |
+| `demo-trial` | Free/trial — entry tier → `cost_report` (computed, not charged) |
+| `demo-credits` | Credits-only — credits applied first, Open remainder, wallet-gated |
+| `demo-refund` | Refunds — full dispute→source (stays Paid) + partial overcharge→wallet |
+| `demo-sez` | Tax — SEZ zero-rating (tax 0 **with** `sez_lut` reason) |
+| `demo-tds` | Tax — TDS withholding (`expected_collection` < `total`) |
+| `demo-recon` | Reconciliation — an ambiguous initiated attempt awaiting the job |
+| `demo-razorpay` | Razorpay UPI Autopay mandate (ceiling = trust-tier cap) |
+
+**Agent records** (`agent.local`): Plan Cache, a multi-segment Plan Subscription
+Log (subscribed→changed→cancelled, some unsynced), counter + gauge Usage Meters,
+and three Entitlement Tokens whose `enforcement_state` shows the key distinction
+— `demo` → **running**, `demo-suspended` → **stopped**, `demo-expired` →
+**running** (a stale token never stops a customer's resources).
 
 > Gateway SDKs: `stripe>=15` + `razorpay` are declared in
 > `press_billing/pyproject.toml` (the old `stripe 2.56` breaks on Python 3.14).
