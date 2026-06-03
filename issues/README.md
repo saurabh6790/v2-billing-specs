@@ -27,8 +27,9 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [15](15-refunds.md) | Refunds — full→source, partial→wallet | AFK | 06, 10 | P3 |
 | [16](16-free-trial-cost-report.md) | Free/trial cost_report | AFK | 07, 09 | P3 |
 | [17](17-erpnext-async-sync.md) | ERPNext async Sales Invoice sync | AFK | 10 | P3 |
-| [18](18-customer-dashboard-forecast.md) | Customer dashboard + forecast | AFK | 09, 11, 12 | P4 |
-| [19](19-admin-dashboard.md) | Admin dashboard | AFK | 09, 16 | P4 |
+| [26](26-billing-portal-frontend-scaffold.md) | Billing portal frontend scaffold (Frappe-UI) | AFK | 01 | P4 |
+| [18](18-customer-dashboard-forecast.md) | Customer dashboard + forecast | AFK | 26, 09, 11, 12 | P4 |
+| [19](19-admin-dashboard.md) | Admin dashboard | AFK | 26, 09, 16 | P4 |
 | [20](20-notification-suite.md) | Notification suite (sole sender) | AFK | 10, 14 | P4 |
 | [21](21-reconciliation-job.md) | Reconciliation job | **HITL** | 10 | P4 |
 | [22](22-security-load-hardening.md) | Security + load hardening | AFK | 10 | P4 |
