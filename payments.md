@@ -99,6 +99,10 @@ See [credits.md](credits.md) for the full settlement model (≥1 source required
 
 **Mandate ceilings.** A mandate (UPI Autopay, etc.) has a fixed `max_amount`. To make "bill exceeds mandate" structurally impossible, **mandate `max_amount` = the team's trust-tier cap**. A promotion that raises the cap requires **mandate re-authorisation** (customer re-consent); until then the customer is held at the old ceiling. **Cards are exempt** (off-session, any amount).
 
+**Razorpay: card *or* UPI (don't force UPI).** Razorpay does both rails as recurring tokens via the same Checkout → token → recurring-charge flow (`setup_payment_method` takes `method` ∈ {`upi`, `card`}). The "Add payment method" dialog lets the team **choose**; it isn't UPI-only. **UPI Autopay has a ₹1,00,000 recurring ceiling** (the MCC limit) — a recurring UPI charge above it fails at the gateway. So UPI is **blocked** (UI hides it; `setup_mandate` refuses as the server backstop) when the **trust-tier cap or the last invoice ≥ ₹1,00,000**, steering the team to a card (cards carry no such limit). `mandates.upi_eligibility(team)` is the single source of that decision; `dashboard.get_payment_method_options` surfaces it to the UI.
+
+**Gateway resolved by currency + adapter, not "default".** The add-method flow offers what the team's currency supports: **INR → Razorpay** (card + UPI; chosen by *adapter*, so a Stripe-INR gateway flagged `is_default_for_currency` never hides UPI); **USD/EUR → Stripe**, card only — Razorpay is never shown to a non-INR team. The Stripe card is added with Stripe.js Elements against a SetupIntent (PCI: the PAN never reaches the server). `dashboard._add_method_gateway(currency)` is the resolver.
+
 ## Webhooks (signature-first)
 
 All gateway webhooks land at `/api/method/cloud_billing.webhooks.<gateway>`:

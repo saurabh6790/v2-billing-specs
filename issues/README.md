@@ -27,6 +27,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [14](14-retry-dunning-suspension.md) | Retry/dunning + staged suspension | AFK | 07, 10 | P3 |
 | [15](15-refunds.md) | Refunds — full→source, partial→wallet | AFK | 06, 10 | P3 |
 | [28](28-secondary-payment-method-fallback.md) | Secondary payment methods + settlement fallback + UI | AFK | 10, 11, 14 | P3 |
+| [29](29-razorpay-card-or-upi-gateway-aware-add.md) | Add-method: card-or-UPI choice, UPI ₹1L gate, currency-correct gateway | AFK | 05, 08, 28 | P3 |
 | [16](16-free-trial-cost-report.md) | Free/trial cost_report | AFK | 07, 09 | P3 |
 | [17](17-erpnext-async-sync.md) | ERPNext async Sales Invoice sync | AFK | 10 | P3 |
 | [26](26-billing-portal-frontend-scaffold.md) | Billing portal frontend scaffold (Frappe-UI) | AFK | 01 | P4 |
