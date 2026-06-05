@@ -72,11 +72,26 @@ active → expired (monthly expiry scheduler)
 | method_type | Select | card / upi_autopay / prepaid_credits |
 | gateway_method_id | Data | Stripe `pm_xxx`, Razorpay mandate ID |
 | status | Select | pending_validation / active / expired / failed |
-| is_default | Check | |
+| is_default | Check | Mirror of `priority == 0` (the primary); kept for back-compat |
+| priority | Int | **Fallback order** — 0 = primary, 1 = first backup, … (team-scoped, dense) |
 | display_label | Data | "Visa ····4242" |
 | expiry_month / expiry_year | Int | |
 | mandate_max_amount | Currency | = trust-tier cap (mandate methods only) |
 | validated_at | Datetime | |
+
+**No duplicate card across slots.** A team cannot register the same card (same `gateway_method_id`) twice — the controller rejects it on validate. Using the same card as both primary *and* backup gives no real fallback, so it is disallowed.
+
+## Settlement fallback (primary → backup methods)
+
+A team keeps an **ordered list** of active methods (by `priority`). When credits don't cover a bill, settlement charges the **primary**, and on failure rotates to the next method. Because a charge is confirmed **asynchronously** (the invoice goes `Paid` only on the webhook — see Charge flow), fallback is **event-driven**, not a synchronous try/except cascade:
+
+- A decline arrives on one of two timelines: **synchronously** (`PaymentResult.success == False` at charge time) or **asynchronously** (a webhook failure event later).
+- Both funnel into one idempotent collector, `collect_invoice(invoice)`, which charges **the next active, non-re-auth method that has not already failed for this invoice**, deriving the "already failed" set from the invoice's `Payment Attempt` rows (no extra state).
+- **Immediate fallback:** on a synchronous decline the collector rotates to the next method **within the same run**. A synchronous success (captured) stops and waits for the webhook; a webhook failure re-enters the collector to rotate.
+- **Escalate, don't repeat:** each method is tried **at most once per invoice**. Once every method has failed, the collector returns "no method" and the invoice is left `Open` for dunning ([#14](issues/14-retry-dunning-suspension.md)) to escalate (Overdue → suspend) — it does **not** re-charge a method that already failed.
+- The existing in-flight guard + `Invoice … FOR UPDATE` lock keep re-entry from double-charging.
+
+Credits are untouched by fallback — they are consumed once before the card legs (the credits-then-card waterfall in [credits.md](credits.md)); fallback only re-charges the card **remainder**.
 
 ## Settlement & mandates
 
