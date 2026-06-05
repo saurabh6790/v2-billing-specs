@@ -19,7 +19,9 @@ The earlier draft priced each included resource (`quantity_included × price_per
 
 ## Data model
 
-**Plan (bundle)** — immutable identity; child tables OK
+Rates are **not** child tables. Following ERPNext's `Item Price` pattern, every rate is a row in **one** standalone DocType — **`Catalog Rate`** — shared by both Plan and Add-on through a **Dynamic Link**. (`Item Price` is a single table that prices every `Item`; likewise one `Catalog Rate` table prices every bundle *and* every add-on — no `Plan Rate` + `Add-on Rate` duplication.) This keeps the plan/add-on identity small and immutable, lets a rate be created/edited/queried/permissioned on its own, and makes "add a region or currency" a new **document**, not a child row buried inside the parent. The parent surfaces its rates through a **connection** (dashboard link), exactly like an `Item` lists its `Item Price`s.
+
+**Plan (bundle)** — immutable identity; no rate child table
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -28,16 +30,7 @@ The earlier draft priced each included resource (`quantity_included × price_per
 | billing_cycle | Select | monthly / annual |
 | annual_discount_pct | Float | |
 | is_active | Check | |
-| rates | Table → Plan Rate | Region × currency rates |
-| includes | Table → Plan Includes | Composition (spec only) |
-
-**Plan Rate** (child of Plan) — region × currency
-
-| Field | Type | Notes |
-|-------|------|-------|
-| cluster | Data | **Blank = global default**; else a region/cluster key (e.g. `ap-south-1`) |
-| currency | Link → Currency | INR, USD, … — going generic is *adding a row*, never a column |
-| rate | Currency | The flat rate in that currency for that region |
+| includes | Table → Plan Includes | Composition (spec only) — stays a child, it carries no price |
 
 **Plan Includes** (child of Plan) — composition, **no price**
 
@@ -47,7 +40,7 @@ The earlier draft priced each included resource (`quantity_included × price_per
 | quantity | Float | Included amount; also the metered **allowance** baseline |
 | unit | Data | vCPU / GB / unit |
 
-**Add-on** — immutable identity; per-unit
+**Add-on** — immutable identity; per-unit; no rate child table
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -57,9 +50,18 @@ The earlier draft priced each included resource (`quantity_included × price_per
 | unit | Data | GB / unit |
 | billing_type | Select | fixed / metered |
 | billing_interval | Select | hourly / daily / monthly |
-| rates | Table → Add-on Rate | Region × currency, **per-unit** rate |
 
-**Add-on Rate** (child of Add-on) — same `(cluster, currency, rate)` shape as Plan Rate; `rate` is per-unit.
+**Catalog Rate** — **single standalone DocType** (ERPNext `Item Price` style), one row per `(parent, cluster, currency)`; serves Plan and Add-on via a Dynamic Link
+
+| Field | Type | Notes |
+|-------|------|-------|
+| priced_doctype | Link → DocType | The dynamic-link target type: `Plan` or `Add-on` (validated to those two) |
+| priced_for | Dynamic Link → `priced_doctype` | The specific bundle (`bundle-2vcpu`) or add-on (`addon-bandwidth`) |
+| cluster | Data | **Blank = global default**; else a region/cluster key (e.g. `ap-south-1`). Plain `Data` for now — upgrade to `Link → Cluster` when a `Cluster` DocType exists |
+| currency | Link → Currency | INR, USD, … — going generic is *adding a document*, never a column |
+| rate | Currency | Plan: the flat rate. Add-on: the per-unit rate. Same column, billing decides `qty × rate` vs flat |
+
+`autoname` by `{priced_for}-{cluster}-{currency}` (cluster omitted when global). Plan/add-on identities are already distinct (`bundle-2vcpu`, `addon-bandwidth`), so the name is human-readable and the `(priced_doctype, priced_for, cluster, currency)` tuple is unique.
 
 **Price-lock** (append-only; keyed by `resource_id`) — see also `Subscription Resource` in [subscriptions.md](subscriptions.md).
 
@@ -77,11 +79,11 @@ The earlier draft priced each included resource (`quantity_included × price_per
 
 Given a `(plan-or-addon, team currency, resource cluster)`:
 
-1. Take the rate rows matching the **currency**.
-2. Prefer the row whose **cluster** matches the resource's region; otherwise fall back to the **global** (blank-cluster) row.
+1. Query the `Catalog Rate` documents for that **plan/add-on** (`priced_doctype` + `priced_for`) and **currency**.
+2. Prefer the document whose **cluster** matches the resource's region; otherwise fall back to the **global** (blank-cluster) document.
 3. That rate is the live catalog rate.
 
-A team has **one billing currency** (see [architecture.md](architecture.md)); the **cluster** comes from where the resource actually runs (reported by the Agent). One plan identity therefore covers every currency and every region — **no plan-per-currency, no plan-per-region**. AWS US-vs-India price differences are extra `Plan Rate` rows, not extra plans.
+A team has **one billing currency** (see [architecture.md](architecture.md)); the **cluster** comes from where the resource actually runs (reported by the Agent). One plan identity therefore covers every currency and every region — **no plan-per-currency, no plan-per-region**. AWS US-vs-India price differences are extra `Catalog Rate` documents, not extra plans.
 
 ## Grandfathering (price-lock mechanism)
 
@@ -93,7 +95,7 @@ Rules:
 - Existing resource keeps its locked rate until **terminated/re-provisioned** — no time-based expiry.
 - Destroy-then-reprovision of the "same" bundle is a *different* `resource_id` → a *new* lock at the then-current resolved rate.
 - Upgrade/downgrade: old resource's lock closes (terminated), new resource opens a new lock at the new bundle's current rate.
-- Admin rate change = edit one `Plan Rate` row, or **add a region override row**. Existing locks untouched; new provisions lock the new rate. Zero new plans.
+- Admin rate change = edit one `Catalog Rate` document, or **create a region-override document**. Existing locks untouched; new provisions lock the new rate. Zero new plans.
 - Admin escape hatch: bulk "re-lock to current rate" for forced migrations (e.g. sunsetting a bundle).
 
 ## Catalog distribution & price display
@@ -110,9 +112,13 @@ GET  /api/resource/Plan?filters=[["is_active","=",1]]
 GET  /api/resource/Plan/{name}
 GET  /api/resource/Add-on
 
-# [Admin] Create / update (a rate change = edit a Plan Rate row, no new plan)
+# [Customer + Admin] A plan/add-on's rates are their own documents (the connection target)
+GET  /api/resource/Catalog Rate?filters=[["priced_doctype","=","Plan"],["priced_for","=","bundle-2vcpu"]]
+
+# [Admin] Create / update — a rate change is a Catalog Rate doc, not a plan edit
 POST /api/resource/Plan
-PUT  /api/resource/Plan/{name}
+POST /api/resource/Catalog Rate
+PUT  /api/resource/Catalog Rate/{name}
 
 # [Admin] Push bundles (+ includes + rates) to an Agent
 POST /api/method/press_billing.sync.push_plans_to_agent
@@ -126,4 +132,15 @@ GET  /api/method/press_billing.plans.get_plan_pricing?plan=bundle-2vcpu&currency
 
 - Bundles never multiply `qty × rate`; add-ons do.
 - Pricing is **read live at purchase** (human pace), **locked at provision** (per currency + region), and **frozen for billing** (machine pace). Three roles, one number.
-- Generic by construction: a new currency or a new region is a new `Plan Rate` row — never a new plan.
+- Generic by construction: a new currency or a new region is a new `Catalog Rate` **document** — never a new plan.
+
+## Connections
+
+DocTypes that point at each other are wired as Frappe **connections** (the dashboard "Connections"/Links tab) so an admin can pivot between related records without a query. The links follow the actual link fields:
+
+- **Plan** → `Catalog Rate` (via the `priced_for` dynamic link, `priced_doctype = Plan`) and price-lock (via `plan`). Opening a bundle shows its rate documents grouped under "Pricing" and every lock that references it.
+- **Add-on** → `Catalog Rate` (via `priced_for`, `priced_doctype = Add-on`).
+- **Currency** → `Catalog Rate` (via `currency`).
+- **Price-lock** → `Plan` (via `plan`).
+
+Dynamic-link connections use `non_standard_fieldnames`/`dynamic_links` in the parent's `*_dashboard.py` (`get_data`), matching how ERPNext's `Item` dashboard surfaces `Item Price`. (`cluster` is plain `Data` for now, so it has no connection until it becomes `Link → Cluster`.)

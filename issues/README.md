@@ -9,6 +9,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
 | [01](01-app-scaffold-plan-catalog.md) | App scaffold + Plan catalog + push to Agent Plan Cache | AFK | — | P1 |
+| [27](27-rates-standalone-doctype-migration.md) | Plan/Add-on rates → one `Catalog Rate` DocType (Item Price style, Dynamic Link) + migration | AFK | 01 | P1 |
 | [02](02-gateway-adapter-webhook-spine.md) | Gateway config + adapter interface + Stripe + signature-first webhook | AFK | — | **GW** |
 | [24](24-gateway-integration-port-decommission.md) | Port & decommission existing gateway integrations | AFK | 02 | **GW** |
 | [08](08-razorpay-upi-mandate.md) | Razorpay adapter + UPI Autopay mandate (cap = tier) | AFK | 02, 07 | **GW** |
