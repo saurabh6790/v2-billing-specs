@@ -37,6 +37,10 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [21](21-reconciliation-job.md) | Reconciliation job | **HITL** | 10 | P4 |
 | [22](22-security-load-hardening.md) | Security + load hardening | AFK | 10 | P4 |
 | [23](23-migration-tooling.md) | Migration tooling (gradual per-team) | **HITL** | 09, 17 | post |
+| [30](30-commitment-spend-floor-discount.md) | Commitment — team spend-floor + discounted monthly invoice | AFK | 09 | P3 |
+| [31](31-commitment-clawback.md) | Commitment — clawback on breach | AFK | 30 | P3 |
+| [32](32-live-priced-snapshot-add-on.md) | Live-priced snapshot add-on (`pricing_mode`, own `resource_id`, no allowance) | AFK | 12, 27 | P3 |
+| [33](33-plan-configurator-authoring-ui.md) | Plan Configurator authoring UI (millicore + memory-ratio pre-fill) | AFK | 01, 27 | P4 |
 
 ## Gateway Integrations milestone (GW)
 
@@ -51,3 +55,4 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 
 - **HITL:** #21 (reconciliation terminal-state model is an open design item), #23 (deferred ~6mo; needs migration sign-off). All others AFK — the 22 design decisions are settled.
 - Multi-currency credits (future) is folded into #06 as a noted extension, not a separate slice.
+- **#30–#33** come from the plan/pricing grilling session (see [final-plan-pricing.md](../final-plan-pricing.md), [ADR 0001](../docs/adr/0001-commitment-as-team-spend-floor.md), [ADR 0002](../docs/adr/0002-live-priced-storage-add-ons.md)). All AFK — designs settled by the two ADRs. Tiered pricing is explicitly future ([final-plan-pricing.md](../final-plan-pricing.md) §10), no slice yet.
