@@ -40,12 +40,18 @@ Join the Agent event log (time windows) to Central price-locks (locked price). D
 
 ```
 Agent log (resource R):  plan-2vcpu Jun1→Jun10, plan-4vcpu Jun10→Jun22, plan-2vcpu Jun22→Jun30
-Locked prices:           plan-2vcpu ₹1000/mo, plan-4vcpu ₹2000/mo
-Result (new plan wins the day of change):
-  plan-2vcpu Jun1–9   =  9 × (1000/30) = 300.00
-  plan-4vcpu Jun10–21 = 12 × (2000/30) = 800.00
-  plan-2vcpu Jun22–30 =  9 × (1000/30) = 300.00
+Locked prices:           plan-2vcpu ₹1000/mo, plan-4vcpu ₹2000/mo   (display)
+Result (new plan wins the day of change), all math in integers:
+  plan-2vcpu Jun1–9   =  9 × (₹1000) / 30 → round_half_up = 30000 paisa (₹300.00)
+  plan-4vcpu Jun10–21 = 12 × (₹2000) / 30 → round_half_up = 80000 paisa (₹800.00)
+  plan-2vcpu Jun22–30 =  9 × (₹1000) / 30 → round_half_up = 30000 paisa (₹300.00)
 ```
+
+> Rate is held in **rate units** (minor × 10⁶), quantity/days are exact, and the divide rounds
+> **half away from zero to the minor unit once per line item** — see
+> [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). Summing line items into the subtotal is
+> exact integer addition, so two independent recomputations of an invoice are bit-identical (the
+> reconciliation job depends on this).
 
 Rules:
 - **New plan wins the day** of a change.
@@ -63,12 +69,12 @@ Rules:
 | invoice_type | Select | billable / cost_report (free/trial) |
 | period_start / period_end | Date | |
 | status | Select | Draft / Open / Paid / Overdue / Waived / Cancelled |
-| subtotal | Currency | |
+| subtotal | Long Int | **Minor units** (paisa/cent) — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). Σ of already-rounded line-item amounts (integer sum, exact) |
 | (tax block) | | See [tax.md](tax.md) — output tax, zero-rating, withholding |
-| credit_applied | Currency | |
-| total | Currency | subtotal + output_tax |
-| expected_collection | Currency | total − tds_amount (auto-charge target) |
-| amount_paid | Currency | `paid` when amount_paid ≥ expected_collection |
+| credit_applied | Long Int | Minor units |
+| total | Long Int | Minor units — subtotal + output_tax |
+| expected_collection | Long Int | Minor units — total − tds_amount (auto-charge target) |
+| amount_paid | Long Int | Minor units — `paid` when amount_paid ≥ expected_collection |
 | due_date | Date | |
 | erpnext_invoice / pdf_url | Data | |
 
@@ -78,9 +84,9 @@ Rules:
 |-------|------|-------|
 | subscription_resource | Link | Source of locked price |
 | resource_type / unit / quantity | | |
-| rate | Currency | Locked price copied at generation |
+| rate | Long Int | **Rate units** (minor × 10⁶) — locked rate copied at generation |
 | days | Int | Whole units active (with max-1 floor) |
-| amount | Currency | days × (rate / units_in_period) |
+| amount | Long Int | **Minor units** — `round_half_up(days × rate / units_in_period / 10⁶)`; rounded **once, here** |
 
 ## Invoice states
 

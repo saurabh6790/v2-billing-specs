@@ -123,7 +123,7 @@ standalone DocType — **`Catalog Rate`** — shared by Plan and Add-on through 
 | priced_for | Dynamic Link | the specific `bundle-2vcpu` / `addon-snapshot` |
 | cluster | Data | **blank = global default**; else region key (`ap-south-1`) |
 | currency | Link → Currency | INR, USD, … |
-| rate | Currency | bundle = flat rate; add-on = per-unit rate |
+| rate | Long Int | **Rate units** (minor × 10⁶), never a float — bundle = flat rate; add-on = per-unit rate. See [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) |
 
 **Resolution** for `(plan-or-addon, team currency, resource cluster)`: query by
 `priced_doctype + priced_for + currency`, prefer the row whose `cluster` matches the resource's

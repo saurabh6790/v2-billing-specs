@@ -33,7 +33,7 @@ It makes no gateway calls, computes no invoices, holds no pricing logic, and *de
 | team | Data | |
 | resource_id | Data | Stable physical resource identity — the price-lock key on Central |
 | plan | Link → Plan Cache | |
-| shown_rate | Currency | Rate displayed at provision (resolved for currency + cluster) — Central locks this |
+| shown_rate | Long Int | **Rate units** (minor × 10⁶) — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). Rate displayed at provision (resolved for currency + cluster) — Central locks this |
 | currency | Data | Currency the rate was shown/resolved in |
 | event_type | Select | subscribed / changed / cancelled |
 | effective_from / effective_to | Datetime | effective_to null = active |
