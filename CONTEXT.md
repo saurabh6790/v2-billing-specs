@@ -43,6 +43,24 @@ One standalone DocType (ERPNext `Item Price` style) holding every bundle's and a
 row per `(priced_for, cluster, currency)`. A new currency or region is a new Catalog Rate
 *document*, never a new bundle and never a new column.
 
+**Minor unit**:
+The smallest indivisible amount of a currency — **paisa** for INR, **cent** for USD. All settled
+money (line-item amount, subtotal, total, tax, credit, balance, what the gateway charges) is a
+**64-bit integer count of minor units** — never a float, never a `Currency` field. The integer ÷
+the currency's per-currency factor (`100` for INR/USD, `1` for JPY, `1000` for BHD — read from the
+**Currency** DocType, never hardcoded) is a display step only. See
+[ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). This is the Razorpay (paise) / Stripe
+(cents) charge model used as the internal representation.
+_Avoid_: float rupees, `Currency` field, "amount in rupees". (₹10.00 is `1000`, not `10.0`.)
+
+**Rate unit**:
+The sub-minor scale a **per-unit rate** is stored at — minor units × 10⁶ — so a sub-paisa metered
+rate (the real €0.009/GB transfer rate → `900000` rate units) is representable, mirroring Stripe's
+`unit_amount_decimal`. Held as `Long Int`; the scale is currency-independent (six extra decimals).
+A flat bundle rate is the whole-number case. Rounding from rate units to settled minor units happens
+**once per line item** (half away from zero), never on a stored or intermediate value.
+_Avoid_: storing per-unit rates in plain paisa (overcharges sub-paisa meters).
+
 ### Pricing in time
 
 **Commitment**:
@@ -104,6 +122,10 @@ _Avoid_: Deleted, cancelled, off.
   (**price-lock**); depreciating storage (**snapshot**) is a deliberate **live-priced** exception.
   `metering.md` still says "rate locked at provision" — that holds for grandfathered add-ons but
   not live-priced ones; reconcile when that doc is next touched.
+- **"rate" / "amount" are integers, not rupees.** A **rate** is in **rate units** (minor × 10⁶); an
+  **amount** is in **minor units** (paisa/cent). Both are `Long Int` (`bigint`) — never a float,
+  `Currency`, or plain `Int` (which caps at ₹2.1 cr). Any spec table still typing money `Currency`
+  predates [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) and is being migrated.
 
 ## Example dialogue
 

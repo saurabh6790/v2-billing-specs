@@ -27,6 +27,10 @@ class GatewayAdapter:
 ```
 
 Notes on the seam:
+- **Amounts cross the seam as integer minor units** — `charge`/`refund` read the invoice/attempt
+  amount (already paisa/cent — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) and pass
+  it straight to Razorpay `amount` (paise) / Stripe `amount` (cents). No float→int conversion, no
+  rounding at the boundary: the integer billing computed is the integer charged.
 - `parse_webhook_event` receives headers because Razorpay's dedupe id is in the `X-Razorpay-Event-Id` header while Stripe's is in the body.
 - `verify_payment_signature` is the **client checkout callback** verification (Razorpay UPI Autopay authorisation / one-time order) — distinct from `verify_webhook_signature`. Stripe confirms via intent status, so it leaves this unsupported.
 - Declines return a failed `PaymentResult`; transient/network failures raise `GatewayTimeout` so a retry reuses the same idempotency key.
@@ -76,7 +80,7 @@ active → expired (monthly expiry scheduler)
 | priority | Int | **Fallback order** — 0 = primary, 1 = first backup, … (team-scoped, dense) |
 | display_label | Data | "Visa ····4242" |
 | expiry_month / expiry_year | Int | |
-| mandate_max_amount | Currency | = trust-tier cap (mandate methods only) |
+| mandate_max_amount | Long Int | **Minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) = trust-tier cap (mandate methods only) |
 | validated_at | Datetime | |
 
 **No duplicate card across slots.** A team cannot register the same card (same `gateway_method_id`) twice — the controller rejects it on validate. Using the same card as both primary *and* backup gives no real fallback, so it is disallowed.
@@ -150,7 +154,7 @@ The `authorised` event advances only from `initiated` (it never walks a terminal
 | invoice | Link → Invoice | |
 | gateway | Link → Payment Gateway | |
 | payment_method | Link → Payment Method | |
-| amount / currency | Currency / Data | |
+| amount / currency | Long Int / Data | amount in **minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) |
 | idempotency_key | Data | Unique — drives gateway dedupe |
 | status | Select | initiated / authorised / captured / failed / refunded |
 | gateway_transaction_id | Data | |
@@ -185,7 +189,7 @@ The `authorised` event advances only from `initiated` (it never walks a terminal
 | name | Data | |
 | payment_attempt | Link → Payment Attempt | The original charge |
 | invoice | Link → Invoice | Stays `Paid` (no "refunded" state) |
-| amount / currency | Currency / Data | |
+| amount / currency | Long Int / Data | amount in **minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) |
 | destination | Select | source (gateway) / wallet (credit ledger) |
 | reason | Small Text | |
 | gateway_refund_id | Data | |

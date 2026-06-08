@@ -17,17 +17,19 @@ Model tax correctly as **three structurally different mechanics** — not one ra
 | Field | Type | Notes |
 |-------|------|-------|
 | output_tax_type | Select | GST / VAT / none (additive) |
-| output_tax_rate | Float | |
-| output_tax_amount | Currency | added to total |
+| output_tax_rate | Float | a percentage, not money — stays `Float` |
+| output_tax_amount | Long Int | **Minor units** — `round_half_up(subtotal × output_tax_rate / 100)`, rounded once. Added to total. [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) |
 | zero_rating_reason | Select | sez_lut / export / null |
 | tds_applicable | Check | customer self-declares (has TAN) |
-| tds_rate | Float | |
-| tds_amount | Currency | withheld — reduces collected, not total. **0 at launch** |
+| tds_rate | Float | a percentage, not money — stays `Float` |
+| tds_amount | Long Int | **Minor units** — `round_half_up(total × tds_rate / 100)`, withheld; reduces collected, not total. **0 at launch** |
 | tds_certificate_received | Check | gate for closing a withheld invoice |
 
 ## Collection & paid-state
 
-- `total = subtotal + output_tax_amount`
+All amounts below are **integer minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)); the rate fields are percentages.
+
+- `total = subtotal + output_tax_amount` (exact integer addition)
 - `expected_collection = total − tds_amount` (the auto-charge / mandate target)
 - `paid` ⇔ `amount_paid ≥ expected_collection` (certificate gate trivially satisfied when withholding = 0)
 

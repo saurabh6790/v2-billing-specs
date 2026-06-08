@@ -21,7 +21,7 @@ Capture usage-based consumption (transfer, snapshot) for billing and forecasting
 | resource_id | Data | Same key as the price-lock on Central |
 | meter_type | Select | counter / gauge |
 | period_start / period_end | Datetime | |
-| quantity | Float | Summed deltas (counter) or GB-days (gauge) |
+| quantity | Float | Summed deltas (counter) or GB-days (gauge). A physical **measure**, not money — stays `Float` ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)); only its product with a rate rounds to minor units |
 | unit | Data | GB, etc. |
 | last_sampled_at | Datetime | |
 | idempotency_key | Data | `(resource_id, meter_type, period)` — a re-push **replaces**, never adds |
@@ -35,7 +35,7 @@ Capture usage-based consumption (transfer, snapshot) for billing and forecasting
 
 ## Billing
 
-Metered bill = `max(0, quantity − locked_allowance) × locked_rate`. Rate and allowance are **locked at provision** in the same price-lock row as fixed prices (see [plans-and-pricing.md](plans-and-pricing.md)), so metered pricing is grandfathered identically.
+Metered bill = `round_half_up(max(0, quantity − locked_allowance) × locked_rate / 10⁶)` minor units — `quantity` is the `Float` measure, `locked_rate` is in **rate units** (minor × 10⁶), and the product rounds to the minor unit **once** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)). The sub-minor rate scale is what lets a live snapshot rate of ₹0.30/GB-month bill correctly. Rate and allowance are **locked at provision** in the same price-lock row as fixed prices (see [plans-and-pricing.md](plans-and-pricing.md)), so grandfathered metered pricing is grandfathered identically; live-priced add-ons (snapshot) read the current rate instead (see [ADR 0002](docs/adr/0002-live-priced-storage-add-ons.md)).
 
 ## Invariant
 

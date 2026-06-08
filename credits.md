@@ -17,8 +17,8 @@ An append-only credit ledger that is the customer's prepaid wallet and an altern
 |-------|------|-------|
 | team | Link → Team | |
 | entry_type | Select | credit / debit |
-| amount | Currency | always positive |
-| running_balance | Currency | balance after this entry |
+| amount | Long Int | **Minor units** (paisa/cent), always positive — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). The v1 drift bug was a stored float balance; integer minor units cannot drift |
+| running_balance | Long Int | Minor units — balance after this entry (exact integer sum of the ledger; may be signed) |
 | reference_type / reference_name | Data | Invoice / Payment Attempt / etc. |
 | note | Small Text | |
 | created_at | Datetime | |
