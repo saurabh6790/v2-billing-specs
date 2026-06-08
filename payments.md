@@ -130,7 +130,17 @@ No business logic runs in the HTTP request cycle.
 
 ## Charge flow & idempotency
 
-`Open` → `charge()` with `idempotency_key = payment_attempt.name` → **wait for webhook to mark `Paid`** (never mark paid on the API response). Each attempt is a new **Payment Attempt** record.
+`Open` → create a new **Payment Attempt against that invoice** → `charge()` with `idempotency_key = payment_attempt.name` → **wait for the webhook to mark `Paid`** (never mark paid on the API response). Each charge of an invoice is a new Payment Attempt record (`invoice` link + incrementing `retry_number`); the API response only stamps `gateway_transaction_id`, never a terminal status.
+
+**The Payment Attempt is webhook-driven.** The synchronous `charge()` call leaves the attempt at `initiated`; from there its status is advanced **only** by the respective gateway webhook callback for that transaction (resolved back to the attempt via `gateway_transaction_id`, or `idempotency_key` for Stripe). The webhook job that flips the invoice `Open → Paid` is the same job that advances the attempt — one normalised event updates both. Mapping:
+
+| Normalised webhook event | Payment Attempt status | Invoice effect |
+|--------------------------|------------------------|----------------|
+| `payment.authorised` / intent `requires_capture` | `authorised` | — (no ledger move yet) |
+| `payment.captured` / `payment_intent.succeeded` | `captured` | `Open → Paid`, `amount_paid` set, ledger debit |
+| `payment.failed` / `payment_intent.payment_failed` | `failed` (with `failure_code` / `failure_reason`) | stays `Open`; re-enters `collect_invoice` for fallback ([#28](issues/28-secondary-payment-method-fallback.md)) / dunning ([#14](issues/14-retry-dunning-suspension.md)) |
+
+The `authorised` event advances only from `initiated` (it never walks a terminal attempt backwards if the capture/fail callback raced ahead). The terminal `refunded` state is set by the Refund flow ([#15](issues/15-refunds.md)), not this charge webhook — the invoice stays `Paid`. Unmatched or out-of-order events are no-ops (the `Webhook Event` dedupe on `gateway_event_id` already guarantees each callback applies once). The `Invoice … FOR UPDATE` lock keeps concurrent `pay_invoice` calls from producing two `captured` attempts.
 
 **Payment Attempt** (separate DocType — not child of Invoice)
 
@@ -148,6 +158,14 @@ No business logic runs in the HTTP request cycle.
 | failure_code | Data | |
 | failure_reason | Small Text | |
 | retry_number | Int | 0 = first attempt |
+
+## Log retention & cleanup
+
+`Payment Attempt` and `Webhook Event` are high-volume append-only logs (one row per charge / per inbound callback). They are kept on a **rolling 3-month window** and pruned by a daily scheduler — the same pattern as `Sync Log` ([#03](issues/03-agent-event-log-price-lock.md)):
+
+- `charges.cleanup_payment_logs` (daily scheduler) deletes `Payment Attempt` and processed/ignored `Webhook Event` rows older than the window.
+- Window is site-config driven: `payment_log_retention_days`, **default 90 (~3 months)**.
+- **Never prune live records.** Skip any Payment Attempt that is non-terminal (`initiated` / `authorised`), whose invoice is still unsettled (`Open` / `Overdue`), or that is referenced by a `Refund`; keep any `Webhook Event` not yet handled (`received` / `failed`) so a stuck event stays visible for triage. Statutory amounts live on the Invoice / ERPNext Sales Invoice (the SOR), so pruning the gateway log loses no money trail.
 
 ## Retry & reconciliation
 
