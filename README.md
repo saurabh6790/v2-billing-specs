@@ -23,6 +23,7 @@ Two applications:
 | [payments.md](payments.md) | Gateway adapter, payment methods, settlement, mandates, webhooks, retry, reconciliation |
 | [credits.md](credits.md) | Credit ledger, wallet, settlement waterfall |
 | [tax.md](tax.md) | Three-mechanic tax model (output / zero-rating / withholding) |
+| [security.md](security.md) | Security standard — trust boundaries, threat model, controls, audit checklist, safe-extension rules |
 | [subscription-agent.md](subscription-agent.md) | The regional Agent app — DocTypes, sync behaviour |
 | [dashboard.md](dashboard.md) | Admin & customer dashboards |
 | [migration.md](migration.md) | v1 → v2 migration strategy |
