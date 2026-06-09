@@ -11,6 +11,7 @@ Core billing logic never imports gateway code. Each gateway implements:
 ```python
 class GatewayAdapter:
     # universal (every gateway implements)
+    def validate_credentials(self) -> dict                     # cheap authed read; raises on bad keys
     def setup_payment_method(self, team, setup_data) -> dict   # SetupIntent / mandate order
     def validate_payment_method(self, payment_method) -> bool  # micro-charge (Stripe)
     def charge(self, invoice, payment_method, idempotency_key) -> PaymentResult
@@ -20,6 +21,7 @@ class GatewayAdapter:
     def get_transaction_status(self, gateway_txn_id: str) -> str
 
     # optional, gateway-specific (base default raises GatewayUnsupported)
+    def register_webhook(self, callback_url: str, events: list[str] | None = None) -> dict  # → {endpoint_id, secret}; events defaults to the adapter's set
     def create_customer(self, team) -> str
     def verify_payment_signature(self, data: dict) -> bool     # checkout callback (Razorpay)
     def cancel_mandate(self, mandate_reference, customer_reference=None) -> bool
@@ -31,6 +33,8 @@ Notes on the seam:
   amount (already paisa/cent — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) and pass
   it straight to Razorpay `amount` (paise) / Stripe `amount` (cents). No float→int conversion, no
   rounding at the boundary: the integer billing computed is the integer charged.
+- `validate_credentials` makes the **cheapest possible authenticated read** against the gateway (Stripe `Account.retrieve()`, Razorpay an authed `payments` fetch) purely to prove the keys work. It returns the gateway account identity (used to confirm the keys match the expected account/currency) and raises `GatewayAuthError` on rejected credentials — it never charges or mutates anything.
+- `register_webhook` programmatically creates the webhook endpoint at the gateway pointed at this site's callback URL and returns the signing `secret` to store. Stripe `WebhookEndpoint.create(...)` returns a `whsec_…` secret; Razorpay's create-webhook API takes a secret the caller chooses, so the adapter **generates a strong random secret server-side**, registers it, and returns it. Gateways that can't self-register fall back to the base default (`GatewayUnsupported`) and the admin pastes the secret manually.
 - `parse_webhook_event` receives headers because Razorpay's dedupe id is in the `X-Razorpay-Event-Id` header while Stripe's is in the body.
 - `verify_payment_signature` is the **client checkout callback** verification (Razorpay UPI Autopay authorisation / one-time order) — distinct from `verify_webhook_signature`. Stripe confirms via intent status, so it leaves this unsupported.
 - Declines return a failed `PaymentResult`; transient/network failures raise `GatewayTimeout` so a retry reuses the same idempotency key.
@@ -49,12 +53,29 @@ One row per configured gateway. Credentials and webhook secrets are stored encry
 | currency | Data | Settlement currency this gateway handles (USD, INR) |
 | api_key | Password | Encrypted |
 | api_secret | Password | Encrypted |
-| webhook_secret | Password | Encrypted — used by `verify_webhook_signature` |
+| webhook_secret | Password | Encrypted — used by `verify_webhook_signature`. **System-managed: auto-filled by webhook auto-registration (read-only); not hand-entered when the gateway supports `register_webhook`** |
+| webhook_endpoint_id | Data | Gateway's id for the registered endpoint (Stripe `we_…`) — lets us rotate/de-register it |
+| credentials_validated_at | Datetime | Set when `validate_credentials` last passed; cleared when api_key/api_secret change |
 | supports_mandates | Check | True for UPI Autopay / SEPA-style gateways |
-| is_enabled | Check | Disabled gateways reject new charges |
+| is_enabled | Check | Disabled gateways reject new charges. **Cannot be enabled until credentials have validated** |
 | is_default_for_currency | Check | Picked when a team's currency matches |
 
 Managed only via the admin **Gateway Config** panel (see [dashboard.md](dashboard.md)). Secrets are never returned by any customer-facing API.
+
+### Gateway setup: validate keys + auto-fill webhook secret
+
+Configuring a gateway is the one place a wrong credential goes unnoticed until the first real charge fails. So setup is **validated and self-wiring** — the admin pastes only the API key/secret; the system proves them and provisions the webhook itself.
+
+On **save** of a Payment Gateway (controller `validate`), when `api_key` / `api_secret` are set or changed:
+
+1. **Validate the keys.** Call `adapter.validate_credentials()`. On `GatewayAuthError` → `frappe.throw` and the save is **rejected** (you cannot persist a gateway whose keys don't work). On success, stamp `credentials_validated_at` and confirm the returned account currency matches the configured `currency` (mismatch → throw — a USD-keyed account on an INR gateway is a misconfiguration). Validation only re-runs when the credentials actually change, so unrelated edits don't hammer the gateway.
+2. **Auto-register the webhook + fill the secret.** If there's no `webhook_endpoint_id` yet, call `adapter.register_webhook(callback_url, events)` where `callback_url` is this site's route for the gateway (`<site_url>/api/method/cloud_billing.webhooks.<adapter_key>`) and `events` is the adapter's required event set. Store the returned `webhook_endpoint_id` and write the returned signing secret into `webhook_secret`. The field is **read-only in the UI** — the admin never copy-pastes a `whsec_…` from the gateway dashboard.
+   - If the gateway can't self-register (`register_webhook` → `GatewayUnsupported`), `webhook_secret` falls back to a **required manual field** and the panel shows the callback URL to paste into the gateway dashboard.
+3. **Enable gate.** `is_enabled` cannot be turned on while `credentials_validated_at` is empty — a gateway only goes live once it has proven keys *and* a webhook secret to verify inbound callbacks against.
+
+**Rotation.** A **"Re-validate & re-register webhook"** action re-runs steps 1–2: it re-checks the keys and (re)creates the endpoint, rotating `webhook_secret`. Changing `api_key`/`api_secret` clears `credentials_validated_at`, forcing re-validation on the next save. De-registering (disable/delete) tears down the gateway-side endpoint via `webhook_endpoint_id` so no orphan endpoints keep firing — ties into gateway decommission ([#24](issues/24-gateway-integration-port-decommission.md)).
+
+This is admin-only and gateway-setup-time; it does not touch the hot charge/webhook paths above. See the gateway spine ([#02](issues/02-gateway-adapter-webhook-spine.md)).
 
 ## Payment Method lifecycle
 

@@ -12,6 +12,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [27](27-rates-standalone-doctype-migration.md) | Plan/Add-on rates → one `Catalog Rate` DocType (Item Price style, Dynamic Link) + migration | AFK | 01 | P1 |
 | [02](02-gateway-adapter-webhook-spine.md) | Gateway config + adapter interface + Stripe + signature-first webhook | AFK | — | **GW** |
 | [24](24-gateway-integration-port-decommission.md) | Port & decommission existing gateway integrations | AFK | 02 | **GW** |
+| [40](40-gateway-setup-validate-keys-webhook-autofill.md) | Gateway setup: validate credentials + auto-fill webhook secret | AFK | 02 | **GW** |
 | [08](08-razorpay-upi-mandate.md) | Razorpay adapter + UPI Autopay mandate (cap = tier) | AFK | 02, 07 | **GW** |
 | [25](25-paypal-adapter.md) | PayPal adapter | AFK | 02 | **GW** (post) |
 | [03](03-agent-event-log-price-lock.md) | Agent event log + push + Central price-lock | AFK | 01 | P2 |
@@ -54,6 +55,7 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 
 - **#02** — adapter interface + secure webhook spine + Stripe *(Phase 1 foundation; prerequisite for everything that moves money)*.
 - **#24** — port the existing Stripe/Razorpay integrations into the adapter model and decommission the old `frappe-payments` path *(Phase 1 foundation)*.
+- **#40** — validated, self-wiring gateway setup: `validate_credentials` rejects bad keys on save, `register_webhook` auto-fills the signing secret so no secret is hand-pasted.
 - **#08** — Razorpay + UPI Autopay mandate; the adapter is foundation, the mandate-ceiling-=-tier wiring completes alongside **#07** (its blocker).
 - **#25** — PayPal *(to-follow; post-launch, per spec)*.
 
