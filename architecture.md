@@ -53,7 +53,23 @@ Frappe Cloud v1 (Press) billing accumulated structural debt: prepaid credits as 
 - **Idempotency everywhere.** Gateway calls carry idempotency keys derived from `payment_attempt.name`; webhooks dedupe on `gateway_event_id`.
 - **Append-only ledgers.** Credit ledger and price-lock are append-only; balances computed from sums, never stored as scalars.
 
+## Packaging — Billing is a module of the Central app
+
+"Cloud Billing (Central)" above is a **role**, not a separate deployable. Billing
+ships as a **`billing` module inside the Central app** (`frappe/central`), and
+uses Central's team-scoped **capability IAM** (`Team` → `Team Role` →
+`Capability`, via `central.iam.can`) rather than billing-owned roles — see
+[ADR 0004](docs/adr/0004-billing-as-central-module-capability-iam.md) and issues
+[#41–#45](issues/README.md#central-merge-milestone-cm). The customer-facing
+**`team`** everywhere in billing is the Central `Team` DocType. Only the
+**backend** (data model + business logic + API) is part of this module; the
+billing dashboard UI is rebuilt by Central against the same APIs. The
+**Subscription Agent** remains its own per-cluster app — the source-of-truth split
+is unchanged.
+
 ## Notes
 
 - Single billing currency per team at launch (multi-currency per invoice is future).
 - Same gateway merchant accounts as v1 (simplifies migration). See [migration.md](migration.md).
+- The standalone `Billing Admin`/`Billing User` roles were a pre-merge placeholder
+  for Central identity; they are retired by [ADR 0004](docs/adr/0004-billing-as-central-module-capability-iam.md).

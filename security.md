@@ -68,31 +68,54 @@ Draw the boundaries first; every control is "what crosses this line, and how is 
 
 ## 3. Authentication & authorisation
 
-### 3a. Roles & endpoint gating — `billing/platform/security.py`
+> **Authz model by deployment.** Standalone, Billing gates on its own two Frappe roles (§3a-i).
+> Merged into the **Central** app (the target — [ADR 0004](docs/adr/0004-billing-as-central-module-capability-iam.md),
+> issues [#42](issues/42-adopt-central-capability-iam.md)/[#43](issues/43-team-link-to-central-team-migration.md)),
+> it gates on Central's **capability IAM** (§3a-ii) and defines no roles of its own. Either way the
+> invariant holds: **every** customer/admin whitelisted endpoint funnels through one guard on its
+> first line — the single authz seam; do not hand-roll checks elsewhere. An endpoint with no guard is
+> a finding, not a style nit.
 
-Two billing roles, and **every** customer/admin whitelisted endpoint funnels through one guard. This
-is the single authz seam; do not hand-roll role checks elsewhere.
+### 3a-i. Standalone roles — `billing/platform/security.py` (pre-merge)
 
 - `Billing Admin` — cross-team admin surface. Gate with **`require_billing_admin()`** → `PermissionError`
   (HTTP 403) for anyone lacking the role, **including the cluster-scoped Agent API key**.
-- `Billing User` — a customer, scoped to exactly one team. Gate with **`require_team_access(team)`**.
+- `Billing User` — a customer, scoped to exactly one team (the `User.billing_team` field). Gate with
+  **`require_team_access(team)`**.
 - `Administrator` / `System Manager` are treated as admin; this is intentional and must stay explicit
   (not an accidental wildcard).
 
-**Rule:** a new `@frappe.whitelist()` method that touches billing data **must** call a guard on its
-first line. An endpoint with no guard is a finding, not a style nit.
+### 3a-ii. Capability IAM — `central.iam` (post-merge, authoritative)
 
-### 3b. Tenant isolation (IDOR) — `require_team_access`
+Central authorises per **team** via `central.iam.can(user, team, capability)`. Billing reuses two
+capabilities already in Central's fixtures (`plane: central`, `resource: billing`), carried by the
+system Team Roles `Owner` and `Billing` (never `Admin`/`Developer`/`Viewer`):
 
-The customer dashboards take a `team` argument. The team a caller may see is derived **server-side
-from the session** (`get_user_team()`), never trusted from the request. `require_team_access(team)`
-rejects any team that is not the caller's own — *"never silently widened."* This is the defence
+- **`billing:view`** — gates every customer **read** endpoint → `can(user, team, "billing:view")`.
+- **`billing:manage`** — gates every **mutation** (pay, buy credits, edit methods/settings) →
+  `can(user, team, "billing:manage")`. This view/manage split replaces Billing's single gate.
+- **Cross-team admin** uses Central's **operator bypass** (`System Manager`,
+  `user_has_operator_bypass`); a dedicated `billing:operate` platform capability is a deferred,
+  Central-owned follow-up.
+
+The Agent API key holds neither capability, so `can(...)` returns False on every customer/admin
+endpoint — it reaches only the sync surface, exactly as the standalone role check intended.
+
+### 3b. Tenant isolation (IDOR)
+
+The customer dashboards take a `team` argument, but the team a caller may see is **always checked
+server-side**, never trusted from the request — *"never silently widened."* This is the defence
 against the v1-class enumeration of another tenant's invoices/ledger.
 
-- `get_user_team()` must resolve team membership from the **session/server**, never from a
-  client-supplied field.
+- **Standalone:** `require_team_access(team)` rejects any team that is not the caller's own
+  (`get_user_team()` resolves membership from the session, never a client field).
+- **Merged:** `can(user, team, "billing:view"|"billing:manage")` is the same check expressed as a
+  capability; teams come from `central.iam.get_user_team_names(user)`. A multi-team user selects a
+  current team, but every endpoint still re-checks `can(...)` — a passed team is never honoured
+  without it.
 - Passing another team's name → 403, not an empty result and not that team's data.
-- Admin browsing across teams is the *only* widening, and it requires the admin role.
+- Admin/operator browsing across teams is the *only* widening, and it requires the admin role /
+  operator bypass.
 
 ### 3c. Webhook endpoints (the only `allow_guest`)
 
