@@ -35,12 +35,24 @@ concurrency proofs stay untouched.
 
 ## Acceptance criteria
 
-- [ ] Authz suite exercises all roles × view/manage × membership cases above and
+- [x] Authz suite exercises all roles × view/manage × membership cases above and
   passes.
-- [ ] No test references `Billing Admin` / `Billing User` / `billing_team`.
-- [ ] Migration round-trip test proves lossless, idempotent slug→Team conversion.
-- [ ] Demo seeds produce navigable teams with real membership; portal scoping works.
-- [ ] Concurrency proofs still green under Central.
+- [x] No test references `Billing Admin` / `Billing User` / `billing_team`.
+- [x] Migration round-trip test proves lossless, idempotent slug→Team conversion.
+- [x] Demo seeds produce navigable teams with real membership; portal scoping works.
+- [x] Concurrency proofs still green under Central.
+
+**Status:** Done on `merge-billing` (cenral-bench). The capability-based authz
+tests, the migration round-trip basics, demo-seed real Teams, and the
+`run-tests --app central` harness all landed across #42/#43. This issue closes the
+matrix gaps: a new `make_custom_role_team` helper builds the **view-WITHOUT-manage**
+role no system role offers (Owner/Billing carry both, Viewer/Developer carry
+neither), asserted at both the `authz` seam (test_hardening) and the dashboard
+endpoints (test_dashboard); the denied case now covers Developer alongside Viewer;
+and a migration test proves two legacy slugs keep **distinct ownership** (no
+collapse/cross-wire). Full Central suite **309 green**, concurrency proofs
+untouched. (Bench note: `throttle_user_limit` raised on `central.local` so the
+many test users don't trip Frappe's 60/hour signup throttle.)
 
 ## Decisions baked in
 
