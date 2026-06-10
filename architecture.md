@@ -69,7 +69,7 @@ is unchanged.
 
 ## Notes
 
-- Single billing currency per team at launch (multi-currency per invoice is future).
+- Each team has one billing currency. Gateways are configured to handle multiple currencies via the `Payment Gateway Currency` child table; adding a new currency is a config change, not a code change. Multi-currency per invoice (one invoice spanning multiple currencies) remains a future consideration.
 - Same gateway merchant accounts as v1 (simplifies migration). See [migration.md](migration.md).
 - The standalone `Billing Admin`/`Billing User` roles were a pre-merge placeholder
   for Central identity; they are retired by [ADR 0004](docs/adr/0004-billing-as-central-module-capability-iam.md).

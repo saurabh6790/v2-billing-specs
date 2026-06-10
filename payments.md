@@ -50,15 +50,25 @@ One row per configured gateway. Credentials and webhook secrets are stored encry
 | name | Data | e.g. GW-Stripe, GW-Razorpay |
 | title | Data | Display name |
 | adapter_key | Select | stripe / razorpay / paypal — selects the `GatewayAdapter` impl |
-| currency | Data | Settlement currency this gateway handles (USD, INR) |
+| currencies | Table → Payment Gateway Currency | Currencies this gateway can settle; one row per currency |
 | api_key | Password | Encrypted |
 | api_secret | Password | Encrypted |
 | webhook_secret | Password | Encrypted — used by `verify_webhook_signature`. **System-managed: auto-filled by webhook auto-registration (read-only); not hand-entered when the gateway supports `register_webhook`** |
 | webhook_endpoint_id | Data | Gateway's id for the registered endpoint (Stripe `we_…`) — lets us rotate/de-register it |
 | credentials_validated_at | Datetime | Set when `validate_credentials` last passed; cleared when api_key/api_secret change |
 | supports_mandates | Check | True for UPI Autopay / SEPA-style gateways |
-| is_enabled | Check | Disabled gateways reject new charges. **Cannot be enabled until credentials have validated** |
-| is_default_for_currency | Check | Picked when a team's currency matches |
+| is_enabled | Check | Disabled gateways reject new charges |
+
+**Payment Gateway Currency** (child of Payment Gateway)
+
+| Field | Type | Notes |
+|-------|------|-------|
+| currency | Link → Currency | e.g. USD, INR, EUR |
+| is_default | Check | This gateway is the default handler for this currency. At most one enabled gateway may have `is_default = True` per currency — saving a row with `is_default = True` clears the flag on any other gateway row for the same currency. |
+
+A gateway handles as many currencies as it has rows in this child table (e.g. Stripe can carry USD, EUR, GBP; Razorpay carries INR). The `is_default` check is how the resolver picks the gateway when a team's billing currency matches multiple configured gateways. Marking a different gateway's row `is_default` for a currency is all that is needed to switch routing — no other field changes.
+
+**Gateway resolver** (`gateways.resolve_gateway_for_currency(currency)`): queries `Payment Gateway Currency` for rows where `currency = <team currency>`, `is_default = True`, and the parent gateway `is_enabled = True`. Returns the matching gateway; raises `GatewayNotFound` if none configured.
 
 Managed only via the admin **Gateway Config** panel (see [dashboard.md](dashboard.md)). Secrets are never returned by any customer-facing API.
 
@@ -126,7 +136,7 @@ See [credits.md](credits.md) for the full settlement model (≥1 source required
 
 **Razorpay: card *or* UPI (don't force UPI).** Razorpay does both rails as recurring tokens via the same Checkout → token → recurring-charge flow (`setup_payment_method` takes `method` ∈ {`upi`, `card`}). The "Add payment method" dialog lets the team **choose**; it isn't UPI-only. **UPI Autopay has a ₹1,00,000 recurring ceiling** (the MCC limit) — a recurring UPI charge above it fails at the gateway. So UPI is **blocked** (UI hides it; `setup_mandate` refuses as the server backstop) when the **trust-tier cap or the last invoice ≥ ₹1,00,000**, steering the team to a card (cards carry no such limit). `mandates.upi_eligibility(team)` is the single source of that decision; `dashboard.get_payment_method_options` surfaces it to the UI.
 
-**Gateway resolved by currency + adapter, not "default".** The add-method flow offers what the team's currency supports: **INR → Razorpay** (card + UPI; chosen by *adapter*, so a Stripe-INR gateway flagged `is_default_for_currency` never hides UPI); **USD/EUR → Stripe**, card only — Razorpay is never shown to a non-INR team. The Stripe card is added with Stripe.js Elements against a SetupIntent (PCI: the PAN never reaches the server). `dashboard._add_method_gateway(currency)` is the resolver.
+**Gateway resolved by currency via `is_default` row.** The add-method flow calls `gateways.resolve_gateway_for_currency(team.currency)` to find the gateway, then uses its `adapter_key` to determine which payment rails are available: **INR → Razorpay** (card + UPI); **USD/EUR → Stripe**, card only — Razorpay is never shown to a non-INR team. The adapter drives the UI options, not a hardcoded currency check, so swapping the default gateway for a currency in the config panel is enough to change the rails offered. The Stripe card is added with Stripe.js Elements against a SetupIntent (PCI: the PAN never reaches the server).
 
 ## Webhooks (signature-first)
 
