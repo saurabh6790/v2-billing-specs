@@ -18,6 +18,7 @@ Two delivery milestones, in order: a working **Demo** (end-to-end money path), t
 The gateway layer is what this project rewrites away from `frappe/payments` (see [misc.md](misc.md)), so it is a first-class, front-loaded milestone rather than a single bullet:
 
 - `GatewayAdapter` interface + base + secure webhook receiver (signature-first, idempotent event store).
+- `Payment Gateway` config with `Payment Gateway Currency` child table (`currency`, `is_default`); `gateways.resolve_gateway_for_currency(currency)` as the single resolver.
 - Stripe adapter (Payment Intents, idempotency, refund).
 - Razorpay adapter (card + UPI mandate, refund); mandate `max_amount` = trust-tier cap wires up alongside trust tiers (Phase 2).
 - **Port the existing v1 / `frappe-payments` Stripe & Razorpay integrations into the adapter model and decommission the old path** — one integration surface, no gateway code imported by core billing.
@@ -60,11 +61,11 @@ The gateway layer is what this project rewrites away from `frappe/payments` (see
 
 - **Additional meters** (API calls, request volume) — additive; pipeline + counter/gauge model already exist.
 - **Hourly / burst tiers (GPU)** — engine already reads `billing_interval`; light up the tier, no rewrite.
-- **Multi-currency per team / per invoice** — currently one currency per team.
+- **Multi-currency per invoice** — currently one currency per team; gateways already support multiple currencies via config.
 - **Cross-region consolidated invoice** — merge multi-cluster Agent events at Central before generation.
 - **PayPal adapter** — one adapter class when demand justifies.
 
 ## Open items
 
-- Multi-currency credit handling and credit-expiry mechanics ([credits.md](credits.md)).
+- Multi-currency credit handling (currency field on `Credit Ledger Entry`) and credit-expiry mechanics ([credits.md](credits.md)).
 - Precise terminal-state model for the reconciliation job ([payments.md](payments.md)).
