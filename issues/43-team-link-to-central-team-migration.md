@@ -42,14 +42,21 @@ with no referential link to a real team. Central's team is the **`Team`** DocTyp
 
 ## Acceptance criteria
 
-- [ ] All 16 billing DocTypes link `team` → `Team`; no `Data` team field remains.
-- [ ] `bench migrate` on a populated site rewrites every legacy slug to its
+- [x] All 16 billing DocTypes link `team` → `Team`; no `Data` team field remains.
+- [x] `bench migrate` on a populated site rewrites every legacy slug to its
   `Team.name`, idempotently and re-runnably; zero orphaned/blank `team` values.
-- [ ] `User.billing_team` and `ensure_billing_team_field` are gone.
-- [ ] Every pre-migration billing user is an Active `Team Member` with a
+- [x] `User.billing_team` and `ensure_billing_team_field` are gone (Custom Field
+  + column dropped; the hook was already removed in #42).
+- [x] Every pre-migration billing user is an Active `Team Member` with a
   billing-capable role on their team (access continuity verified).
-- [ ] A per-row round-trip assertion proves no invoice/ledger/subscription changed
+- [x] A per-row round-trip assertion proves no invoice/ledger/subscription changed
   team ownership through the migration.
+
+**Status:** Done on `merge-billing` (cenral-bench). 16 schemas flipped; patch
+`v03_team_link_to_central_team` (pre: migrate+backfill+drop field; post: orphan
+guard); 5 `field:team` docs renamed so `name == team` holds; demo seeds mint real
+Teams. Full Central suite **305 green** (302 + 3 migration round-trip tests),
+`bench migrate` clean.
 
 ## Decisions baked in
 
