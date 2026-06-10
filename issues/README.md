@@ -4,7 +4,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 **Targets:** Demo 30 Jun 2026 · Feature-complete 31 Jul 2026.
 
-**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **post** = post-launch.
+**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **post** = post-launch.
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
@@ -12,6 +12,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [27](27-rates-standalone-doctype-migration.md) | Plan/Add-on rates → one `Catalog Rate` DocType (Item Price style, Dynamic Link) + migration | AFK | 01 | P1 |
 | [02](02-gateway-adapter-webhook-spine.md) | Gateway config + adapter interface + Stripe + signature-first webhook | AFK | — | **GW** |
 | [24](24-gateway-integration-port-decommission.md) | Port & decommission existing gateway integrations | AFK | 02 | **GW** |
+| [40](40-gateway-setup-validate-keys-webhook-autofill.md) | Gateway setup: validate credentials + auto-fill webhook secret | AFK | 02 | **GW** |
 | [08](08-razorpay-upi-mandate.md) | Razorpay adapter + UPI Autopay mandate (cap = tier) | AFK | 02, 07 | **GW** |
 | [25](25-paypal-adapter.md) | PayPal adapter | AFK | 02 | **GW** (post) |
 | [03](03-agent-event-log-price-lock.md) | Agent event log + push + Central price-lock | AFK | 01 | P2 |
@@ -47,6 +48,37 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [37](37-credit-ledger-minor-units.md) | Credit ledger → minor units (kills v1 float-drift balance) | AFK | 34 | P1 |
 | [38](38-payments-boundary-minor-units.md) | Payments boundary → minor units; gateway adapters pass-through | AFK | 34, 36 | P3 |
 | [39](39-erpnext-push-minor-units-boundary.md) | ERPNext push: minor→major decimal at boundary, round-off disabled | AFK | 36 | P3 |
+| [41](41-billing-as-central-module.md) | Vendor Billing backend into the `central` app as a `billing` module (UI not migrated) | **HITL** | — | **CM** |
+| [42](42-adopt-central-capability-iam.md) | Adopt Central capability IAM (`billing:view`/`billing:manage`); retire `Billing Admin`/`Billing User` | **HITL** | 41, 43 | **CM** |
+| [43](43-team-link-to-central-team-migration.md) | `team` `Data`→`Link (Team)` + data patch + Team Member access backfill | **HITL** | 41 | **CM** |
+| [44](44-merge-hooks-fixtures.md) | Merge hooks/fixtures into Central; retire role/team-field bootstrap; drop SPA routing | AFK | 41, 42, 43 | **CM** |
+| [45](45-test-suite-update-capability-authz.md) | Test suite update: capability authz + migration round-trip + demo seeds as real Teams | AFK | 41, 42, 43 | **CM** |
+
+## Central Merge milestone (CM)
+
+Folds the standalone Billing app into **Central** (`frappe/central`) as a
+`billing` module and adopts Central's **capability IAM** in place of Billing's own
+`Billing Admin`/`Billing User` roles. Driven by
+[ADR 0004](../docs/adr/0004-billing-as-central-module-capability-iam.md).
+
+- **#41** — vendor the **backend** in (imports → `central.billing.*`, DocType
+  module = Billing, AGPL headers, full type annotations). The **dashboard UI is
+  not migrated** — Central rebuilds it against the same APIs.
+- **#42** — swap the authz seam to `central.iam.can(user, team, …)`; split
+  customer endpoints into `billing:view` (reads) vs `billing:manage` (mutations);
+  cross-team admin → operator bypass (`System Manager`). A `billing:operate`
+  platform capability is deferred (Central-owned).
+- **#43** — re-point `team` (a `Data` slug on 16 DocTypes) at the real `Team`
+  DocType; idempotent data patch + **Team Member backfill** for access continuity.
+- **#44** — merge scheduler/dashboard hooks; delete the role/team-field bootstrap;
+  drop the `/billing` SPA route.
+- **#45** — rebuild authz tests around capabilities, add a migration round-trip
+  proof, seed demos as real Teams; keep the concurrency proofs green.
+
+**Land in order:** #41 first (structure), then #43 + #42 together (identity +
+authz), then #44 (wiring) and #45 (tests). All **HITL** for the code-moving slices
+(#41–#43) — they need merge/license/access-continuity sign-off; #44–#45 are AFK
+once those land.
 
 ## Gateway Integrations milestone (GW)
 
@@ -54,12 +86,14 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 
 - **#02** — adapter interface + secure webhook spine + Stripe *(Phase 1 foundation; prerequisite for everything that moves money)*.
 - **#24** — port the existing Stripe/Razorpay integrations into the adapter model and decommission the old `frappe-payments` path *(Phase 1 foundation)*.
+- **#40** — validated, self-wiring gateway setup: `validate_credentials` rejects bad keys on save, `register_webhook` auto-fills the signing secret so no secret is hand-pasted.
 - **#08** — Razorpay + UPI Autopay mandate; the adapter is foundation, the mandate-ceiling-=-tier wiring completes alongside **#07** (its blocker).
 - **#25** — PayPal *(to-follow; post-launch, per spec)*.
 
 ## Notes
 
-- **HITL:** #21 (reconciliation terminal-state model is an open design item), #23 (deferred ~6mo; needs migration sign-off). All others AFK — the 22 design decisions are settled.
+- **HITL:** #21 (reconciliation terminal-state model is an open design item), #23 (deferred ~6mo; needs migration sign-off), #41–#43 (Central Merge — moving code across apps + license change + access-continuity backfill need sign-off; the open `billing:operate` decision is Central-owned). All others AFK — the design decisions are settled.
+- **Central Merge (#41–#45):** folds Billing into the `central` app and adopts its capability IAM ([ADR 0004](../docs/adr/0004-billing-as-central-module-capability-iam.md)). The dashboard UI is **not** migrated — Central rebuilds it against the same APIs. Supersedes the standalone role model in [security.md](../security.md) §3a–§3b.
 - Multi-currency credits (future) is folded into #06 as a noted extension, not a separate slice.
 - **#30–#33** come from the plan/pricing grilling session (see [final-plan-pricing.md](../final-plan-pricing.md), [ADR 0001](../docs/adr/0001-commitment-as-team-spend-floor.md), [ADR 0002](../docs/adr/0002-live-priced-storage-add-ons.md)). All AFK — designs settled by the two ADRs. Tiered pricing is explicitly future ([final-plan-pricing.md](../final-plan-pricing.md) §10), no slice yet.
 - **#34–#39** are the **integer-minor-units refactor** ([ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md), grilled 2026-06-08): replace every `Currency` (float) money field with `Long Int` — amounts in minor units (paisa/cent), rates in `minor×10⁶`. A cross-cutting hardening pass over the now-built engine; all AFK (per-row round-trip assertions are the migration safety net). **Must land in dependency order** — #34 (the shared `money` module) first, then the flips (#35→#36, #37), then the boundaries (#38, #39) — because money math breaks under mixed float/int representations. Folds into #27 (rates) and #23 (migration tooling).

@@ -35,3 +35,5 @@ Two applications:
 ## Status
 
 Draft. Derived from `design-doc-v2.md` (v2.1) and the 22 resolved decisions in `design-doc-v2-decisions.md`. Open items: multi-currency credit handling; the precise terminal-state model for the reconciliation job.
+
+**Central Merge (in progress).** Billing folds into the **Central** app (`frappe/central`) as a `billing` module and adopts Central's capability IAM — see [ADR 0004](docs/adr/0004-billing-as-central-module-capability-iam.md) and issues [#41–#45](issues/README.md#central-merge-milestone-cm). "Cloud Billing (Central)" throughout these specs is a role played by the Central app, not a separate deployable. The billing dashboard UI is **not** migrated (Central rebuilds it against the same APIs); the Subscription Agent stays a separate per-cluster app. Open decision (Central-owned): a platform-staff `billing:operate` capability vs `System Manager` operator bypass for the cross-team admin surface.
