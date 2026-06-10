@@ -34,12 +34,21 @@ created Billing's own roles + team field (now provided by Central's IAM and
 
 ## Acceptance criteria
 
-- [ ] All billing scheduler jobs run under Central with `central.billing.*` paths.
-- [ ] No `ensure_billing_roles` / `ensure_billing_team_field` / billing
+- [x] All billing scheduler jobs run under Central with `central.billing.*` paths.
+- [x] No `ensure_billing_roles` / `ensure_billing_team_field` / billing
   `website_route_rules` remain.
-- [ ] `bench migrate` is clean; no orphan `Billing Admin`/`Billing User` roles are
-  created.
-- [ ] Gateway SDK deps resolve from Central's `pyproject.toml`.
+- [x] `bench migrate` is clean; no orphan `Billing Admin`/`Billing User` roles are
+  created (a v04 patch deletes the two roles the old bootstrap left behind).
+- [x] Gateway SDK deps resolve from Central's `pyproject.toml`.
+
+**Status:** Done on `merge-billing` (cenral-bench). The hooks/fixtures merge —
+scheduler events on `central.billing.*`, `Currency → currency_dashboard` override,
+SPA `website_route_rules` dropped, both `after_migrate` shims removed, and the
+`stripe>=15` / `razorpay` deps in Central's `pyproject.toml` — landed with #41/#42.
+This issue adds the missing cleanup: patch
+`v04_drop_orphan_billing_roles.drop_billing_roles` deletes the orphan `Billing
+Admin` / `Billing User` roles the retired `ensure_billing_roles` shim wrote before
+#42 removed it (idempotent; a fresh Central never had them). `bench migrate` clean.
 
 ## Decisions baked in
 
