@@ -50,6 +50,14 @@ This issue adds the missing cleanup: patch
 Admin` / `Billing User` roles the retired `ensure_billing_roles` shim wrote before
 #42 removed it (idempotent; a fresh Central never had them). `bench migrate` clean.
 
+The **desk Workspace** (distinct from the dropped customer SPA) was also migrated:
+the thin one carried from the standalone app (still `app: "billing"`) was rebuilt
+ERPNext-style (Accounting/Manufacturing pattern) — a shortcut row + function-grouped
+cards (Revenue, Credits, Subscriptions & Usage, Catalog, Payments & Gateways, Trust
+& Entitlements, Customer Configuration, Notifications) over all 23 Billing DocTypes,
+`app` → `central`. Patch `v05_billing_workspace` force-reloads it on migrate so
+sites holding the old copy converge (timestamp gating skips it otherwise).
+
 ## Decisions baked in
 
 - **No billing-owned roles/fixtures** (ADR 0004) — reuse Central's Team Roles.
