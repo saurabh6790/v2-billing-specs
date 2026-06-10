@@ -48,6 +48,10 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [37](37-credit-ledger-minor-units.md) | Credit ledger → minor units (kills v1 float-drift balance) | AFK | 34 | P1 |
 | [38](38-payments-boundary-minor-units.md) | Payments boundary → minor units; gateway adapters pass-through | AFK | 34, 36 | P3 |
 | [39](39-erpnext-push-minor-units-boundary.md) | ERPNext push: minor→major decimal at boundary, round-off disabled | AFK | 36 | P3 |
+| [46](46-multi-currency-gateway-config.md) | Multi-currency gateway config: `Payment Gateway Currency` child table + resolver | AFK | 02 | **GW** |
+| [47](47-invoice-currency-lock.md) | Invoice `currency` lock | AFK | 09, 46 | P3 |
+| [48](48-currency-aware-credit-ledger.md) | Currency-aware credit ledger | AFK | 06 | P2 |
+| [49](49-gateway-config-ui-multi-currency.md) | Admin Gateway Config UI: currency grouping + `is_default` toggles | AFK | 46, 26 | P4 |
 | [41](41-billing-as-central-module.md) | Vendor Billing backend into the `central` app as a `billing` module (UI not migrated) | **HITL** | — | **CM** |
 | [42](42-adopt-central-capability-iam.md) | Adopt Central capability IAM (`billing:view`/`billing:manage`); retire `Billing Admin`/`Billing User` | **HITL** | 41, 43 | **CM** |
 | [43](43-team-link-to-central-team-migration.md) | `team` `Data`→`Link (Team)` + data patch + Team Member access backfill | **HITL** | 41 | **CM** |
@@ -87,6 +91,7 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 - **#02** — adapter interface + secure webhook spine + Stripe *(Phase 1 foundation; prerequisite for everything that moves money)*.
 - **#24** — port the existing Stripe/Razorpay integrations into the adapter model and decommission the old `frappe-payments` path *(Phase 1 foundation)*.
 - **#40** — validated, self-wiring gateway setup: `validate_credentials` rejects bad keys on save, `register_webhook` auto-fills the signing secret so no secret is hand-pasted.
+- **#46** — multi-currency gateway config: replaces the single `currency` field with a `Payment Gateway Currency` child table (`currency`, `is_default`) and introduces `resolve_gateway_for_currency()` as the canonical resolver.
 - **#08** — Razorpay + UPI Autopay mandate; the adapter is foundation, the mandate-ceiling-=-tier wiring completes alongside **#07** (its blocker).
 - **#25** — PayPal *(to-follow; post-launch, per spec)*.
 
@@ -94,6 +99,6 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 
 - **HITL:** #21 (reconciliation terminal-state model is an open design item), #23 (deferred ~6mo; needs migration sign-off), #41–#43 (Central Merge — moving code across apps + license change + access-continuity backfill need sign-off; the open `billing:operate` decision is Central-owned). All others AFK — the design decisions are settled.
 - **Central Merge (#41–#45):** folds Billing into the `central` app and adopts its capability IAM ([ADR 0004](../docs/adr/0004-billing-as-central-module-capability-iam.md)). The dashboard UI is **not** migrated — Central rebuilds it against the same APIs. Supersedes the standalone role model in [security.md](../security.md) §3a–§3b.
-- Multi-currency credits (future) is folded into #06 as a noted extension, not a separate slice.
+- Multi-currency credits is tracked as **#48** (currency field on `Credit Ledger Entry`, P2); closes the open item in [credits.md](../credits.md).
 - **#30–#33** come from the plan/pricing grilling session (see [final-plan-pricing.md](../final-plan-pricing.md), [ADR 0001](../docs/adr/0001-commitment-as-team-spend-floor.md), [ADR 0002](../docs/adr/0002-live-priced-storage-add-ons.md)). All AFK — designs settled by the two ADRs. Tiered pricing is explicitly future ([final-plan-pricing.md](../final-plan-pricing.md) §10), no slice yet.
 - **#34–#39** are the **integer-minor-units refactor** ([ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md), grilled 2026-06-08): replace every `Currency` (float) money field with `Long Int` — amounts in minor units (paisa/cent), rates in `minor×10⁶`. A cross-cutting hardening pass over the now-built engine; all AFK (per-row round-trip assertions are the migration safety net). **Must land in dependency order** — #34 (the shared `money` module) first, then the flips (#35→#36, #37), then the boundaries (#38, #39) — because money math breaks under mixed float/int representations. Folds into #27 (rates) and #23 (migration tooling).
