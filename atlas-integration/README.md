@@ -109,6 +109,107 @@ to "billing event Y" lives in one adapter module inside the Agent.
    audited Atlas Task. Central unreachable ≠ delinquent: an *expired* token
    never stops running resources.
 
+## Runtime flows
+
+**The money path — VM lifecycle → invoice:**
+
+```
+ user picks Team + Plan, clicks Create VM
+        │
+        ▼
+ [agent] before_insert gate ──── no token / expired / over cap ──▶ ✗ throw
+        │ ok (offline check vs cached Entitlement Token)
+        ▼
+ [atlas] VM inserted (Pending) → auto_provision job → SSH provision-vm.py → Running
+        │
+        ▼
+ [agent] doc_event: first Pending→Running
+        │   events.record_event("subscribed", resource_id=VM UUID,
+        │                       shown_rate ← Plan Cache, cluster)
+        ▼
+ [agent] Plan Subscription Log row (append-only, synced_to_central=0)
+        │
+        ▼
+ [agent] sync.push_unsynced_events ──HTTP──▶ [central] receive_usage_events
+        │                                         │ lock_from_event → PRICE LOCK
+        ◀──── {acknowledged: [event_id]} ─────────┘ (rate grandfathered)
+        │
+        ▼  (later: resize → "changed" re-lock · terminate → "cancelled" closes segment)
+        │
+ [central] 1st of month: segments × locked rates + meter rollups → INVOICE (postpaid)
+```
+
+**The enforcement path — delinquency, reverse direction:**
+
+```
+ [central] payment retries fail → push token {suspend:1} ──HTTP──▶ [agent] receive_token
+                                                                       │ verify signature OFFLINE, cache
+ [agent] hourly job: enforcement_state(team)                           ▼
+     "stopped"    → [atlas] vm.stop()      each Running VM   ─┐  every action =
+     "terminated" → [atlas] vm.terminate() → "cancelled" event┴─ one audited Atlas Task
+     expired token → DO NOTHING (never punish for our own outage; only deny NEW provisions)
+```
+
+## Project structure
+
+**press_billing_agent** — small and flat; one module per concern:
+
+```
+press_billing_agent/
+├── press_billing_agent/
+│   ├── hooks.py            # daily scheduler: push events/meters catch-up, prune Sync Log
+│   ├── events.py           # record_event() — the event-log spine (subscribed/changed/cancelled)
+│   ├── sync.py             # Agent↔Central HTTP: receive_plans, push_unsynced_events/meters
+│   ├── metering.py         # counter/gauge running aggregates (record_counter/record_gauge)
+│   ├── entitlement.py      # receive_token, can_provision (gate), enforcement_state
+│   ├── signing.py          # offline token signature verification
+│   ├── provisioning.py     # DEMO ONLY — simulated subscribe (superseded by the adapter, #53)
+│   ├── dashboard.py        # data for the cluster SPA
+│   ├── press_billing_agent/doctype/   # the DocTypes:
+│   │   ├── plan_cache/                #   plans pushed from Central (display-only)
+│   │   ├── plan_subscription_log/     #   append-only event log — SOURCE OF TRUTH
+│   │   ├── usage_meter/               #   bounded counter/gauge rollups
+│   │   ├── entitlement_token/         #   cached signed cap
+│   │   └── sync_log/                  #   rolling sync audit trail (pruned ~90d)
+│   ├── tests/              # test_events/sync/metering/entitlement/plan_cache/provisioning
+│   └── www/cluster.py      # serves the SPA shell at /cluster
+└── dashboard/              # Vue 3 + Tailwind SPA (Overview/Plans/Events/Usage/Entitlements/Sync)
+```
+
+The integration specced here (issues [#50–#59](../issues/README.md#atlas-integration-milestone-at))
+adds `press_billing_agent/integrations/atlas.py` — the one module mapping
+Atlas doc_events onto the modules above. Dependency direction: **the Agent
+imports Atlas concepts, never the reverse.**
+
+**atlas** — the layer below everything ([full spec](../../atlas/spec/README.md)):
+
+```
+atlas/
+├── spec/                   # 14-chapter spec — the source of truth for Atlas
+├── scripts/                # one idempotent script per operation, run on servers over SSH:
+│   ├── bootstrap-server.py · provision-vm.py · start/stop/pause/resume-vm.py
+│   ├── snapshot/rebuild/resize/terminate-vm.py · sync-image.py · issue-cert.py
+│   └── guest/ · lib/ · systemd/   # in-guest helpers, shared lib, unit templates
+├── bench/                  # golden bench image bake + in-guest deploy-site.py (self-serve)
+└── atlas/
+    ├── hooks.py
+    ├── atlas/
+    │   ├── doctype/        # 22 DocTypes; the billing-relevant ones:
+    │   │   ├── server/                    # one host (DO or self-managed)
+    │   │   ├── virtual_machine/           # core aggregate — UUID name = billing resource_id
+    │   │   ├── virtual_machine_snapshot/  # LVM CoW snapshots (→ gauge metering)
+    │   │   ├── site/ + site_request/ + subdomain/  # self-serve sites (bill via backing VM)
+    │   │   ├── task/                      # every SSH script run = one audit row
+    │   │   └── provider/ + root_domain/ + tls_certificate/ …  # vendor catalog, proxy, TLS
+    │   ├── providers/      # Provider ABC: digitalocean.py, self_managed.py (+ registry)
+    │   ├── ssh.py · networking.py · placement.py · sizes.py   # infra plumbing
+    │   ├── proxy.py · deploy_site.py · bench_image.py         # edge proxy + self-serve
+    │   ├── permissions.py  # owner-scoping (Team scoping per central/spec/IAM planned)
+    │   └── api/            # signup.py (guest), server_capacity.py
+    ├── frontend/           # Vue SPA (user dashboard: machines, sites)
+    └── www/                # signup / verify / site-status / dashboard pages
+```
+
 ## Spec chapters
 
 - [01-atlas-agent-integration.md](./01-atlas-agent-integration.md) — the
