@@ -26,6 +26,7 @@ Two applications:
 | [security.md](security.md) | Security standard — trust boundaries, threat model, controls, audit checklist, safe-extension rules |
 | [observability.md](observability.md) | Observability standard — two-plane metrics (runtime telemetry + auditable business metrics), catalogue per subsystem, alerting, coverage checklist |
 | [subscription-agent.md](subscription-agent.md) | The regional Agent app — DocTypes, sync behaviour |
+| [atlas-integration/](atlas-integration/README.md) | Atlas → Agent → Central workflow — lifecycle events, provision gate, enforcement, Atlas usage sources (the Agent is `press_billing_agent`, the Bench Manager is Atlas) |
 | [dashboard.md](dashboard.md) | Admin & customer dashboards |
 | [migration.md](migration.md) | v1 → v2 migration strategy |
 | [testing.md](testing.md) | Testing strategy |
