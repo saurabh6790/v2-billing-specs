@@ -52,6 +52,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [47](47-invoice-currency-lock.md) | Invoice `currency` lock | AFK | 09, 46 | P3 |
 | [48](48-currency-aware-credit-ledger.md) | Currency-aware credit ledger | AFK | 06 | P2 |
 | [49](49-gateway-config-ui-multi-currency.md) | Admin Gateway Config UI: currency grouping + `is_default` toggles | AFK | 46, 26 | P4 |
+| [50](50-inr-collection-mode-threshold-action-required.md) | INR collection mode + ₹15k threshold + "Action Required" choice (Stripe-only methods; e-mandate ≤₹15k; manual/prepaid) | AFK | 10, 11, 14, 18 | P3 |
 | [41](41-billing-as-central-module.md) | Vendor Billing backend into the `central` app as a `billing` module (UI not migrated) | **HITL** | — | **CM** |
 | [42](42-adopt-central-capability-iam.md) | Adopt Central capability IAM (`billing:view`/`billing:manage`); retire `Billing Admin`/`Billing User` | **HITL** | 41, 43 | **CM** |
 | [43](43-team-link-to-central-team-migration.md) | `team` `Data`→`Link (Team)` + data patch + Team Member access backfill | **HITL** | 41 | **CM** |

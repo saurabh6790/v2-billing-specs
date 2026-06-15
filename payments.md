@@ -39,7 +39,7 @@ Notes on the seam:
 - `verify_payment_signature` is the **client checkout callback** verification (Razorpay UPI Autopay authorisation / one-time order) — distinct from `verify_webhook_signature`. Stripe confirms via intent status, so it leaves this unsupported.
 - Declines return a failed `PaymentResult`; transient/network failures raise `GatewayTimeout` so a retry reuses the same idempotency key.
 
-Implemented: Stripe (USD, Payment Intents, SetupIntent, micro-charge), Razorpay (INR, UPI Autopay mandate order + recurring charge). PayPal to follow — one adapter class, no core changes.
+Implemented: Stripe (USD/EUR, Payment Intents, SetupIntent, micro-charge — the off-session saved-method rail), Razorpay (INR, one-time top-ups + card/UPI e-mandate gated ≤ ₹15k per [ADR 0005](docs/adr/0005-inr-collection-emandate-threshold-prepaid.md)). PayPal is a one-time method *inside* Razorpay (international acceptance), not a separate adapter — the standalone PayPal adapter ([#25](issues/25-paypal-adapter.md)) is retired.
 
 ## Payment Gateway (config)
 
@@ -132,11 +132,17 @@ Credits are untouched by fallback — they are consumed once before the card leg
 
 See [credits.md](credits.md) for the full settlement model (≥1 source required; credits-then-card waterfall; wallet-gating for credits-only).
 
-**Mandate ceilings.** A mandate (UPI Autopay, etc.) has a fixed `max_amount`. To make "bill exceeds mandate" structurally impossible, **mandate `max_amount` = the team's trust-tier cap**. A promotion that raises the cap requires **mandate re-authorisation** (customer re-consent); until then the customer is held at the old ceiling. **Cards are exempt** (off-session, any amount).
+> **Updated 2026-06-15 ([ADR 0005](docs/adr/0005-inr-collection-emandate-threshold-prepaid.md)).** Billing is usage-based and **variable**, and an Indian *off-session* recurring debit **above ₹15,000 needs per-cycle re-authentication** (an RBI rule on every gateway). The model below replaces the earlier "cards are exempt, any amount" and "UPI ₹1L gate" framing. Full behaviour + case matrix: [payments-inr.md](payments-inr.md).
 
-**Razorpay: card *or* UPI (don't force UPI).** Razorpay does both rails as recurring tokens via the same Checkout → token → recurring-charge flow (`setup_payment_method` takes `method` ∈ {`upi`, `card`}). The "Add payment method" dialog lets the team **choose**; it isn't UPI-only. **UPI Autopay has a ₹1,00,000 recurring ceiling** (the MCC limit) — a recurring UPI charge above it fails at the gateway. So UPI is **blocked** (UI hides it; `setup_mandate` refuses as the server backstop) when the **trust-tier cap or the last invoice ≥ ₹1,00,000**, steering the team to a card (cards carry no such limit). `mandates.upi_eligibility(team)` is the single source of that decision; `dashboard.get_payment_method_options` surfaces it to the UI.
+**Saved methods are Stripe-only (off-session, variable, postpaid).** Off-session auto-charge of a variable invoice is the Stripe SetupIntent → off-session PaymentIntent flow; no subscription. The **trust-tier cap** bounds the otherwise-ceilingless off-session charge. Stripe = international in practice (Stripe-India recurring is RBI-constrained too).
 
-**Gateway resolved by currency via `is_default` row.** The add-method flow calls `gateways.resolve_gateway_for_currency(team.currency)` to find the gateway, then uses its `adapter_key` to determine which payment rails are available: **INR → Razorpay** (card + UPI); **USD/EUR → Stripe**, card only — Razorpay is never shown to a non-INR team. The adapter drives the UI options, not a hardcoded currency check, so swapping the default gateway for a currency in the config panel is enough to change the rails offered. The Stripe card is added with Stripe.js Elements against a SetupIntent (PCI: the PAN never reaches the server).
+**INR runs on a collection mode, not a blanket mandate.** Each team carries a `collection_mode`:
+- `emandate` — Razorpay card/UPI auto-charge, **only while the debit ≤ ₹15,000** (`INR_EMANDATE_SILENT_MAX = 1_500_000` paise); a pre-debit notification precedes each off-session debit.
+- `manual_checkout` — invoice paid **on-session** via Razorpay checkout (OTP, any amount — on-session carries no ₹15k limit).
+- `prepaid` — wallet funded by Razorpay top-ups; usage draws credits down.
+- `action_required` — transient: an `emandate` team's invoice/forecast crossed ₹15,000. Auto-charge pauses, the account **keeps running**, and an **Action Required** prompt asks the customer to pick `manual_checkout` or `prepaid`. We do **not** build the off-session >₹15k AFA-link auto-charge. (`stripe_auto` is the international postpaid mode.)
+
+**Capability-driven routing, not hardcoded.** Each adapter declares `supports_off_session_charge`, `max_silent_charge` (Stripe = ∞, Razorpay = ₹15,000), `requires_predebit_notice`, supported currencies. The collection layer asks *"who can pull `amount` in `currency` silently now?"* → Stripe / Razorpay e-mandate / else the customer-chosen path. Top-ups resolve the gateway by currency via the `is_default` row (`gateways.resolve_gateway_for_currency`); the Stripe card is added with Stripe.js Elements against a SetupIntent (PCI: the PAN never reaches the server). **PayPal** is a one-time **method inside Razorpay** (international top-ups), not a standalone adapter — the standalone PayPal adapter ([#25](issues/25-paypal-adapter.md)) is retired.
 
 ## Webhooks (signature-first)
 
