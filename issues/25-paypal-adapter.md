@@ -1,5 +1,7 @@
 # 25 — PayPal adapter
 
+> **RETIRED 2026-06-15 ([ADR 0005](../docs/adr/0005-inr-collection-emandate-threshold-prepaid.md)).** PayPal is processed *through Razorpay's PayPal offering* (one-time international acceptance), so it is a Razorpay checkout method, **not** a standalone `GatewayAdapter`. The standalone adapter has been removed in code (#50 item 4). This issue is closed; the section below is kept for history.
+
 **Type:** AFK · **Milestone:** Gateway Integrations (post-launch / to-follow) · **Spec:** [payments.md](../payments.md)
 
 ## What to build
