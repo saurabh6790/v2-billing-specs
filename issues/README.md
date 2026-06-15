@@ -8,18 +8,18 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
-| [01](01-app-scaffold-plan-catalog.md) | App scaffold + Plan catalog + push to Agent Plan Cache | AFK | — | P1 |
+| [01](01-app-scaffold-plan-catalog.md) | App scaffold + Plan catalog (no Agent Plan Cache — [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)) | AFK | — | P1 |
 | [27](27-rates-standalone-doctype-migration.md) | Plan/Add-on rates → one `Catalog Rate` DocType (Item Price style, Dynamic Link) + migration | AFK | 01 | P1 |
 | [02](02-gateway-adapter-webhook-spine.md) | Gateway config + adapter interface + Stripe + signature-first webhook | AFK | — | **GW** |
 | [24](24-gateway-integration-port-decommission.md) | Port & decommission existing gateway integrations | AFK | 02 | **GW** |
 | [40](40-gateway-setup-validate-keys-webhook-autofill.md) | Gateway setup: validate credentials + auto-fill webhook secret | AFK | 02 | **GW** |
 | [08](08-razorpay-upi-mandate.md) | Razorpay adapter + UPI Autopay mandate (cap = tier) | AFK | 02, 07 | **GW** |
 | [25](25-paypal-adapter.md) | PayPal adapter | AFK | 02 | **GW** (post) |
-| [03](03-agent-event-log-price-lock.md) | Agent event log + push + Central price-lock | AFK | 01 | P2 |
+| [03](03-agent-event-log-price-lock.md) | Central event log + price-lock (Central records; no Agent/push — [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)) | AFK | 01 | P2 |
 | [04](04-subscription-intent-two-axis-state.md) | Subscription intent + two-axis state | AFK | 01 | P2 |
 | [05](05-payment-method-lifecycle-stripe.md) | Payment Method lifecycle (Stripe) | AFK | 02 | P2 |
 | [06](06-credit-ledger-wallet.md) | Credit ledger + wallet + concurrency | AFK | — | P2 |
-| [07](07-trust-tier-entitlement-token.md) | Trust Tier + Entitlement Token | AFK | 04 | P2 |
+| [07](07-trust-tier-entitlement-token.md) | Trust Tier + cap enforcement at provision (no Entitlement Token — [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)) | AFK | 04 | P2 |
 | [09](09-postpaid-invoice-generation-fixed.md) | Postpaid two-phase invoice generation (fixed) | AFK | 03, 04 | P3 |
 | [10](10-charge-invoice-payment-attempt-webhook.md) | Charge invoice → Payment Attempt → webhook → Paid | AFK | 02, 05, 09 | P3 |
 | [11](11-credit-application-waterfall.md) | Credit application at invoice (waterfall + wallet gating) | AFK | 06, 09 | P3 |
@@ -122,6 +122,7 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 
 ## Notes
 
+- **Agentless ([ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md), 2026-06-15):** the per-cluster **Subscription Agent** is retired. Central provisions via the **cluster manager API**, records the event log + metered usage itself, and enforces dunning by calling the cluster manager. **#03** (event log) and **#07** (cap enforcement) are Central-only; **#14** suspends via the cluster-manager call. No Plan Cache / Sync Log / Entitlement Token. A new outbound **cluster-manager integration** seam replaces plan-push / token-issue / usage-pull (own slice, TBD).
 - **HITL:** #21 (reconciliation terminal-state model is an open design item), #23 (deferred ~6mo; needs migration sign-off), #41–#43 (Central Merge — moving code across apps + license change + access-continuity backfill need sign-off; the open `billing:operate` decision is Central-owned). All others AFK — the design decisions are settled.
 - **Central Merge (#41–#45):** folds Billing into the `central` app and adopts its capability IAM ([ADR 0004](../docs/adr/0004-billing-as-central-module-capability-iam.md)). The dashboard UI is **not** migrated — Central rebuilds it against the same APIs. Supersedes the standalone role model in [security.md](../security.md) §3a–§3b.
 - Multi-currency credits is tracked as **#48** (currency field on `Credit Ledger Entry`, P2); closes the open item in [credits.md](../credits.md).

@@ -2,52 +2,54 @@
 
 ## Purpose
 
-Define the system shape for Frappe Cloud v2 billing: a two-application split, the source-of-truth boundary between them, the data/control flow, and the cross-cutting decisions every other spec depends on.
+Define the system shape for Frappe Cloud v2 billing: a single application (Central) that owns money, intent, and the recorded runtime it bills from, the seam to the cluster manager it provisions and enforces through, the data/control flow, and the cross-cutting decisions every other spec depends on.
+
+> **Updated 2026-06-15 ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).** The earlier **two-application** design (Central + a per-cluster **Subscription Agent**) is retired. There is **no Agent**: Central provisions VMs by calling the cluster manager API, records usage events itself, and enforces dunning by calling the cluster manager. All Agent logic moves into `central/billing`. Sections below describe the agentless model; the Agent framing in older specs is superseded.
 
 ## Problem (what v1 got wrong)
 
 Frappe Cloud v1 (Press) billing accumulated structural debt: prepaid credits as scalar fields (negative, unauditable balances); 10M+ daily usage rows (one per resource per day); no payment state machine ("Pay Now" on locked invoices); credit double-spend under concurrency; SQL injection; webhook signature checked *after* DB lookup (order-ID enumeration); thousands of synchronous ERPNext syncs; a single blocking 1st-of-month invoice loop. v2 is a redesign, not a patch.
 
-## The two applications
+## The single application
 
-**Cloud Billing** (Central — `billing.frappe.cloud`) — sole system of record for **money and the customer's monetary standing**. Owns gateway config, payment methods, plans + pricing, the customer's subscription *intent/contract*, invoices, credit ledger, trust tiers, entitlement tokens, tax, notifications, dashboards. The only component that talks to payment gateways.
+**Cloud Billing is a module inside Central** (`billing.frappe.cloud`) — the sole system of record for **money, the customer's monetary standing, and the recorded runtime billing computes from**. Owns gateway config, payment methods, plans + pricing, the customer's subscription *intent/contract*, the event log + price-locks, metered-usage rollups, invoices, credit ledger, trust tiers, tax, notifications, dashboards. The only component that talks to payment gateways — and the component that drives provisioning and enforcement by calling the **cluster manager** (Bench Manager) API.
 
-**Subscription Agent** (per regional cluster) — deliberately thin, but **authoritative for what actually ran**. Records an immutable event log (subscribed/changed/cancelled, with `resource_id` and `shown_rate`), records metered-usage rollups, enforces Central-issued entitlement tokens locally, and syncs to Central. No financial logic, no gateway calls, no invoice computation — it carries numbers and applies directives; Central decides their meaning.
+The **cluster manager** is not a billing component: it is the external executor Central calls to create/change/stop/terminate VMs, and the source Central reads operational state from. It holds no financial logic, no pricing, no entitlement state.
 
-## Source-of-truth split
+## Source of truth
 
-**The Agent is the source of truth for *what ran*; Central for *intent + money*.**
+**Central is the source of truth for *intent + money + what ran*.**
 
-- Central's `Subscription` records *intent* — the customer asked for plan X, validated a card, authorised a payment intent.
-- The Agent observes *reality* — what physically ran, on which `resource_id`, for how long.
-- Billing computes from observed runtime joined to Central's locked prices. A request that never provisioned, or a stopped machine, bills accordingly. This kills the v1 "billed for things that weren't running" class of bug.
+- Central's `Subscription` records *intent* — the customer asked for plan X, validated a card, authorised a payment.
+- When Central provisions (via the cluster manager), it records *reality* in the same step — the event log row + price-lock for that `resource_id`, and the operational state it reads back from the cluster manager.
+- Billing computes from that recorded runtime joined to the locked prices. A request that never provisioned, or a stopped machine, bills accordingly. This kills the v1 "billed for things that weren't running" class of bug — without a second app, because the component that provisions is the component that records.
 
 ## Data & control flow
 
 ```
-        Central (Cloud Billing)
-          │  plan push          ▲  usage push (events + meter rollups)
-          │  entitlement token  │  (on-demand primary + daily catch-up)
-          ▼                     │
-   Cluster — Mumbai        Cluster — Singapore
-     Subscription Agent       Subscription Agent
-     (4 DocTypes)             (4 DocTypes)
-          │
-     Bench Manager (provisions resources)
+                 Central (Cloud Billing module)
+        intent · money · event log + price-lock · metering · enforcement
+              │  provision / change / stop / terminate   (calls)
+              │  read operational state + metered usage   (reads)
+              ▼
+        Cluster Manager (Bench Manager) — per region
+              │
+         provisions / runs / meters the VMs
 ```
 
-- **Plan distribution (Central → Agent):** Central pushes plan definitions + a *display* price to each Agent's local Plan Cache. See [plans-and-pricing.md](plans-and-pricing.md).
-- **Provisioning (regional, Central-independent):** happens at the cluster, authorised against a signed entitlement token verified locally. Central's subscription API records intent only. See [provisioning-and-entitlements.md](provisioning-and-entitlements.md).
-- **Usage collection (Agent → Central):** push-primary (on-demand + daily catch-up). Event log + metered rollups. See [subscription-agent.md](subscription-agent.md), [metering.md](metering.md).
-- **Payment & invoicing (Central only):** see [invoicing.md](invoicing.md), [payments.md](payments.md).
+- **Plan catalog (Central):** plans + rates live in Central; the cluster manager needs no plan cache (Central resolves price at provision and locks it). See [plans-and-pricing.md](plans-and-pricing.md).
+- **Provisioning (Central-driven):** Central checks the trust-tier cap, calls the cluster manager API to provision, and writes the event log + price-lock at that moment. See [provisioning-and-entitlements.md](provisioning-and-entitlements.md).
+- **Usage collection (Central):** Central records the event log itself and records/reads metered-usage rollups from the cluster manager. No push/ack protocol, no Sync Log. See [metering.md](metering.md).
+- **Enforcement (Central → cluster manager):** dunning suspension/termination is Central calling the cluster manager to stop/terminate. See [provisioning-and-entitlements.md](provisioning-and-entitlements.md), [#14](issues/14-retry-dunning-suspension.md).
+- **Payment & invoicing (Central):** see [invoicing.md](invoicing.md), [payments.md](payments.md).
 - **ERPNext (async, one-way):** after payment, enqueue a Sales Invoice sync. Failure never blocks the customer invoice. ERPNext is the statutory accounting SOR.
 
 ## Cross-cutting decisions
 
 - **Pure postpaid / in-arrears.** Everything billed on the 1st for the month just ended (fixed + metered), including the partial first month. No charge at sign-up. See [invoicing.md](invoicing.md).
 - **No child tables for frequently-changing data.** Subscriptions, events, payment attempts, ledger entries, price-locks are top-level DocTypes linked by field. Child tables only for created-once/read-many (Invoice Line Items, Plan Resources).
-- **Trust tier is the cap.** The entitlement cap is the team's trust tier, computed from billing history. See [provisioning-and-entitlements.md](provisioning-and-entitlements.md).
-- **Two orthogonal state axes.** Operational (`running/stopped/terminated`, Agent) vs account standing (`current/past_due/suspended`, Central). Never one enum. See [subscriptions.md](subscriptions.md).
+- **Trust tier is the cap.** The provisioning cap is the team's trust tier, computed from billing history, enforced by Central synchronously at provision time (no signed token). See [provisioning-and-entitlements.md](provisioning-and-entitlements.md).
+- **Two orthogonal state axes.** Operational (`running/stopped/terminated`) vs account standing (`current/past_due/suspended`). Never one enum. Both are recorded by Central — the operational axis from the cluster manager's reported state. See [subscriptions.md](subscriptions.md).
 - **Webhook-first, signature-first.** Verify the gateway HMAC as the first operation, before any DB access. See [payments.md](payments.md).
 - **Adapter pattern for gateways.** Core logic never imports gateway code. See [payments.md](payments.md).
 - **Idempotency everywhere.** Gateway calls carry idempotency keys derived from `payment_attempt.name`; webhooks dedupe on `gateway_event_id`.
@@ -63,9 +65,9 @@ uses Central's team-scoped **capability IAM** (`Team` → `Team Role` →
 [#41–#45](issues/README.md#central-merge-milestone-cm). The customer-facing
 **`team`** everywhere in billing is the Central `Team` DocType. Only the
 **backend** (data model + business logic + API) is part of this module; the
-billing dashboard UI is rebuilt by Central against the same APIs. The
-**Subscription Agent** remains its own per-cluster app — the source-of-truth split
-is unchanged.
+billing dashboard UI is rebuilt by Central against the same APIs. There is **no
+separate Subscription Agent app** — Central provisions, records, and enforces by
+calling the cluster manager API ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).
 
 ## Notes
 

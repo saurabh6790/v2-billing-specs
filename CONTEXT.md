@@ -94,7 +94,8 @@ _Avoid_: Grandfather record, price history, snapshot (overloaded — see snapsho
 
 **Shown rate**:
 The live rate resolved for the customer's currency + cluster at purchase and displayed in the UI.
-The Agent reports it on the `subscribed` event so that **rate shown = rate locked**, guaranteed.
+Central records it on the `subscribed` event as it provisions, so that **rate shown = rate locked**,
+guaranteed (the component that shows the rate is the one that locks it — [ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).
 
 ### Resource lifecycle (billing view)
 
