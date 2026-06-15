@@ -1,4 +1,6 @@
-# 50 — INR collection mode + ₹15k threshold + "Action Required" choice
+# 60 — INR collection mode + ₹15k threshold + "Action Required" choice
+
+> **Renumbered 2026-06-15:** was #50; moved to #60 to free the #50–#59 block for the Atlas-integration (AT) milestone. The implemented central code/commits reference the original "#50".
 
 **Type:** AFK · **Milestone:** Phase 3 · **Spec:** [payments-inr.md](../payments-inr.md), [ADR 0005](../docs/adr/0005-inr-collection-emandate-threshold-prepaid.md), [payments.md](../payments.md) · **Design:** [docs/design/inr-collection-action-required.md](../docs/design/inr-collection-action-required.md)
 

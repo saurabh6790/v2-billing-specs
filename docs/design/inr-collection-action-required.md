@@ -160,7 +160,7 @@ never show "Paid" before the gateway confirms.
 
 ## 6. Data the UI receives (so you know what's available)
 
-The backend exposes (final field names in [#50](../../issues/50-inr-collection-mode-threshold-action-required.md)):
+The backend exposes (final field names in [#60](../../issues/60-inr-collection-mode-threshold-action-required.md)):
 - `collection_mode` — one of the four states (§2).
 - `action_required` — boolean + a reason (`forecast_over_threshold` / `invoice_over_threshold` / `mandate_failed` / `tier_cap`).
 - `threshold` and `projected_total` / `current_invoice_total` — to render the

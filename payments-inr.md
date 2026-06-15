@@ -1,7 +1,7 @@
 # INR Payments — how collection works for Indian customers
 
 > Decision record: [ADR 0005](docs/adr/0005-inr-collection-emandate-threshold-prepaid.md).
-> Build: [#50](issues/50-inr-collection-mode-threshold-action-required.md).
+> Build: [#60](issues/60-inr-collection-mode-threshold-action-required.md).
 > Cross-refs: [payments.md](payments.md) (gateway seam, charge flow), [credits.md](credits.md) (wallet waterfall), [dashboard.md](dashboard.md) (surfaces), [issues/14](issues/14-retry-dunning-suspension.md) (dunning).
 
 ## Why INR is special

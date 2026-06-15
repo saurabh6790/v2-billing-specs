@@ -100,4 +100,4 @@ plus a **customer-chosen split at the ₹15k threshold** ("Approach B").
   is `manual_checkout` or `prepaid` (both on-session, zero AFA machinery), Stripe
   does international postpaid. Add silent e-mandate later only if low-tier churn
   justifies the pre-debit plumbing.
-- **New build:** [#50](../../issues/50-inr-collection-mode-threshold-action-required.md).
+- **New build:** [#60](../../issues/60-inr-collection-mode-threshold-action-required.md).
