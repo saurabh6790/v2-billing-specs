@@ -53,7 +53,7 @@ Central's fixtures (carried by the `Owner` and `Billing` team roles).
 - [ ] A mutation endpoint denies a `billing:view`-only member; a read endpoint
   allows them.
 - [ ] `System Manager` reaches the admin console; a plain member gets 403.
-- [ ] The Agent API key gets 403 on every customer/admin endpoint.
+- [ ] A principal with no billing capability gets 403 on every customer/admin endpoint.
 
 ## Decisions baked in
 

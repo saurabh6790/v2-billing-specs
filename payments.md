@@ -202,7 +202,7 @@ The `authorised` event advances only from `initiated` (it never walks a terminal
 
 ## Log retention & cleanup
 
-`Payment Attempt` and `Webhook Event` are high-volume append-only logs (one row per charge / per inbound callback). They are kept on a **rolling 3-month window** and pruned by a daily scheduler — the same pattern as `Sync Log` ([#03](issues/03-agent-event-log-price-lock.md)):
+`Payment Attempt` and `Webhook Event` are high-volume append-only logs (one row per charge / per inbound callback). They are kept on a **rolling 3-month window** and pruned by a daily scheduler (the standard rolling-window retention pattern for high-volume logs):
 
 - `charges.cleanup_payment_logs` (daily scheduler) deletes `Payment Attempt` and processed/ignored `Webhook Event` rows older than the window.
 - Window is site-config driven: `payment_log_retention_days`, **default 90 (~3 months)**.

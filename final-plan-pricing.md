@@ -177,8 +177,9 @@ Add-ons come in two pricing modes:
 - Metered as a **gauge** (integral over time = GB-days); see [metering.md](metering.md).
 
 Other metered add-ons keep the standard formula **`max(0, quantity − locked_allowance) ×
-locked_rate`**. **Edge aggregation** stands: the Agent rolls usage up locally and ships only the
-aggregate; Central never stores raw samples (this is what keeps v2 off v1's 10M-records path).
+locked_rate`**. **Edge aggregation** stands: the cluster manager rolls usage up at the edge and
+exposes only the aggregate, which Central records; Central never stores raw samples (this is what
+keeps v2 off v1's 10M-records path). ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md) — no Agent.)
 
 ---
 
@@ -191,8 +192,8 @@ mechanism (§5).
 Pricing has **three roles, one number**:
 
 1. **Read live at purchase** — the regional UI shows the resolved rate for currency + cluster.
-2. **Locked at provision** — the Agent emits a `subscribed` event with `resource_id` and the
-   **shown rate**; Central writes an append-only price-lock row. **Rate shown = rate locked.**
+2. **Locked at provision** — Central resolves the **shown rate**, provisions via the cluster manager,
+   and writes an append-only price-lock row + `subscribed` event with `resource_id`. **Rate shown = rate locked.**
 3. **Frozen for billing** — billing reads the lock forever.
 
 Rules:

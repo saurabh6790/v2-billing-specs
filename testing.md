@@ -21,12 +21,12 @@ Prove correctness on the paths where v1 broke: concurrency, signatures, idempote
 - **Usage event + meter sync:** events + rollups pushed → invoice line items match expected durations + metered amounts.
 - **Free/trial cost report:** `cost_report` invoice generated (not billed), subsidy total includes the team.
 - **ERPNext failure isolation:** ERPNext returns 500 → invoice still `Paid`, customer notified, sync queued for retry, no rollback.
-- **Entitlement token:** offline verification; expired-token + Central-unreachable → deny new, keep running; suspend directive stops running.
+- **Provisioning cap ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)):** over-cap provision rejected by Central before the cluster-manager call; Central-unreachable → deny new, running untouched; dunning suspend calls the cluster manager to stop.
 
 ## Security tests
 
 - Webhook without valid signature → 400, **zero DB records**.
-- Agent API key on a customer endpoint → 403.
+- A principal with no billing capability on a customer/admin endpoint → 403.
 - Replay of a processed webhook → 200, no side effects.
 - Concurrent `pay_invoice` on one invoice → only one attempt reaches `captured`.
 - No raw SQL interpolation (`bandit` + `grep`).

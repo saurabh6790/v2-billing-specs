@@ -61,6 +61,7 @@ roles of its own**.
   the per-cluster `press_billing_agent` is unchanged. The "Central owns intent +
   money; Agent owns what ran" split (architecture.md) is preserved — "Central" is
   now literally the `central` app.
+  > **Superseded 2026-06-15 by [ADR 0006](0006-agentless-central-owns-provisioning-and-enforcement.md):** the Subscription Agent is retired; Central owns *what ran* too, and provisions/enforces via the cluster manager API. This bullet reflects the decision as made; ADR 0006 is the current state.
 
 ## Status
 

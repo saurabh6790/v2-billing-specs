@@ -1,5 +1,7 @@
 # Frappe Cloud v2 — Billing & Payments POC
 
+> **Historical (predates [ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md), 2026-06-15).** This runbook describes the original **two-app** POC (Central + a per-cluster Subscription Agent, sites `billing.local` + `agent.local`). The Agent is now retired: Central provisions/records/enforces via the cluster manager API. The flows below still illustrate the billing model, but the agent app/site and the push/sync/token steps no longer apply.
+
 A working proof-of-concept of the v2 billing redesign, built as **two Frappe
 apps** and driven entirely test-first. This doc is the demonstration script:
 what it is, how to stand it up, and a guided walk-through of the flows.

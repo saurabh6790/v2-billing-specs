@@ -4,14 +4,16 @@
 
 Two delivery milestones, in order: a working **Demo** (end-to-end money path), then **feature-complete**.
 
+> **Updated 2026-06-15 ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).** No Subscription Agent. Central provisions/records/enforces via the cluster manager API; the Agent app, its 4 DocTypes, plan-push, and entitlement-token issuance are dropped. A new outbound **cluster-manager integration** replaces them.
+
 ## Phase 1 — Foundation
 
-- Scaffold `cloud_billing` and `subscription_agent` apps.
+- Scaffold the `billing` module inside Central (no separate Agent app).
 - **Gateway Integrations (front-loaded workstream — see below).**
-- `Plan` + `Plan Resource` CRUD; plan push to Agent.
-- Agent's 4 DocTypes.
+- `Plan` + `Plan Resource` CRUD (catalog lives in Central; no Agent Plan Cache).
+- Cluster-manager integration seam (provision/stop/terminate; read state/usage).
 
-**Checkpoint:** gateways configured, plans defined + synced, webhooks received safely.
+**Checkpoint:** gateways configured, plans defined, webhooks received safely.
 
 ### Gateway Integrations (first-class workstream, Phase 1)
 
@@ -29,10 +31,10 @@ The gateway layer is what this project rewrites away from `frappe/payments` (see
 - `Subscription` (intent) + `Subscription Change`; two-axis state.
 - Price-lock ledger (keyed by `resource_id`).
 - Payment Method lifecycle (setup → micro-charge → active).
-- Agent event log + push to Central; entitlement-token issuance + local verification.
+- Central event log (written at provision) + price-lock; trust-tier cap enforced in the provision call.
 - Credit ledger with `FOR UPDATE` balance.
 
-**Checkpoint:** subscribe → event logged + pushed → token authorises provision → credit top-up works.
+**Checkpoint:** subscribe → Central checks cap, provisions via cluster manager, logs the event → credit top-up works.
 
 ## Phase 3 — Invoicing & payment
 
@@ -62,7 +64,7 @@ The gateway layer is what this project rewrites away from `frappe/payments` (see
 - **Additional meters** (API calls, request volume) — additive; pipeline + counter/gauge model already exist.
 - **Hourly / burst tiers (GPU)** — engine already reads `billing_interval`; light up the tier, no rewrite.
 - **Multi-currency per invoice** — currently one currency per team; gateways already support multiple currencies via config.
-- **Cross-region consolidated invoice** — merge multi-cluster Agent events at Central before generation.
+- **Cross-region consolidated invoice** — merge a team's multi-cluster events (all in Central) before generation.
 - **PayPal adapter** — one adapter class when demand justifies.
 
 ## Open items

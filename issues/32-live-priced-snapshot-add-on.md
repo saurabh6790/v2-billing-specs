@@ -10,7 +10,7 @@ Make **snapshot** a **live-priced add-on** — the deliberate exception to grand
 
 1. **`pricing_mode` on `Add-on`** (Select: `grandfathered` / `live`), default `grandfathered`; `addon-snapshot` set to `live`.
 2. **Billing rate resolution** — for a `live` add-on, resolve the rate from the current `Catalog Rate` (team currency + cluster) at line-item time instead of reading the price-lock. Grandfathered add-ons unchanged.
-3. **Snapshot resource identity** — the Agent emits the snapshot as its own `resource_id` at creation (independent of the parent VM's `resource_id`); it does not close when the VM terminates. No price-lock row is written for live add-ons (they skip the lock step by design).
+3. **Snapshot resource identity** — Central records the snapshot as its own `resource_id` at creation (independent of the parent VM's `resource_id`); it does not close when the VM terminates. No price-lock row is written for live add-ons (they skip the lock step by design).
 4. **No allowance for snapshot** — line item reduces to `GB-days × live_rate` (the `max(0, qty − allowance)` allowance term is zero).
 5. **Doc reconciliation** — update [metering.md](../metering.md) so "rate + allowance locked at provision" is scoped to grandfathered add-ons; live-priced ones are the carve-out.
 

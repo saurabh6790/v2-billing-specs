@@ -11,7 +11,7 @@ Press v2 is greenfield: **net-new users adopt v2 first.** Existing users migrate
 ## Per-team seeding (seed, don't backfill)
 
 Per migrating team:
-- One Agent `subscribed` event per running resource (the event log *starts* at migration).
+- One `subscribed` event per running resource, written in Central (the event log *starts* at migration).
 - One **price-lock at the current v1 price** per running resource → instant, automatic grandfathering (no one's bill changes).
 - One opening **Credit Ledger Entry** for the v1 prepaid balance.
 - **No history backfill.** Historical v1 invoices imported **read-only** (for customer history display); never recomputed.

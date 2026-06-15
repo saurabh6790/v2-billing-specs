@@ -205,7 +205,7 @@ const createRole = useCall({
 
 ## A4. Trust Tier — `/team/trust-tier`  ✅ `get_trust_tier`
 
-The team's **trust tier** is the entitlement cap, computed by Central from billing
+The team's **trust tier** is the provisioning cap, computed by Central from billing
 history ([provisioning-and-entitlements.md](provisioning-and-entitlements.md)).
 **Read-only for the team** — promotions are automatic, demotions are
 event-driven, overrides are operator-only. The screen explains *where you are, what
@@ -243,8 +243,8 @@ it unlocks, and how to advance*.
 
 > **None of Part B has a customer-facing API/DocType in these specs.** ADR 0004
 > establishes that Atlas exists and shares the capability IAM, and the provisioning
-> spec establishes `cluster` / `cluster_slices` / `allowed_clusters` / `resource_id`
-> / entitlement tokens — the screens below are **wireframes over dummy data**
+> spec establishes `cluster` / `allowed_clusters` / `resource_id` and Central-driven
+> provisioning via the cluster manager ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)) — the screens below are **wireframes over dummy data**
 > anchored to those concepts. Every endpoint is a **proposal to confirm with the
 > Central/Atlas team**, not an existing method. Build these against a local
 > dummy-data module first (`useFetch` against a mock, or a static fixture), then
@@ -270,8 +270,8 @@ export const MOCK_CLUSTERS = [
 A single registry of everything the team has provisioned across clusters — VMs,
 and (future) other asset types. Landing page of the Atlas group: counts by status,
 a cluster breakdown, and a recent-assets list. Each asset carries its
-**`resource_id`** (the Agent's source-of-truth handle for what actually ran,
-[architecture.md](architecture.md)) so it reconciles with billing line items.
+**`resource_id`** (Central's source-of-truth handle for what actually ran, recorded
+at provision — [architecture.md](architecture.md)) so it reconciles with billing line items.
 
 ```
 ┌─ Atlas ▸ Registry ──────────────────────────────  [ + Provision resource ] 🟡
@@ -287,9 +287,9 @@ a cluster breakdown, and a recent-assets list. Each asset carries its
 Status `Badge` reuses the **operational axis** (`running`→green, `stopped`→gray,
 `terminated`→red), distinct from billing's account-standing axis.
 **Provision resource** (`atlas:manage`) is the only mutation — flagged 🟡; opens a
-wizard out of scope here (it records a `Subscription` *intent* per
-[provisioning-and-entitlements.md](provisioning-and-entitlements.md), then the
-cluster provisions against the entitlement token).
+wizard out of scope here (it records a `Subscription` *intent*, then Central checks
+the trust-tier cap and provisions via the cluster manager API —
+[provisioning-and-entitlements.md](provisioning-and-entitlements.md)).
 
 ## B2. Virtual Machines — `/atlas/vms`  🟡
 
@@ -303,9 +303,9 @@ The **detail panel** has `Tabs`:
 - **Details** — `resource_id`, cluster, plan, vCPU/RAM, IP, created, current cap
   slice.
 - **Activity** — the resource's **event log** keyed on `resource_id` (subscribed /
-  changed / started / stopped — the Agent's immutable event stream,
-  [architecture.md](architecture.md) / [subscription-agent.md](subscription-agent.md)).
-  🟡 dummy until the Agent exposes a customer-readable event feed.
+  changed / started / stopped — Central's immutable event stream, recorded at
+  provision, [architecture.md](architecture.md)).
+  🟡 dummy until Central exposes a customer-readable event feed.
 
 ```
 ┌─ Atlas ▸ Virtual Machines ──────────────────────────────┐ vm-web-01      ✕ │
@@ -332,7 +332,7 @@ function statusTheme(s) {
 ```
 
 A new VM and Start/Stop are bounded by the **trust tier** (`max_resource_count`,
-`allowed_plans`, `allowed_clusters`) and the per-cluster **entitlement slice**. The
+`allowed_plans`, `allowed_clusters`), enforced by Central at provision. The
 UI should pre-check against `get_trust_tier` and disable "New VM" in a cluster the
 team can't use, linking to **Access Requests** (B4) — the cap is real (✅) even
 though the VM CRUD is mocked (🟡).
@@ -389,7 +389,7 @@ next trust-tier promotion that widens `allowed_clusters`).
   `request_cluster_access({ cluster, reason })` 🟡 → `toast.success('Request
   submitted')`. Status `Badge`: Pending→orange, Approved→green, Declined→red.
 - Tie-in to the real model: an approved request widens the team's
-  `allowed_clusters`/entitlement slice; the spec note tells the user a tier
+  `allowed_clusters` / trust-tier cap; the spec note tells the user a tier
   promotion may grant it automatically (links B2/A4). The request *record* and its
   review workflow are 🟡 — confirm whether Central models this as a DocType or folds
   it into the existing operator console.

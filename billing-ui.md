@@ -253,7 +253,8 @@ The headline block has **two variants** keyed off the team's settlement mode
 
 - The two **account-standing axes** are distinct ([architecture.md](architecture.md)):
   `account_standing` (`current` / `past_due` / `suspended`, Central) and the
-  operational state (`running` / `stopped` / `terminated`, Agent). Render them as
+  operational state (`running` / `stopped` / `terminated`, Central's record of
+  cluster-manager state). Render them as
   two `Badge`s, never collapsed into one. `statusTheme`: current→green,
   past_due→orange, suspended→red.
 - Stat blocks are **section surfaces, not boxed cards for decoration** — a heading +
@@ -447,7 +448,7 @@ Processing→blue.
 ## 6. Subscriptions — `/billing/subscriptions`
 
 `list_subscriptions` — the team's plan **intent/contract** (Central's
-`Subscription` records intent; the Agent records what ran —
+`Subscription` records intent; Central also records what ran, at provision —
 [architecture.md](architecture.md)). Read-only in this customer surface: bundle/
 plan, region×currency rate, current price-locked rate, and the two state axes.
 (Plan change/configurator flows — [#30–#33](issues/README.md) — are a separate
