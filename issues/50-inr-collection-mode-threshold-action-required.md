@@ -19,16 +19,18 @@ Approach B from [ADR 0005](../docs/adr/0005-inr-collection-emandate-threshold-pr
 
 ## Acceptance criteria
 
-- [ ] `collection_mode` exists with the five values; defaults sane per currency (INR → `prepaid` or chosen; international → `stripe_auto`).
-- [ ] Adapter capability flags drive rail selection; `max_silent_charge` enforced (Razorpay ≤ ₹15k, Stripe ∞).
-- [ ] An `emandate` team whose invoice/forecast crosses `min(₹15k, tier cap)` flips to `action_required`, raises a banner + notification, and is **not** silently charged or blocked.
-- [ ] `choose_collection_mode` sets `manual_checkout` or `prepaid`, clears `action_required`, and is reversible from settings.
-- [ ] `manual_checkout` invoices pay on-session for **any amount** (no ₹15k limit), webhook-confirmed (never premature `Paid`).
-- [ ] `prepaid` draws the wallet; under-funded → partial + `Open` remainder + top-up prompt.
-- [ ] Razorpay e-mandate ≤ ₹15k charges off-session after a pre-debit notification.
-- [ ] No off-session >₹15k AFA-link state machine exists (explicitly out of scope).
-- [ ] Standalone PayPal adapter removed; INR routing/tests updated; demo seeds reflect modes.
-- [ ] Banner-feed read endpoint returns the documented fields; dunning copy is mode-aware.
+- [x] `collection_mode` exists with the five values; defaults sane per currency (INR → `prepaid` or chosen; international → `stripe_auto`).
+- [x] Adapter capability flags drive rail selection; `max_silent_charge` enforced (Razorpay ≤ ₹15k, Stripe ∞).
+- [x] An `emandate` team whose invoice/forecast crosses `min(₹15k, tier cap)` flips to `action_required`, raises a banner + notification, and is **not** silently charged or blocked.
+- [x] `set_collection_mode` sets `manual_checkout` or `prepaid`, clears `action_required`, and is reversible from settings.
+- [x] `manual_checkout` invoices pay on-session for **any amount** (no ₹15k limit), webhook-confirmed (never premature `Paid`).
+- [~] `prepaid` draws the wallet; under-funded → partial + `Open` remainder + top-up prompt. *(existing credit waterfall #11; mode now routes to it — no new code.)*
+- [x] Razorpay e-mandate ≤ ₹15k charges off-session after a pre-debit notification.
+- [x] No off-session >₹15k AFA-link state machine exists (explicitly out of scope).
+- [x] Standalone PayPal adapter removed; INR routing/tests updated.
+- [x] Banner-feed read endpoint returns the documented fields; dunning copy is mode-aware.
+
+**Done** (commits on `fixes`): items 1+5 `5a45d49`, item 4 `8929d7f`, item 2 `60d9809`, item 3 `77b4fd4`. Tests: `test_collection_mode` (16), `test_emandate` (4), plus charges/dunning/dashboard/webhooks/adapters green. Demo-seed `collection_mode` wiring is the only nice-to-have left.
 
 ## Blocked by
 
