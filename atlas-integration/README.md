@@ -1,236 +1,229 @@
-# Atlas Integration — Atlas → Agent → Central
+# Atlas Integration — Central ↔ Atlas
 
 How a Firecracker VM managed by Atlas becomes a line on a Central invoice.
-This spec covers the **workflow and integration seams** between the three
-systems; the billing domain itself (money, invoicing, payments, credits, tax)
-is specced by the domain files in this repo ([README](../README.md)) and the
-VM/cluster domain in [atlas/spec](../../atlas/spec/README.md). Central IAM
-(Teams, capabilities, OAuth) is specced in
-[central/spec/IAM.md](../../central/spec/IAM.md).
+This spec covers the **integration seam** between the two systems; the billing
+domain itself (money, invoicing, payments, credits, tax) is specced by the
+domain files in this repo ([README](../README.md)) and the VM/cluster domain
+in [atlas/spec](../../atlas/spec/README.md). Central IAM (Teams, capabilities,
+OAuth) is specced in [central/spec/IAM.md](../../central/spec/IAM.md).
 
-## The three systems
+> **Agentless ([ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md), 2026-06-15).**
+> There is **no per-cluster Subscription Agent**. The earlier design put a
+> second Frappe app (`press_billing_agent`) on every cluster to hold a local
+> event log, meters, cached plans, and a signed entitlement token. That app is
+> retired. **Central is the single billing application**: it provisions, records
+> usage, and enforces by calling Atlas's API directly, and it reads runtime
+> state back from Atlas. No Plan Cache, no Sync Log, no Entitlement Token, no
+> offline verification, no push/ack spine.
+
+## The two systems
 
 | System | App | Where it runs | Authoritative for |
 | --- | --- | --- | --- |
-| Central | `central` (incl. the `billing` module) | `billing.frappe.cloud` (one, global) | Intent + money: plans, price locks, invoices, payments, credits, trust tiers, Teams |
-| Billing Agent | `press_billing_agent` | each cluster-manager site, **co-installed with Atlas** | What actually ran: the plan-change event log, metered rollups, cached plans, cached entitlement tokens |
-| Atlas | `atlas` | each cluster-manager site | The resources themselves: Servers, Virtual Machines, Snapshots, Sites, Tasks |
+| Central | `central` (incl. the `billing` module) | `billing.frappe.cloud` (one, global) | Intent + money **and the recorded runtime it bills from**: plans, price locks, the event log, metered rollups, invoices, payments, credits, trust tiers, Teams |
+| Atlas | `atlas` | each cluster-manager site (one per region) | The resources themselves: Servers, Virtual Machines, Snapshots, Sites, Tasks. The **executor** Central calls, and the source of the runtime state Central reads |
 
-In the v2 billing specs the per-cluster role is called the "Subscription
-Agent" and the resource manager the "Bench Manager". In this deployment the
-Subscription Agent **is** `press_billing_agent` and the Bench Manager **is**
-Atlas.
+In the v2 billing specs the resource manager is called the "Bench Manager"
+(a.k.a. *cluster manager*). In this deployment the Bench Manager **is** Atlas.
+There is no third role: what the retired Subscription Agent used to do now
+lives **inside `central/billing`** as an Atlas client module.
 
 ## The picture
 
 ```mermaid
 flowchart TB
-    subgraph Central["Central — billing.frappe.cloud"]
+    subgraph Central["Central — billing.frappe.cloud (single billing app)"]
         PL[Plan + Catalog Rate]
+        GATE[Provision gate<br/>trust-tier cap, synchronous]
         LOCK[Price Lock ledger]
+        EVT[Event log<br/>subscribed/changed/cancelled]
         ROLL[Usage Rollup]
         INV[Invoice — 1st of month]
         TT[Trust Tier]
+        DUN[Dunning / enforcement]
+        ATL[Atlas client<br/>billing/integrations/atlas.py]
     end
 
     subgraph Cluster["Cluster manager site (one per region, e.g. blr1)"]
-        subgraph Agent["press_billing_agent"]
-            PC[Plan Cache]
-            PSL[Plan Subscription Log]
-            UM[Usage Meter]
-            ET[Entitlement Token]
-        end
         subgraph Atlas["atlas"]
             VM[Virtual Machine]
             SNAP[VM Snapshot]
+            TASK[Task — audit row]
         end
     end
 
-    PL -- "plan push (HTTP)" --> PC
-    TT -- "signed token push (HTTP)" --> ET
-    PSL -- "usage events push (HTTP)" --> LOCK
-    UM -- "meter rollups push (HTTP)" --> ROLL
+    GATE --> ATL
+    DUN --> ATL
+    ATL -- "create / resize / terminate / stop  (HTTP API call)" --> VM
+    ATL -- "read snapshot sizes, TAP counters, status (HTTP read)" --> Atlas
+    VM -- "status callback: Running / Terminated (HTTP)" --> ATL
+    ATL --> EVT
+    ATL --> ROLL
+    EVT --> LOCK
     LOCK --> INV
     ROLL --> INV
-
-    VM -- "doc_events (in-process)" --> PSL
-    SNAP -- "daily gauge sampling (in-process)" --> UM
-    ET -- "provision gate + enforcement (in-process)" --> VM
+    VM -. "every action = one audited Task" .- TASK
 ```
 
-Two transport regimes, on purpose:
+One transport regime, one direction of control:
 
-- **Atlas ↔ Agent: in-process.** Both apps are installed on the same
-  cluster-manager site. The integration is Frappe `doc_events` hooks plus
-  direct Python calls — no HTTP, no auth surface, no partial-failure window
-  between "the VM exists" and "billing knows".
-- **Agent ↔ Central: HTTP, push-based, idempotent.** Already built. The
-  cluster keeps working when Central is down; everything unacknowledged is
-  re-pushed by the daily catch-up.
+- **Central → Atlas: HTTP API, Central is the client.** Central calls Atlas to
+  create / resize / terminate / stop a VM and to read runtime facts (status,
+  snapshot sizes, transfer counters). Atlas exposes a least-privilege API for
+  this; it never imports billing and never decides what to bill.
+- **Atlas → Central: a thin status callback.** When a VM reaches `Running` or
+  is terminated, Atlas posts the transition to Central so Central can stamp the
+  event at the right moment (`effective_from` = provision-success). This is the
+  cluster manager *reporting its own state*, not a billing app — Atlas holds no
+  billing records. If the callback is missed, Central's reconciliation read
+  (chapter [02](./02-central-atlas-api.md)) repairs it; recording never depends
+  on Atlas calling first.
+
+**Central writes the price lock and the event the moment it provisions** — the
+rate the user saw and the rate locked are guaranteed equal because the *same
+Central component* shows the rate, calls Atlas, and records the lock. There is
+no second source of truth on the cluster to drift from.
 
 ## The layering rule
 
 **Atlas never imports billing.** Atlas sits below everything
-([atlas/spec/01-architecture.md](../../atlas/spec/01-architecture.md));
-its only billing-relevant contribution is carrying two opaque attribution
-fields (`team`, `plan`) on its resources. The Agent depends on Atlas — it
-registers `doc_events` against Atlas DocTypes and calls Atlas controller
-methods for enforcement — never the reverse. All mapping from "Atlas did X"
-to "billing event Y" lives in one adapter module inside the Agent.
+([atlas/spec/01-architecture.md](../../atlas/spec/01-architecture.md)); its
+only billing-relevant contribution is carrying two opaque attribution fields
+(`team`, `plan`) on its resources and exposing an API for lifecycle + reads.
+The dependency runs **one way: Central depends on Atlas** — Central's Atlas
+client calls Atlas's API and reads Atlas documents; Atlas knows nothing of
+Central beyond the status-callback URL it is configured to post to. All mapping
+from "Atlas did X" to "billing event Y" lives in one module inside Central:
+`central/billing/integrations/atlas.py`.
 
 ## End-to-end walkthrough
 
-1. **Catalog.** An admin defines a `Plan` + `Catalog Rate`s on Central and
-   pushes them to each cluster (`push_plans_to_agent` → Agent `Plan Cache`).
+1. **Catalog.** An admin defines a `Plan` + `Catalog Rate`s on Central. Central
+   holds them — there is no plan push and no per-cluster Plan Cache.
 2. **Onboarding.** A user signs up on Central, creates/joins a Team, adds a
-   payment method. Central computes the Team's `Trust Tier` and pushes a
-   signed `Entitlement Token` to each allowed cluster. Onboarding requires
-   Central; steady-state does not.
-3. **Provision.** The user (authenticated into Atlas via Central OAuth,
-   [central/spec/IAM.md](../../central/spec/IAM.md)) creates a Virtual
-   Machine for a Team on a plan. The Agent's `before_insert` hook gates it
-   against the cached token (projected run-rate vs the cluster slice cap) —
-   offline, no Central call.
-4. **Subscribed event.** When the VM first provisions successfully, the
-   Agent appends a `subscribed` row to the `Plan Subscription Log` —
-   `resource_id` = the VM's UUID, `shown_rate` = the rate the user saw,
-   resolved from the Plan Cache — and best-effort pushes it to Central,
-   where it becomes a Price Lock (the rate is grandfathered).
-5. **Usage.** Resize → `changed` event (re-lock at the new plan's current
-   rate). Terminate → `cancelled` event (segment closed). Snapshots are
-   sampled daily into a gauge meter (GB-days); transfer accumulates into a
-   counter meter. Rollups push to Central.
+   payment method. Central computes the Team's `Trust Tier`. No token is issued
+   or pushed.
+3. **Provision.** The user subscribes to a plan on Central. Central runs the
+   **provision gate synchronously** (IAM `vm:create` for the team, then the
+   trust-tier cap vs the team's projected run-rate) and, if it passes, calls the
+   **Atlas API** to create the Virtual Machine for that team on that plan.
+4. **Subscribed event.** Atlas provisions (async) and, on `Pending → Running`,
+   calls back to Central. Central appends a `subscribed` row to the event log —
+   `resource_id` = the VM's UUID, `shown_rate` = the rate the user saw — and
+   writes the matching **Price Lock** (the rate is grandfathered). Same
+   component, so shown rate ≡ locked rate.
+5. **Usage.** Resize → Central calls Atlas resize and records a `changed` event
+   (re-lock at the new plan's current rate). Terminate → Central calls Atlas
+   terminate and records a `cancelled` event (segment closed). Snapshots are
+   sampled daily by **Central reading Atlas** into a gauge meter (GB-days);
+   transfer accumulates into a counter meter the same way.
 6. **Invoice.** On the 1st, Central joins event-log segments to locked rates,
    adds metered lines from rollups, and bills the month just ended — pure
-   postpaid ([invoicing.md](../invoicing.md)).
-7. **Delinquency.** Retries fail → Central pushes a token with `suspend`
-   (later `terminate`). The Agent's enforcement loop stops (later terminates)
-   the Team's VMs via normal Atlas controller calls — each action is an
-   audited Atlas Task. Central unreachable ≠ delinquent: an *expired* token
-   never stops running resources.
+   postpaid ([invoicing.md](../invoicing.md)). The invoice run touches no
+   cluster; it reads Central's own records.
+7. **Delinquency.** Retries fail → Central's **dunning** calls the Atlas API to
+   stop (later terminate) the team's VMs — each a normal, audited Atlas Task.
+   **Central-unreachable never stops anything**: Atlas only acts on an explicit
+   Central call, so an outage can never suspend a running resource.
 
 ## Runtime flows
 
 **The money path — VM lifecycle → invoice:**
 
 ```
- user picks Team + Plan, clicks Create VM
+ user picks Team + Plan on Central, clicks Create VM
         │
         ▼
- [agent] before_insert gate ──── no token / expired / over cap ──▶ ✗ throw
-        │ ok (offline check vs cached Entitlement Token)
+ [central] provision gate ──── IAM denied / over trust-tier cap ──▶ ✗ throw
+        │ ok (synchronous, against Central's own records)
+        ▼
+ [central] Atlas client → POST atlas create_vm(team, plan, size)
+        │
         ▼
  [atlas] VM inserted (Pending) → auto_provision job → SSH provision-vm.py → Running
         │
-        ▼
- [agent] doc_event: first Pending→Running
-        │   events.record_event("subscribed", resource_id=VM UUID,
-        │                       shown_rate ← Plan Cache, cluster)
-        ▼
- [agent] Plan Subscription Log row (append-only, synced_to_central=0)
-        │
-        ▼
- [agent] sync.push_unsynced_events ──HTTP──▶ [central] receive_usage_events
-        │                                         │ lock_from_event → PRICE LOCK
-        ◀──── {acknowledged: [event_id]} ─────────┘ (rate grandfathered)
-        │
-        ▼  (later: resize → "changed" re-lock · terminate → "cancelled" closes segment)
+        ▼  status callback (Pending→Running) ──HTTP──▶ [central] receive_vm_status
+        │                                                  │ record_event("subscribed",
+        │                                                  │   resource_id=VM UUID,
+        │                                                  │   shown_rate ← Plan, cluster)
+        │                                                  │ lock_from_event → PRICE LOCK
+        ▼                                                  ▼ (rate grandfathered)
+        (later: resize → Central records "changed" re-lock · terminate → "cancelled")
         │
  [central] 1st of month: segments × locked rates + meter rollups → INVOICE (postpaid)
 ```
 
-**The enforcement path — delinquency, reverse direction:**
+**The enforcement path — delinquency, same direction of control:**
 
 ```
- [central] payment retries fail → push token {suspend:1} ──HTTP──▶ [agent] receive_token
-                                                                       │ verify signature OFFLINE, cache
- [agent] hourly job: enforcement_state(team)                           ▼
-     "stopped"    → [atlas] vm.stop()      each Running VM   ─┐  every action =
-     "terminated" → [atlas] vm.terminate() → "cancelled" event┴─ one audited Atlas Task
-     expired token → DO NOTHING (never punish for our own outage; only deny NEW provisions)
+ [central] payment retries fail (dunning, #14)
+        │   reconcile desired vs actual by reading Atlas state
+        ▼
+ [central] Atlas client →  suspend  : POST atlas stop_vm()      each Running VM
+                           terminate: POST atlas terminate_vm() → "cancelled" event
+        │                                  every call = one audited Atlas Task
+        ▼
+ Central unreachable → nothing happens (Atlas only acts on a Central call)
 ```
 
 ## Project structure
 
-**press_billing_agent** — small and flat; one module per concern:
+The integration lives **entirely in Central** — there is no second app to
+deploy per cluster. The Atlas-facing code is one module plus the existing
+revenue/enforcement modules it feeds:
 
 ```
-press_billing_agent/
-├── press_billing_agent/
-│   ├── hooks.py            # daily scheduler: push events/meters catch-up, prune Sync Log
-│   ├── events.py           # record_event() — the event-log spine (subscribed/changed/cancelled)
-│   ├── sync.py             # Agent↔Central HTTP: receive_plans, push_unsynced_events/meters
-│   ├── metering.py         # counter/gauge running aggregates (record_counter/record_gauge)
-│   ├── entitlement.py      # receive_token, can_provision (gate), enforcement_state
-│   ├── signing.py          # offline token signature verification
-│   ├── provisioning.py     # DEMO ONLY — simulated subscribe (superseded by the adapter, #53)
-│   ├── dashboard.py        # data for the cluster SPA
-│   ├── press_billing_agent/doctype/   # the DocTypes:
-│   │   ├── plan_cache/                #   plans pushed from Central (display-only)
-│   │   ├── plan_subscription_log/     #   append-only event log — SOURCE OF TRUTH
-│   │   ├── usage_meter/               #   bounded counter/gauge rollups
-│   │   ├── entitlement_token/         #   cached signed cap
-│   │   └── sync_log/                  #   rolling sync audit trail (pruned ~90d)
-│   ├── tests/              # test_events/sync/metering/entitlement/plan_cache/provisioning
-│   └── www/cluster.py      # serves the SPA shell at /cluster
-└── dashboard/              # Vue 3 + Tailwind SPA (Overview/Plans/Events/Usage/Entitlements/Sync)
+central/
+└── central/billing/
+    ├── integrations/
+    │   └── atlas.py        # the whole Atlas seam: API client (create/resize/
+    │                       #   terminate/stop + reads), the lifecycle→event
+    │                       #   mapping, and the status-callback receiver.
+    │                       #   The ONLY module that imports Atlas concepts.
+    ├── revenue/
+    │   ├── pricelock.py    # writes the price lock at provision time (subscribed/changed)
+    │   └── metering.py     # gauge/counter rollups, sampled from Atlas reads
+    ├── platform/
+    │   └── provisioning.py # the provision gate (trust-tier cap, synchronous) + dunning enforcement
+    └── ...                 # invoicing, payments, credits, tax — unchanged, cluster-agnostic
 ```
 
-The integration specced here (issues [#50–#59](../issues/README.md#atlas-integration-milestone-at))
-adds `press_billing_agent/integrations/atlas.py` — the one module mapping
-Atlas doc_events onto the modules above. Dependency direction: **the Agent
-imports Atlas concepts, never the reverse.**
-
-**atlas** — the layer below everything ([full spec](../../atlas/spec/README.md)):
+`atlas` is untouched beyond the attribution fields and the API/callback seam
+([full spec](../../atlas/spec/README.md)):
 
 ```
 atlas/
 ├── spec/                   # 14-chapter spec — the source of truth for Atlas
-├── scripts/                # one idempotent script per operation, run on servers over SSH:
-│   ├── bootstrap-server.py · provision-vm.py · start/stop/pause/resume-vm.py
-│   ├── snapshot/rebuild/resize/terminate-vm.py · sync-image.py · issue-cert.py
-│   └── guest/ · lib/ · systemd/   # in-guest helpers, shared lib, unit templates
-├── bench/                  # golden bench image bake + in-guest deploy-site.py (self-serve)
+├── scripts/                # one idempotent script per operation, run over SSH
 └── atlas/
-    ├── hooks.py
     ├── atlas/
     │   ├── doctype/        # 22 DocTypes; the billing-relevant ones:
-    │   │   ├── server/                    # one host (DO or self-managed)
-    │   │   ├── virtual_machine/           # core aggregate — UUID name = billing resource_id
+    │   │   ├── virtual_machine/           # core aggregate — UUID name = billing resource_id; carries team + plan
     │   │   ├── virtual_machine_snapshot/  # LVM CoW snapshots (→ gauge metering)
-    │   │   ├── site/ + site_request/ + subdomain/  # self-serve sites (bill via backing VM)
-    │   │   ├── task/                      # every SSH script run = one audit row
-    │   │   └── provider/ + root_domain/ + tls_certificate/ …  # vendor catalog, proxy, TLS
-    │   ├── providers/      # Provider ABC: digitalocean.py, self_managed.py (+ registry)
-    │   ├── ssh.py · networking.py · placement.py · sizes.py   # infra plumbing
-    │   ├── proxy.py · deploy_site.py · bench_image.py         # edge proxy + self-serve
-    │   ├── permissions.py  # owner-scoping (Team scoping per central/spec/IAM planned)
-    │   └── api/            # signup.py (guest), server_capacity.py
-    ├── frontend/           # Vue SPA (user dashboard: machines, sites)
-    └── www/                # signup / verify / site-status / dashboard pages
+    │   │   └── task/                      # every SSH script run = one audit row
+    │   └── api/            # the least-privilege endpoints Central's client calls
+    └── frontend/ www/      # operator/user dashboards
 ```
 
 ## Spec chapters
 
-- [01-atlas-agent-integration.md](./01-atlas-agent-integration.md) — the
-  adapter: attribution fields, lifecycle-event mapping, provision gate,
-  enforcement loop.
-- [02-agent-central-sync.md](./02-agent-central-sync.md) — the HTTP spine:
-  canonical endpoints, auth, idempotency, and current path drift to fix.
-- [03-metering.md](./03-metering.md) — Atlas usage sources mapped onto the
-  counter/gauge meters.
+- [01-atlas-central-integration.md](./01-atlas-central-integration.md) — the
+  Atlas client: attribution fields, lifecycle-event mapping, the synchronous
+  provision gate, the enforcement calls.
+- [02-central-atlas-api.md](./02-central-atlas-api.md) — the seam: the Atlas
+  API Central calls, the status callback, auth, idempotency, and reconciliation.
+- [03-metering.md](./03-metering.md) — Atlas usage sources sampled by Central
+  onto the counter/gauge meters.
 
 ## Status
 
-The Agent ↔ Central spine, the Agent's event log / meters / token
-verification, and Central's price-lock + rollup ingestion are **built**
-(`press_billing_agent/sync.py`, `central/billing/platform/sync.py`,
-`central/billing/revenue/pricelock.py`, `revenue/metering.py`). The
-Atlas ↔ Agent adapter specced in chapter 01 is **not built** — today the
-Agent's `provisioning.py` mints simulated `srv-<team>-N` resource ids; it is
-superseded by this spec and retained for demos only. Chapter 02 lists the
-known drift (endpoint paths, VM `team` field) that must land first.
+Central's billing core (event log, price lock, meters, invoicing, payments) is
+**built** in `central/billing`. What this milestone adds is the
+`central/billing/integrations/atlas.py` seam — the Atlas API client, the
+status-callback receiver, and the sampling reads — plus the two attribution
+fields on Atlas. The retired Agent's simulated `srv-<team>-N` provisioning is
+gone; real provisioning is a Central → Atlas API call.
 
 Implementation is broken into tracer-bullet issues
-[#50–#59](../issues/README.md#atlas-integration-milestone-at)
-(the **AT** milestone).
+[#50–#59](../issues/README.md#atlas-integration-milestone-at) (the **AT**
+milestone).

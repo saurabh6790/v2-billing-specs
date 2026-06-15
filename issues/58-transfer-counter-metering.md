@@ -4,23 +4,23 @@
 
 ## What to build
 
-Network transfer as a counter meter. A periodic Agent job collects per-VM
-byte deltas from each Server's TAP device counters (the TAP name derives from
-the VM UUID, so attribution is mechanical) via an Atlas host-facts read — one
-idempotent SSH script per Server in the normal Atlas Task pattern — and
-accumulates them with `record_counter(resource_id=vm UUID, delta=GB)`.
-Counter billing is the sum of deltas; a restart between samples loses at most
-one interval, never double-counts. Until this lands transfer simply does not
-appear on invoices (the launch posture).
+Network transfer as a counter meter. A periodic **Central** job calls Atlas
+`get_transfer_counters` (Atlas runs one idempotent host-facts SSH script per
+Server in the normal Task pattern and returns per-VM byte deltas — the TAP name
+derives from the VM UUID, so attribution is mechanical) and accumulates them with
+`record_counter(resource_id=vm UUID, delta=GB)` into Central's meters
+([ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).
+Counter billing is the sum of deltas; a missed interval loses at most one sample,
+never double-counts. Until this lands transfer simply does not appear on invoices
+(the launch posture).
 
 ## Acceptance criteria
 
-- [ ] Per-VM byte deltas collected per sampling interval, handling counter resets (host reboot, VM stop/start) without negative or double-counted deltas.
-- [ ] Deltas accumulate into one counter row per (VM, period); rollups reach Central replace-not-add.
+- [ ] Per-VM byte deltas collected per interval, handling counter resets (host reboot, VM stop/start) without negative or double-counted deltas.
+- [ ] Deltas accumulate into one counter row per (VM, period); the period figure replaces-not-adds on re-sample.
 - [ ] Team-less VMs (incl. proxy VMs) excluded.
-- [ ] Collection failure on one Server doesn't block others; the gap is visible in the Sync/Task logs.
+- [ ] A read failure on one Server doesn't block others; the gap is visible in admin observability / Task logs.
 
 ## Blocked by
 
 - #57
-

@@ -1,32 +1,32 @@
-# 55 — Provision gate: entitlement enforcement at VM creation
+# 55 — Provision gate: trust-tier cap checked synchronously at subscribe
 
-**Type:** AFK · **Milestone:** Atlas Integration · **Spec:** [atlas-integration/01-atlas-agent-integration.md](../atlas-integration/01-atlas-agent-integration.md), [provisioning-and-entitlements.md](../provisioning-and-entitlements.md)
+**Type:** AFK · **Milestone:** Atlas Integration · **Spec:** [atlas-integration/01-atlas-central-integration.md](../atlas-integration/01-atlas-central-integration.md), [provisioning-and-entitlements.md](../provisioning-and-entitlements.md)
 
 ## What to build
 
-The offline cap check. The adapter's `before_insert` on Virtual Machine gates
-team-attributed creations against the cached Entitlement Token — no Central
-call. Deny when: no token for the team ("set up billing on Central"), token
-expired or `suspend`-flagged, plan or resource type outside the token's
-whitelist, or projected run-rate / resource count exceeding this cluster's
-slice. Projected run-rate = sum of `shown_rate` over the team's open segments
-in this cluster plus the new plan's rate, converted from rate units
-(minor × 10⁶) to the token's minor-unit `max_spend` before comparison — the
-adapter owns the unit conversion, `entitlement.can_provision` stays
-unit-agnostic. The gate runs after IAM's `vm:create` check: IAM answers "may
-this user act for this team", the gate answers "may this team consume more".
-Expired token + Central unreachable denies **new** provisions only — running
-resources are never touched here.
+The cap check, now **synchronous on Central before it calls Atlas** — no token,
+no offline check, no cluster round-trip ([ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).
+When a user subscribes to a plan, Central gates the create. Deny when: the
+session lacks `vm:create` for the team (IAM), the plan is absent from the catalog
+or has no rate for the team's currency + cluster, the resource type isn't allowed
+for the tier, or the projected run-rate / resource count exceeds the team's
+trust-tier slice for the cluster. Projected run-rate = sum of `shown_rate` over
+the team's open segments in this cluster (Central already holds them) plus the
+new plan's rate, converted from rate units (minor × 10⁶) to the cap's minor units
+before comparison. The trust-tier cap is evaluated **live from billing history**,
+not read from a cached signed token. IAM runs first ("may this user act for this
+team"); the gate answers "may this team consume more". Only if the gate passes
+does Central call `create_vm`.
 
 ## Acceptance criteria
 
-- [ ] Entitled team within cap: insert proceeds.
-- [ ] Each deny path throws with a distinct, actionable message: no token / expired / suspended / plan not allowed / resource type not allowed / spend cap / count cap.
-- [ ] Unit conversion proven by test: a 10⁶-scaled rate compares correctly against a minor-unit `max_spend`.
+- [ ] Entitled team within cap: Central proceeds to call Atlas `create_vm`.
+- [ ] Each deny path throws with a distinct, actionable message: IAM denied / unknown plan / no rate / resource type not allowed / spend cap / count cap.
+- [ ] Unit conversion proven by test: a 10⁶-scaled rate compares correctly against a minor-unit cap.
 - [ ] Current spend counts only open segments in this cluster (terminated VMs free headroom).
-- [ ] Operator (team-less) VMs bypass the gate.
+- [ ] A trust-tier promotion takes effect on the next subscribe with no token re-issue/refresh step.
+- [ ] No Atlas call is made when the gate denies.
 
 ## Blocked by
 
 - #07, #51, #52
-

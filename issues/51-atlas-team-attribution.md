@@ -1,12 +1,13 @@
 # 51 — Atlas: `team` attribution on Virtual Machine + Snapshot
 
-**Type:** AFK · **Milestone:** Atlas Integration · **Spec:** [atlas-integration/01-atlas-agent-integration.md](../atlas-integration/01-atlas-agent-integration.md), [central/spec/IAM.md](../../central/spec/IAM.md), [central/spec/EXECUTION_PLAN.md §2](../../central/spec/EXECUTION_PLAN.md)
+**Type:** AFK · **Milestone:** Atlas Integration · **Spec:** [atlas-integration/01-atlas-central-integration.md](../atlas-integration/01-atlas-central-integration.md), [central/spec/IAM.md](../../central/spec/IAM.md), [central/spec/EXECUTION_PLAN.md §2](../../central/spec/EXECUTION_PLAN.md)
 
 ## What to build
 
 The Team boundary on Atlas resources — the join key for both IAM and
 billing. `Virtual Machine` and `Virtual Machine Snapshot` carry an immutable,
-indexed `team` Data field holding the Central Team identifier. Creating a VM
+indexed `team` Data field holding the Central Team identifier, opaque to Atlas
+and echoed back to Central on the status callback. Creating a VM
 requires an explicit Team and `vm:create` for that Team; snapshots and
 derived resources (clone, rebuild) inherit their VM's Team and cannot cross
 Team boundaries. Resources without a `team` (legacy, proxy, golden-image

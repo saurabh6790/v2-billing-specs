@@ -4,7 +4,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 **Targets:** Demo 30 Jun 2026 · Feature-complete 31 Jul 2026.
 
-**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Atlas resource events → Agent → Central, specced in [atlas-integration](../atlas-integration/README.md)) · **post** = post-launch.
+**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **post** = post-launch.
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
@@ -58,30 +58,33 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [43](43-team-link-to-central-team-migration.md) | `team` `Data`→`Link (Team)` + data patch + Team Member access backfill | **HITL** | 41 | **CM** |
 | [44](44-merge-hooks-fixtures.md) | Merge hooks/fixtures into Central; retire role/team-field bootstrap; drop SPA routing | AFK | 41, 42, 43 | **CM** |
 | [45](45-test-suite-update-capability-authz.md) | Test suite update: capability authz + migration round-trip + demo seeds as real Teams | AFK | 41, 42, 43 | **CM** |
-| [50](50-agent-canonical-sync-paths-cluster-identity.md) | Agent sync paths → canonical `central.billing` endpoints + `cluster` site-config identity | AFK | 03 | **AT** |
+| [50](50-central-atlas-api-cluster-identity.md) | Central → Atlas API client + status callback + `cluster` identity | AFK | 03 | **AT** |
 | [51](51-atlas-team-attribution.md) | Atlas: immutable `team` attribution on VM + Snapshot (IAM Execution Plan §2) | AFK | — | **AT** |
-| [52](52-atlas-plan-attribution-plan-cache.md) | Atlas: `plan` attribution validated against the Plan Cache + adapter skeleton | AFK | 01, 51 | **AT** |
-| [53](53-atlas-adapter-subscribed-cancelled-events.md) | Atlas adapter: `subscribed`/`cancelled` lifecycle events → Central price lock | AFK | 50, 51, 52 | **AT** |
+| [52](52-atlas-plan-attribution.md) | Atlas: `plan` attribution validated against the Central catalog | AFK | 01, 51 | **AT** |
+| [53](53-central-subscribed-cancelled-events.md) | Central records `subscribed`/`cancelled` from Atlas lifecycle → price lock | AFK | 50, 51, 52 | **AT** |
 | [54](54-changed-event-resize-plan-change.md) | `changed` event on resize/plan change (re-lock at new rate) | AFK | 53 | **AT** |
-| [55](55-provision-gate-entitlement.md) | Provision gate: offline entitlement enforcement at VM creation | AFK | 07, 51, 52 | **AT** |
-| [56](56-enforcement-loop-running-vms.md) | Enforcement loop: suspend/terminate directives act on running VMs | AFK | 51, 53 | **AT** |
-| [57](57-snapshot-gauge-metering.md) | Snapshot gauge metering: daily sampling → rollup → Central | AFK | 12, 50, 51 | **AT** |
+| [55](55-provision-gate-entitlement.md) | Provision gate: trust-tier cap checked synchronously at subscribe | AFK | 07, 51, 52 | **AT** |
+| [56](56-enforcement-loop-running-vms.md) | Enforcement: Central calls Atlas to stop/terminate delinquent VMs | AFK | 51, 53 | **AT** |
+| [57](57-snapshot-gauge-metering.md) | Snapshot gauge metering: Central samples Atlas daily → rollup | AFK | 12, 50, 51 | **AT** |
 | [58](58-transfer-counter-metering.md) | Transfer counter metering from TAP device byte counters | AFK | 57 | post |
-| [59](59-billing-time-pull-data-as-of.md) | Billing-time pull (`get_team_usage`) + per-team "data as of" freshness | AFK | 53, 57 | post |
+| [59](59-billing-time-pull-data-as-of.md) | Reconciliation read + per-team "data as of" freshness | AFK | 53, 57 | post |
 
 ## Atlas Integration milestone (AT)
 
-Wires the per-cluster reality into billing: Atlas VM lifecycle → the Agent's
-event log → Central's price locks, plus the reverse channel (entitlement gate +
-suspension enforcement). Specced in
-[atlas-integration](../atlas-integration/README.md); the Atlas ↔ Agent
-seam is in-process (both apps co-installed on the cluster-manager site), and
-Atlas never imports billing — all mapping lives in the Agent's adapter.
+Wires the per-cluster reality into billing, **agentless**
+([ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)):
+Central provisions, records the event log + meters, and enforces by **calling
+Atlas's API** and reading runtime state back; Atlas's lifecycle transitions →
+Central's price locks via a thin status callback. There is no per-cluster
+billing app, no push spine, no Plan Cache, no signed token. Specced in
+[atlas-integration](../atlas-integration/README.md); the dependency runs one way
+— **Central depends on Atlas, Atlas never imports billing** — and all mapping
+lives in `central/billing/integrations/atlas.py`.
 
-**Land in order:** #50 + #51 (the two independent prerequisites: canonical push
-paths + the Team boundary), then #52 (plan attribution), then #53 (the tracer
-bullet — first end-to-end VM → price lock), then #54–#57 in any order. #58–#59
-are post-launch.
+**Land in order:** #50 + #51 (the two independent prerequisites: the Central→Atlas
+API client + the Team boundary), then #52 (plan attribution), then #53 (the
+tracer bullet — first end-to-end VM → price lock), then #54–#57 in any order.
+#58–#59 are post-launch.
 
 ## Central Merge milestone (CM)
 
