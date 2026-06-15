@@ -10,11 +10,13 @@ Capture usage-based consumption (transfer, snapshot) for billing and forecasting
 - **Two meter types aggregate by opposite math:**
   - **counter** (e.g. transfer GB) — billed on the **sum** of deltas.
   - **gauge** (e.g. snapshot GB) — billed on the **integral over time** (GB-days).
-- **Edge aggregation** — the Agent reads the cluster's raw metrics, rolls them up locally, and ships only the aggregate. Central never stores raw samples. This is what keeps v2 off v1's 10M path.
+- **Edge aggregation** — the cluster manager rolls the cluster's raw metrics up at the edge and exposes only the aggregate, which Central records. Central never stores raw samples. This is what keeps v2 off v1's 10M path.
+
+> **Updated 2026-06-15 ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).** There is no Agent: the **Usage Meter** is a **Central** DocType, written from the cluster manager's aggregated figures (no push/sync, no `synced_to_central`).
 
 ## Data Model
 
-**Usage Meter** (Agent DocType)
+**Usage Meter** (Central DocType — written from cluster-manager rollups)
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -24,14 +26,13 @@ Capture usage-based consumption (transfer, snapshot) for billing and forecasting
 | quantity | Float | Summed deltas (counter) or GB-days (gauge). A physical **measure**, not money — stays `Float` ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)); only its product with a rate rounds to minor units |
 | unit | Data | GB, etc. |
 | last_sampled_at | Datetime | |
-| idempotency_key | Data | `(resource_id, meter_type, period)` — a re-push **replaces**, never adds |
-| synced_to_central | Check | |
+| idempotency_key | Data | `(resource_id, meter_type, period)` — a re-record **replaces**, never adds |
 
 ## Rollup & forecast
 
 - One **rollup row per `(resource_id, meter_type, billing_period)`** at close → Central receives ~one metered line per resource per meter per month, not per-day-per-resource.
 - One **running-total row per `(resource_id, meter_type, current_period)`**, overwritten daily, gives the live forecast ([invoicing.md](invoicing.md) §forecast); it collapses to the final figure at close. Bounded row count.
-- Idempotent: a re-push after an Agent outage replaces the period figure (recompute), never double-counts.
+- Idempotent: re-recording a period (recompute, or after a metering gap) replaces the figure, never double-counts.
 
 ## Billing
 

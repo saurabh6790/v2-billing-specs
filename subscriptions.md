@@ -6,9 +6,9 @@ Define the customer's subscription *intent* on Central, the two-axis state model
 
 ## Concepts
 
-- A Central **Subscription** is the customer's *intent/contract* — not the billing truth. The authoritative runtime record lives at the [Agent](subscription-agent.md).
+- A Central **Subscription** is the customer's *intent/contract*. Central records the authoritative runtime (event log + price-lock) as it provisions via the cluster manager — the component that provisions is the one that records ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).
 - **State is two orthogonal axes**, never one enum:
-  - **Operational** (`running / stopped / terminated`) — owned by the Agent.
+  - **Operational** (`running / stopped / terminated`) — Central's record of the cluster manager's reported state.
   - **Account standing** (`current / past_due / suspended`) — owned by Central, derived from payment.
   - A resource can be `running` + `past_due` at once (normal grace).
 
@@ -70,5 +70,5 @@ GET    /api/method/cloud_billing.admin.get_team_subscription?team=TEAM-001
 
 ## Notes
 
-- The create endpoint records intent; the real subscription event (with `resource_id`, `shown_rate`) is born at the cluster and reported by the Agent. Central reconciles intent against the Agent event.
+- The create endpoint records intent and triggers the provision; the subscription event (with `resource_id`, `shown_rate`) is written by Central when it provisions via the cluster manager.
 - Enforcement (suspension) is covered in [provisioning-and-entitlements.md](provisioning-and-entitlements.md).

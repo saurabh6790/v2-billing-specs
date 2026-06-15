@@ -16,7 +16,7 @@ This is not generic "add Prometheus" boilerplate. It is keyed to *this system's*
 specific v1 blind spots v2 was built to close. Where a metric is emitted from code, the canonical
 seam is named — keep this doc in sync when that seam moves.
 
-> Scope: the **Cloud Billing** (Central) app and the **Subscription Agent**. Framework-level
+> Scope: the **Cloud Billing** module inside Central (no Subscription Agent — [ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)). Framework-level
 > telemetry (worker queue depth, Redis, MariaDB, HTTP) is assumed from the platform and only
 > re-specified where billing puts unusual load on it (e.g. wallet-row lock contention).
 
@@ -186,7 +186,7 @@ number *is* the product.
 | `wallet.lock_timeout` | counter | — | Deadlocks/timeouts under concurrent settlement (the v1 double-spend race, now lit). |
 | `credit.settlement_source_gate_block` | counter | — | Settlement attempted from a disallowed source — guard working. |
 
-**Metering** (Agent seam → push to Central, [metering.md](metering.md), #12)
+**Metering** (cluster-manager seam → recorded by Central, [metering.md](metering.md), #12)
 
 | Metric | Type | Labels | Catches / why |
 |--------|------|--------|----------------|
@@ -219,7 +219,7 @@ the forecast (§8 / [#18](issues/18-customer-dashboard-forecast.md)) can be.
 | `recon.unresolved` | gauge | — | Discrepancies awaiting `resolved_by` HITL decision — must trend to 0. |
 | `scheduler.job_last_success_age` | gauge | `job` | **Every** scheduled job (invoicing, dunning, rollup, recon, sync, metrics). Silent cron death is the #1 billing outage class; alert when age > 2× the job's interval. |
 | `notification.send` | counter | `channel, result` | Cloud Billing as sole sender (#20) — a failed send means a customer is blindsided by suspension. |
-| `authz.guard_denied` | counter | `role, endpoint` | Permission-guard denials (`billing/platform/security.py`, #22) — a spike = an Agent key probing customer/admin endpoints. |
+| `authz.guard_denied` | counter | `role, endpoint` | Permission-guard denials (`billing/platform/security.py`, #22) — a spike = a principal with no billing capability probing customer/admin endpoints. |
 
 ## 8. Plane B — management & finance metrics
 
@@ -301,7 +301,7 @@ Follow this when adding a money path, gateway, job, or ledger mutation — *befo
 5. **New money figure for a human** → it is **Plane B**: add a definition function in
    `billing/reports/metrics/` reading the SOR via QueryBuilder, returning integer `value_minor` for
    money, and let the rollup snapshot it. Do **not** add a runtime counter and sum it for a report.
-6. **Money metrics carry currency and stay integer.** No averaging amounts in the agent; emit
+6. **Money metrics carry currency and stay integer.** No averaging amounts in the emitter; emit
    `sum` + `count` and divide at query time. Never cross-currency sum.
 7. **New invariant that "can't happen"** → give it a counter (like §6) so "can't happen" becomes
    "is provably 0", not "is unobserved".

@@ -14,9 +14,11 @@ This is not generic OWASP boilerplate. It is keyed to *this system's* surfaces a
 v1 failures v2 was built to close. Where a control lives in code, the canonical module is named —
 keep this doc in sync when that seam moves.
 
-> Scope: the **Cloud Billing** (Central) app and the **Subscription Agent**. The Frappe framework's
+> Scope: the **Cloud Billing** module inside Central. The Frappe framework's
 > own hardening (CSRF tokens, session cookies, password hashing) is assumed and not re-specified;
 > this doc covers the billing-domain controls layered on top.
+
+> **Updated 2026-06-15 ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).** There is no Subscription Agent and no signed Entitlement Token. The trust boundary that mattered (Central ↔ Agent, offline token verification) is replaced by an **outbound Central → cluster manager** integration: Central holds the cluster-manager credential and calls it to provision/stop/terminate. §2 and §5 are updated accordingly.
 
 ## 1. What v1 got wrong (the threat baseline)
 
@@ -30,7 +32,7 @@ Every one maps to a standing control; an audit's first job is proving each stays
 | Prepaid credits as a scalar field → negative, unauditable balances | Integrity / audit | Append-only ledger, balance = sum | §4 |
 | SQL injection | Injection | QueryBuilder / parameterised `%s` only | §6 |
 | "Pay Now" on locked invoices, no state machine | Logic / integrity | Webhook-driven state machine, idempotency | §4 |
-| Billed for things that weren't running | Integrity | Bill from Agent-observed runtime, not intent | §2 |
+| Billed for things that weren't running | Integrity | Bill from Central-recorded runtime (written as it provisions), not bare intent | §2 |
 | Float money drift | Integrity | Integer minor units ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) | §4 |
 
 ## 2. Trust boundaries
@@ -38,29 +40,29 @@ Every one maps to a standing control; an audit's first job is proving each stays
 Draw the boundaries first; every control is "what crosses this line, and how is it checked."
 
 ```
-   Browser / Customer ──┐                       ┌── Payment Gateway (Stripe/Razorpay/PayPal)
+   Browser / Customer ──┐                       ┌── Payment Gateway (Stripe/Razorpay)
      (PCI: PAN never        │   HTTPS + role        │     signed webhooks ↑↓ idempotent charges
       reaches our server)   ▼   + team scope        ▼
                       ┌──────────────────────────────────┐
-                      │   Cloud Billing (Central)         │  ← sole money SOR, sole gateway caller
-                      │   roles · ledgers · tokens · keys │
-                      └───────┬─────────────────▲─────────┘
-        entitlement token     │ (signed)        │ usage push (events + rollups, signed/authed)
-        plan push (display)   ▼                 │
-                      ┌──────────────────────────────────┐      one-way, async
-                      │   Subscription Agent (per cluster)│ ───────────────────────▶  ERPNext
-                      │   thin · no money logic · no keys │      (statutory SOR; never
-                      └──────────────────────────────────┘       writes back to Central)
+                      │   Cloud Billing (Central module)  │  ← sole money SOR, sole gateway caller
+                      │   roles · ledgers · keys          │
+                      └───────┬─────────────────┬─────────┘
+        provision / stop /    │ (outbound,      │  one-way, async
+        terminate (calls)     ▼  authed)        ▼
+                      ┌──────────────────────┐   ┌─────────────────────────┐
+                      │  Cluster Manager      │   │  ERPNext (statutory SOR;│
+                      │  (per region)         │   │  never writes back)     │
+                      └──────────────────────┘   └─────────────────────────┘
 ```
 
 **Boundary rules:**
 
 - **Central ↔ Gateway** — the *only* component that holds gateway credentials or calls a gateway.
   Inbound is signature-first (§3); outbound is idempotent (§4).
-- **Central ↔ Agent** — the Agent is **deliberately trust-minimised**: it holds *no* gateway keys,
-  *no* signing private keys, and runs *no* money logic. It verifies Central's entitlement token
-  **offline** with a *public* key (§5) and pushes usage. A compromised Agent can lie about runtime
-  (a billing-integrity concern, bounded by reconciliation) but cannot move money or mint entitlements.
+- **Central → Cluster Manager** — an **outbound** integration: Central holds the cluster-manager
+  credential and calls it to provision/stop/terminate, and reads operational state back. The cluster
+  manager holds *no* gateway keys and *no* money logic. The cap is enforced **by Central before it
+  calls** (§5) — there is no signed token to verify and no offline trust placed in the cluster.
 - **Browser ↔ Central** — every request is authenticated, role-gated (§3a), and **team-scoped**
   (§3b). Card data never transits Central (PCI, §7).
 - **Central → ERPNext** — one-way, async, never blocking; ERPNext cannot write back into the money
@@ -79,7 +81,7 @@ Draw the boundaries first; every control is "what crosses this line, and how is 
 ### 3a-i. Standalone roles — `billing/platform/security.py` (pre-merge)
 
 - `Billing Admin` — cross-team admin surface. Gate with **`require_billing_admin()`** → `PermissionError`
-  (HTTP 403) for anyone lacking the role, **including the cluster-scoped Agent API key**.
+  (HTTP 403) for anyone lacking the role.
 - `Billing User` — a customer, scoped to exactly one team (the `User.billing_team` field). Gate with
   **`require_team_access(team)`**.
 - `Administrator` / `System Manager` are treated as admin; this is intentional and must stay explicit
@@ -98,8 +100,9 @@ system Team Roles `Owner` and `Billing` (never `Admin`/`Developer`/`Viewer`):
   `user_has_operator_bypass`); a dedicated `billing:operate` platform capability is a deferred,
   Central-owned follow-up.
 
-The Agent API key holds neither capability, so `can(...)` returns False on every customer/admin
-endpoint — it reaches only the sync surface, exactly as the standalone role check intended.
+Any non-billing service principal holds neither capability, so `can(...)` returns False on every
+customer/admin endpoint — billing exposes no inbound integration surface (the cluster-manager seam is
+outbound: Central calls it, not the reverse).
 
 ### 3b. Tenant isolation (IDOR)
 
@@ -157,32 +160,32 @@ Money correctness is a security property here, not just an accounting one.
 - **State machines, not free mutation** — invoice and payment-attempt states advance only along their
   defined transitions; out-of-order or unmatched events are no-ops.
 
-## 5. Entitlement tokens & key custody
+## 5. Provisioning cap enforcement
 
-The Agent enforces provisioning caps **offline** against a signed `Entitlement Token`
-([#07](issues/07-trust-tier-entitlement-token.md)).
+Central enforces the trust-tier cap **synchronously, in the provision call** to the cluster manager
+([#07](issues/07-trust-tier-entitlement-token.md), [ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)). There is no signed token and no offline trust placed in the cluster.
 
-- **Asymmetric signing** — Central signs with an **Ed25519 private key it never distributes**; the
-  Agent verifies with the **public** key. A cluster compromise yields no minting capability.
-- **Short-lived + structured cap** — tokens expire; an expired token with Central unreachable denies
-  *new* provisions but keeps running resources alive (availability vs. integrity trade, made
-  explicit). Verify expiry *and* signature; never accept an unsigned or expired token as a fallback.
-- **Replay/forgery** — the token's cap is authoritative; the Agent must not widen it locally. Per-
-  cluster slices must sum to ≤ the team total.
-- **Private-key custody** — the signing key lives in Central's secret store (§6), is never logged,
-  and rotation re-issues tokens; document the key id so rotation is auditable.
+- **Authoritative cap, checked by Central** — Central knows every live provision across all clusters
+  (it makes each call), so it computes the team-wide total and **rejects an over-cap provision before
+  calling the cluster manager**. No per-cluster slices, no signing.
+- **Availability vs. integrity, made explicit** — if Central is unreachable, **no new provisions**
+  happen, but **running resources are untouched**: the cluster manager stops a VM only on an explicit
+  Central call, so an outage never harms a running resource.
+- **Cluster-manager credential custody** — the outbound credential Central uses to call the cluster
+  manager lives in Central's secret store (§6), is never logged, and is rotatable (§6). A cluster
+  compromise yields no money capability and no ability to widen its own cap (Central decides).
 
 ## 6. Secrets management
 
-- **Gateway API keys, webhook secrets, and the entitlement signing key live in site config**
+- **Gateway API keys, webhook secrets, and the cluster-manager credential live in site config**
   (`common_site_config.json` / `site_config.json`), read via `frappe.conf` / encrypted-field
   `get_password()` — **never** hard-coded, never in the repo, never in a fixture or seed.
 - **Never echo a secret** — not into logs, error messages, notifications, API responses, or test
-  output. Webhook `raw_payload` is stored, but secrets are not in the payload; signing keys never are.
+  output. Webhook `raw_payload` is stored, but secrets are not in the payload.
 - **Rotation** — every secret must be rotatable without a code change (config-driven). Webhook secret
   rotation supports an overlap window so in-flight events still verify.
-- **Least privilege** — the Agent holds none of these. Gateway keys are per-`Payment Gateway` config,
-  scoped to the merchant account in use.
+- **Least privilege** — gateway keys are per-`Payment Gateway` config, scoped to the merchant account
+  in use; the cluster-manager credential grants only provision/stop/terminate, no money operations.
 
 ## 7. PCI scope minimisation
 
@@ -218,7 +221,7 @@ is a finding with a known fix location.
 - [ ] No role check is hand-rolled outside `billing/platform/security.py`.
 - [ ] `get_user_team()` derives team from session/server, not from a request field.
 - [ ] Customer endpoint with another team's id in the argument → 403 (test exists and passes).
-- [ ] Agent API key against any customer/admin endpoint → 403 (test exists).
+- [ ] A principal with no billing capability hits any customer/admin endpoint → 403 (test exists).
 
 **Webhooks**
 - [ ] Signature verification is the first statement, before any parse or DB access; failure path does
@@ -235,15 +238,14 @@ is a finding with a known fix location.
 - [ ] `Paid` is reachable only from a verified capture webhook, never the API response.
 
 **Secrets**
-- [ ] No gateway key, webhook secret, or signing key in the repo, fixtures, seeds, or tests
-      (grep for key-shaped strings + the config keys).
+- [ ] No gateway key, webhook secret, or cluster-manager credential in the repo, fixtures, seeds, or
+      tests (grep for key-shaped strings + the config keys).
 - [ ] No secret in logs / errors / notifications / responses.
 - [ ] Each secret is config-driven and rotatable without code change.
 
-**Tokens & keys**
-- [ ] Entitlement tokens are signed with a non-distributed private key; the Agent holds only the
-      public key and verifies offline.
-- [ ] Expired token + Central unreachable → deny new provisions, running untouched (test exists).
+**Provisioning enforcement**
+- [ ] Over-cap provision is rejected by Central **before** the cluster-manager call (no token).
+- [ ] Central unreachable → no new provisions, running resources untouched (test exists).
 
 **Injection / input**
 - [ ] Static analysis (`bandit`) clean; no string-interpolated SQL (grep gate green).

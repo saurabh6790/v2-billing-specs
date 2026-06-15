@@ -67,10 +67,10 @@ Rates are **not** child tables. Following ERPNext's `Item Price` pattern, every 
 
 | Field | Type | Notes |
 |-------|------|-------|
-| resource_id | Data | Stable physical resource identity (from Agent event) — the lock key |
+| resource_id | Data | Stable physical resource identity (recorded by Central at provision) — the lock key |
 | plan | Link → Plan | |
 | currency | Link → Currency | The team's billing currency at provision |
-| locked_rate | Long Int | **Rate units** (minor × 10⁶) — see [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). Locked at provision = Agent `shown_rate` |
+| locked_rate | Long Int | **Rate units** (minor × 10⁶) — see [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). Locked at provision = the `shown_rate` Central resolved |
 | cluster | Data | The region the resource ran in (drives which rate was resolved) |
 | billing_interval | Select | Copied at lock time |
 | started_at / ended_at | Datetime | ended_at null = active |
@@ -83,12 +83,12 @@ Given a `(plan-or-addon, team currency, resource cluster)`:
 2. Prefer the document whose **cluster** matches the resource's region; otherwise fall back to the **global** (blank-cluster) document.
 3. That rate is the live catalog rate.
 
-A team has **one billing currency** (see [architecture.md](architecture.md)); the **cluster** comes from where the resource actually runs (reported by the Agent). One plan identity therefore covers every currency and every region — **no plan-per-currency, no plan-per-region**. AWS US-vs-India price differences are extra `Catalog Rate` documents, not extra plans.
+A team has **one billing currency** (see [architecture.md](architecture.md)); the **cluster** is where the resource runs (reported by the cluster manager). One plan identity therefore covers every currency and every region — **no plan-per-currency, no plan-per-region**. AWS US-vs-India price differences are extra `Catalog Rate` documents, not extra plans.
 
 ## Grandfathering (price-lock mechanism)
 
-1. Customer provisions at the cluster. The Agent emits a `subscribed` event carrying `resource_id` and the **shown rate** (resolved for the team's currency + the cluster's region).
-2. Central writes an append-only price-lock row keyed by `resource_id`, capturing the **currency + locked rate** (= `shown_rate`; logs a discrepancy if it differs from Central's currently-resolved rate).
+1. Customer subscribes; Central resolves the **shown rate** (for the team's currency + the chosen cluster's region), calls the cluster manager to provision, and gets back the `resource_id`.
+2. In the same step Central writes an append-only price-lock row keyed by `resource_id`, capturing the **currency + locked rate** (= `shown_rate`; logs a discrepancy if it differs from Central's currently-resolved rate) and emits the `subscribed` event.
 3. Billing reads the lock forever.
 
 Rules:
@@ -98,11 +98,12 @@ Rules:
 - Admin rate change = edit one `Catalog Rate` document, or **create a region-override document**. Existing locks untouched; new provisions lock the new rate. Zero new plans.
 - Admin escape hatch: bulk "re-lock to current rate" for forced migrations (e.g. sunsetting a bundle).
 
-## Catalog distribution & price display
+## Catalog & price display
 
-- Central pushes bundle identity + **includes** + the **full rate set** to each Agent's `Plan Cache` on change (cheap — few clusters, rare). Display only; the Agent computes nothing.
-- The regional UI shows the rate for the user's currency and the cluster's region. This lets the UI show a rate during a Central outage and keeps the Agent thin (it carries numbers).
-- **Rate shown = rate locked**, guaranteed: the Agent reports `shown_rate` on the event, and Central locks that.
+> **Updated 2026-06-15 ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).** Plans + rates live in Central; there is no Agent `Plan Cache` to push to.
+
+- Plans (identity + **includes** + the **full rate set**) live in Central; the UI reads them from Central to show the rate for the user's currency and the chosen region.
+- **Rate shown = rate locked**, guaranteed: Central resolves the `shown_rate`, locks that exact value at provision, and emits the event — one component does both, so there is nothing to keep in sync.
 
 ## API
 
@@ -120,11 +121,7 @@ POST /api/resource/Plan
 POST /api/resource/Catalog Rate
 PUT  /api/resource/Catalog Rate/{name}
 
-# [Admin] Push bundles (+ includes + rates) to an Agent
-POST /api/method/press_billing.sync.push_plans_to_agent
-     { "agent_url": "...", "plans": ["bundle-2vcpu"] }
-
-# [Regional UI] Live rate read, resolved for currency (+ optional cluster)
+# [UI] Live rate read, resolved for currency (+ optional cluster)
 GET  /api/method/press_billing.plans.get_plan_pricing?plan=bundle-2vcpu&currency=USD&cluster=ap-south-1
 ```
 

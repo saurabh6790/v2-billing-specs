@@ -19,8 +19,8 @@ for sub in active_subscriptions:
     enqueue("cloud_billing.billing.generate_draft_invoice", subscription=sub)
 ```
 
-Each job (**reconcile-then-draft** — sync is push-based, so data is usually already on Central):
-1. If the team's last sync is stale, pull events + meter rollups; else use what was pushed.
+Each job (**draft from Central's own records** — Central recorded the events + metered rollups as it provisioned/metered, so there is nothing to pull; [ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)):
+1. Read the team's event log + meter rollups (already in Central; refresh the current period's metered figures from the cluster manager if stale).
 2. Compute line items per segment using the **locked price** (keyed by `resource_id`) + metered line items.
 3. Apply tax ([tax.md](tax.md)).
 4. Create a `Draft` invoice — no payment yet.
@@ -36,10 +36,10 @@ Each job: apply credits (`FOR UPDATE` lock) → `Draft → Open` → notify → 
 
 ## Billing computation
 
-Join the Agent event log (time windows) to Central price-locks (locked price). Day-granularity by default.
+Join Central's event log (time windows) to Central price-locks (locked price). Day-granularity by default.
 
 ```
-Agent log (resource R):  plan-2vcpu Jun1→Jun10, plan-4vcpu Jun10→Jun22, plan-2vcpu Jun22→Jun30
+Event log (resource R):  plan-2vcpu Jun1→Jun10, plan-4vcpu Jun10→Jun22, plan-2vcpu Jun22→Jun30
 Locked prices:           plan-2vcpu ₹1000/mo, plan-4vcpu ₹2000/mo   (display)
 Result (new plan wins the day of change), all math in integers:
   plan-2vcpu Jun1–9   =  9 × (₹1000) / 30 → round_half_up = 30000 paisa (₹300.00)
