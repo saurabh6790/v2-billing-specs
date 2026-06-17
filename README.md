@@ -22,6 +22,7 @@ Spec for the **Billing** layer of Central — the sole system of record for mone
 | [invoicing.md](invoicing.md) | Two-phase generation, day-granularity billing, line items, states, corrections |
 | [payments.md](payments.md) | Gateway adapter, payment methods, settlement, mandates, webhooks, retry, reconciliation |
 | [credits.md](credits.md) | Credit ledger, wallet, settlement waterfall |
+| [commitment.md](commitment.md) | Commitment — team spend-floor, discount, clawback |
 | [tax.md](tax.md) | Three-mechanic tax model (output / zero-rating / withholding) |
 | [security.md](security.md) | Security standard — trust boundaries, threat model, controls, audit checklist, safe-extension rules |
 | [observability.md](observability.md) | Observability standard — two-plane metrics (runtime telemetry + auditable business metrics), catalogue per subsystem, alerting, coverage checklist |
