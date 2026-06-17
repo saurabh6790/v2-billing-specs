@@ -32,6 +32,7 @@ Spec for the **Billing** layer of Central — the sole system of record for mone
 | [migration.md](migration.md) | v1 → v2 migration strategy |
 | [testing.md](testing.md) | Testing strategy |
 | [roadmap.md](roadmap.md) | Implementation phases & future considerations |
+| [terminology.md](terminology.md) | Plain-English definitions for jargon used across the specs |
 | [misc.md](misc.md) | Decision notes (e.g. why not `frappe/payments`) |
 
 ## Status
