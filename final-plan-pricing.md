@@ -308,6 +308,19 @@ User-facing result: a clear **rate**, a **monthly estimate**, and transparent **
 rates** read live from the resolved Catalog Rate — with the Category telling the author (and
 the billing pipeline) exactly **what unit is collected**.
 
+### Plan identity: hash key, descriptive title
+
+A **Plan's primary key is an opaque `hash`**, never its title. A human title was a bad
+key — it collides, it changes, and using it as the synced identity (Catalog Rate,
+Subscription, invoice lines, price-lock all reference the Plan name) makes cluster sync
+brittle. The configurator therefore **stops hand-naming plans**: it lets Frappe mint the
+hash and writes a derived **`title`** for display, composed as **sub-category (or
+category, when the family has none) + resource info** — e.g. `CPU Optimised — 2 vCPU,
+4 GB, 80 GB`. Identity and idempotency inside the configurator move from "Plan name ==
+rung name" to the rung's **`plan` link** (the hash it produced); re-running prices the
+already-linked plans rather than re-creating them. Existing plans keep their current
+names — `hash` only governs newly-minted plans, so no rename/migration.
+
 ---
 
 ## 12. What changed, at a glance
