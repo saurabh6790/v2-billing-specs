@@ -45,7 +45,7 @@ up engineers and non-billing readers.
 | **Webhook** | A push notification from the payment gateway to your server saying a payment succeeded or failed. Billing waits for this before marking anything paid |
 | **HMAC / signature-first** | A secret code attached to each webhook so you can verify it is genuinely from Stripe or Razorpay and not a forged "payment succeeded" message |
 | **Gateway adapter** | A translation layer so billing code speaks one internal language and the adapter converts it for each payment provider. Swap the adapter, not the billing engine |
-| **Trust tier** | A spending limit based on your payment history. New customers get a small cap; after several paid invoices it automatically increases |
+| **Trust tier** | A spending limit based on your payment history. New customers get a small cap; after several paid invoices it automatically increases. The customer-facing console labels this **Spending Limits** (nav: **Limit Tiers**) and shows rungs as **Base / Tier 1–3**; the backend stays Trust Tier (`Trust Tier Level`, `get_trust_tier`) |
 | **Chargeback** | When a customer disputes a charge with their bank and the bank forcibly reverses it — not a refund you initiate, but a reversal the bank imposes |
 | **Collection mode** | Which payment method a customer uses to settle their bill: auto-charge via card (`stripe_auto`), e-mandate (`emandate`), paying each invoice manually (`manual_checkout`), or maintaining a prepaid wallet (`prepaid`) |
 | **action_required** | A temporary state when an Indian customer's bill crosses ₹15,000 and silent auto-charge can no longer proceed. The account keeps running, but the customer must choose a new payment approach |

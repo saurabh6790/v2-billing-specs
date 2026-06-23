@@ -4,7 +4,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 **Targets:** Demo 30 Jun 2026 · Feature-complete 31 Jul 2026.
 
-**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **post** = post-launch.
+**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **post** = post-launch.
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
@@ -73,6 +73,15 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [57](57-snapshot-gauge-metering.md) | Snapshot gauge metering: Central samples Atlas daily → rollup | AFK | 12, 50, 51 | **AT** |
 | [58](58-transfer-counter-metering.md) | Transfer counter metering from TAP device byte counters | AFK | 57 | post |
 | [59](59-billing-time-pull-data-as-of.md) | Reconciliation read + per-team "data as of" freshness | AFK | 53, 57 | post |
+| [66](66-console-migration-foundation.md) | Console migration foundation — API map + billing-setup guard + shared TS types | AFK | — | **CO** |
+| [67](67-console-payments-plumbing.md) | Console payments plumbing — `@stripe/stripe-js` + Stripe/Razorpay/topup/pay composables (TS) | AFK | 66 | **CO** |
+| [68](68-console-onboarding.md) | Console onboarding — billing-profile + payment-method steps + setup guard | AFK | 66, 67 | **CO** |
+| [69](69-console-billing-overview.md) | Console Billing › Overview (consolidated: estimate/wallet/methods/subscriptions/tax/stop-billing) | AFK | 66, 67 | **CO** |
+| [70](70-console-invoices.md) | Console Billing › Invoices — list + detail panel (line items, GST, credits, email/PDF) | AFK | 66, 67 | **CO** |
+| [71](71-console-limit-tiers.md) | Console Billing › Limit Tiers ("Spending Limits") — summary + full ladder + explainer | AFK | 66 | **CO** |
+| [72](72-console-notifications.md) | Console Notifications — top-level surface + preferences | AFK | 66 | **CO** |
+| [73](73-console-team-permissions.md) | Console Team & Permissions — members + custom-role builder (`central.iam`) | AFK | 66 | **CO** |
+| [74](74-decommission-legacy-dashboard.md) | Decommission legacy `dashboard/` SPA + `/legacy-dashboard` route; drop Atlas mock screens | AFK | 68, 69, 70, 71, 72, 73 | **CO** |
 
 ## Atlas Integration milestone (AT)
 
@@ -90,6 +99,34 @@ lives in `central/billing/integrations/atlas.py`.
 API client + the Team boundary), then #52 (plan attribution), then #53 (the
 tracer bullet — first end-to-end VM → price lock), then #54–#57 in any order.
 #58–#59 are post-launch.
+
+## Console UI migration milestone (CO)
+
+Migrates the remaining billing/identity surfaces from the legacy Vue SPA
+(`apps/central/dashboard/`) into the new primary console SPA
+(`apps/central/console/`), then decommissions the legacy app. Console already owns
+`/dashboard`; the legacy SPA is parked at `/legacy-dashboard` while its surfaces
+are ported. Specced in [console-migration.md](../console-migration.md).
+
+A **port, not a rewrite** — both SPAs run the same runtime (Vue 3 + vue-router +
+frappe-ui `useCall`/`useList` against `/api/v2/method/*`) and the backend endpoints
+are unchanged. The recurring tax is **JS → TS** (`vue-tsc` clean), the
+**frappe-ui `^0.1.0` → beta.11** bump, and the CSS-class icon convention; the one
+net-new chunk is the **Stripe/Razorpay plumbing** (#67). The new design
+**consolidates** the legacy's seven billing pages into three (**Overview** absorbs
+wallet/credits/payment-methods/subscriptions/profile/tax/stop-billing; **Invoices**
++ detail panel; **Limit Tiers** = the customer-facing rename of Trust Tier), plus
+top-level **Team & Permissions** and **Notifications**.
+
+**Decisions:** full TypeScript (`vue-tsc` clean); **drop** the legacy Atlas screens
+(Region/Registry/VMs/AccessRequests on mock data) — console's real **Servers**
+surface supersedes them.
+
+**Land in order:** #66 (foundation) first, then #67 (payments plumbing), then the
+read-heavy surfaces (#70, #71, #72) in any order, then #68/#69 (payments-dependent),
+then #73, then #74 once parity is verified. A few **backend grounding gaps** —
+full-ladder read for Limit Tiers, Stop-billing, auto-recharge toggle, email-invoice
+/ download-PDF — are flagged in the spec; raise them at the dependent slice's start.
 
 ## Central Merge milestone (CM)
 
