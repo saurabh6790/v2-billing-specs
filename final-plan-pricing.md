@@ -112,6 +112,59 @@ discount, and compute clawback.
 
 ---
 
+## 5.1 Product families — the polymorphic catalog (see [ADR 0007](docs/adr/0007-polymorphic-catalog-category-masters.md))
+
+The catalog was born VM-shaped: a plan's *kind* lived in frozen `Select` enums
+(`plan_class`, `resource_type`). New families break that assumption — **AI tokens**
+(metered and/or bundled), **SaaS storage** (disk-only, Dropbox-style), **Frappe Box
+remote storage** (data / backups / snapshots). The §5 principle — *flexible by documents,
+never by enums* — says the taxonomy itself must be data. So the kind-of-thing axis moves
+into **masters**:
+
+- **`Plan Category`** (behavioral, self-describing) — the product family. Not a label; it
+  carries the family's rules **and its own vocabulary** so authoring and billing-data
+  collection explain themselves:
+  - `allowed_resource_types` — which `Resource Type`s a member plan may include (a Tokens
+    plan cannot accidentally include Disk).
+  - `default_billing_type` (Fixed / Metered / Tiered) and `default_pricing_mode`
+    (Grandfathered / Live).
+  - `billable_unit` — the human-readable thing billing counts (`vCPU bundle / mo`,
+    `1M tokens`, `GB-day`). **This is the answer to "what do we collect to bill this?"**
+  - `meter_kind` — `none (flat)` / `counter` / `gauge`, wiring into [metering.md](metering.md).
+  - `sub_category_label` — what a sub-category *means* here ("Optimization profile",
+    "Storage purpose"); blank ⇒ the family has no sub-category axis.
+  - `configurator_builder` (`vm_rungs` | `simple`) and a one-line `description`.
+- **`Plan Sub-Category`** (**optional**) — a variant within a family, `Link`ing to its
+  Category. Used **only where a real variant axis exists** — it **replaces the mandatory,
+  VM-only `plan_class`**. A family with no natural variant (AI Tokens, flat SaaS Storage)
+  has **no sub-category**; the plan sits directly under its Category and the UI never
+  forces one. Where a family *does* use them, a "Custom" run mints the Sub-Category first,
+  then the plans + rates.
+- **`Resource Type`** (master) — `Compute, Memory, Disk, Transfer, Tokens, Storage,
+  Backup`. `Plan Includes.resource_type` and `Add-on.resource_type` become
+  `Link → Resource Type`. **`IP` and `Snapshot` leave the core set**: `IP` is an add-on,
+  `Snapshot`/`Storage` is a live-priced add-on *or* the primary product of the
+  `Remote Storage` family (Frappe Box). They were never composition primitives like
+  Compute/Memory/Disk — they are billed independently of any bundle.
+
+**The families, concretely** (this table is the contract — note AI Tokens has *no*
+sub-categories by default):
+
+| Category | Sub-Category (`sub_category_label`) | Resource type(s) | Billing type | `billable_unit` | `meter_kind` | Builder |
+|----------|------------------------------------|------------------|--------------|-----------------|-------------|---------|
+| **VM Plans** | Optimization profile — General / CPU / Memory / Storage Opt. | Compute, Memory, Disk, Transfer | Fixed | vCPU bundle / mo | none (flat) | `vm_rungs` |
+| **AI Tokens** | *(none by default; optional "Packaging": PAYG / Token Pack)* | Tokens | Metered (allowance + overage) | 1M tokens | counter | `simple` |
+| **SaaS Storage** | *(none; optional by suite)* | Disk | Fixed *or* Metered | GB / mo *or* GB-day | gauge | `simple` |
+| **Remote Storage** (Frappe Box) | Storage purpose — Data / Backups / Snapshots | Storage, Backup | Metered, live-priced | GB-day | gauge | `simple` |
+
+**What does not change:** `Catalog Rate`, price-lock/grandfathering, the metered formula
+`max(0, qty − allowance) × rate`, gauge integration, commitment, and invoicing are all
+untouched. AI tokens "metered or bundled or both" *is* the existing allowance+overage path
+with `Resource Type = Tokens`. The redesign is contained to the **taxonomy** and the
+**configurator** (§11) — never the engine that prices, locks, or bills.
+
+---
+
 ## 6. Catalog Rate — one standalone DocType (kept)
 
 Rates are **not** child tables. Following ERPNext's `Item Price`, every rate is a row in **one**
@@ -227,9 +280,13 @@ are new. Not built until a real tiered need exists.
 
 ---
 
-## 11. Plan Configurator (adopted from the draft)
+## 11. Plan Configurator — category-aware, pluggable builders ([ADR 0007](docs/adr/0007-polymorphic-catalog-category-masters.md))
 
-Authoring flow producing a bundle + composition (it does **not** touch rates):
+The configurator is the **plan builder** for every family, not just VMs. It reads the
+chosen Category's `configurator_builder` and dispatches to the matching builder. Two ship:
+
+**`vm_rungs`** — the original VM flow (unchanged), producing a bundle + composition (it does
+**not** touch rates beyond seeding them):
 
 1. Pick the memory **ratio** (1:2 or 1:4) — a pre-fill default.
 2. Pick **vCPU**.
@@ -238,8 +295,18 @@ Authoring flow producing a bundle + composition (it does **not** touch rates):
 5. Save the bundle identity + `includes` (plain `quantity` / `unit`).
 6. Separately, create `Catalog Rate` documents per currency / region.
 
-User-facing result: a clear **rate**, a **monthly estimate**, and transparent **snapshot / add-on
-rates** read live from the resolved Catalog Rate.
+**`simple`** — a minimal builder covering AI Tokens, SaaS Storage, and Remote Storage:
+name + included quantity + `billable_unit` (pre-filled from the Category) + rate(s). No
+sizing math; the Category's `allowed_resource_types` constrains the composition.
+
+New rung-style families add a builder only when one is genuinely needed; everything that
+fits "an allowance and a rate" uses `simple`. When the chosen family uses sub-categories
+and the author picks **Custom**, the configurator mints the new `Plan Sub-Category` first,
+then the plans + rates beneath it.
+
+User-facing result: a clear **rate**, a **monthly estimate**, and transparent **add-on
+rates** read live from the resolved Catalog Rate — with the Category telling the author (and
+the billing pipeline) exactly **what unit is collected**.
 
 ---
 

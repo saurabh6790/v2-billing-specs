@@ -43,6 +43,30 @@ One standalone DocType (ERPNext `Item Price` style) holding every bundle's and a
 row per `(priced_for, cluster, currency)`. A new currency or region is a new Catalog Rate
 *document*, never a new bundle and never a new column.
 
+**Product family** (Plan Category):
+What *kind of thing* a plan sells — `VM Plans`, `AI Tokens`, `SaaS Storage`, `Remote Storage` —
+modelled as the **Plan Category** master ([ADR 0007](docs/adr/0007-polymorphic-catalog-category-masters.md)).
+A Category is **behavioral and self-describing**: it declares the `allowed_resource_types` a member
+plan may include, its `billable_unit` (what billing counts — `1M tokens`, `GB-day`), its
+`meter_kind` (none / counter / gauge), its `sub_category_label`, and which `configurator_builder`
+authors it. Adding a family is a new Category *document*, not a schema change.
+_Avoid_: plan type, plan_class. (`plan_class` was the mandatory VM-only enum this replaces.)
+
+**Sub-Category** (Plan Sub-Category):
+An **optional** variant axis within a family — VM Plans → `CPU Optimised` / `Memory Optimised` /
+`General Purpose`; Remote Storage → `Data` / `Backups` / `Snapshots`. A family with no natural
+variant (AI Tokens, flat SaaS Storage) has **none** — the plan sits directly under its Category.
+What the axis *means* is the Category's `sub_category_label`.
+_Avoid_: requiring a sub-category everywhere. (It is optional by design.)
+
+**Resource Type**:
+A composition primitive a bundle is built from — `Compute, Memory, Disk, Transfer, Tokens,
+Storage, Backup` — modelled as a master that `Plan Includes` and `Add-on` link to.
+**`IP` and `Snapshot` are not resource types**: `IP` is an add-on; `Snapshot`/`Storage` is a
+live-priced add-on or the primary product of the Remote Storage family. They are billed
+independently of any bundle's composition.
+_Avoid_: putting IP/Snapshot in composition. (They are add-ons or their own family.)
+
 **Minor unit**:
 The smallest indivisible amount of a currency — **paisa** for INR, **cent** for USD. All settled
 money (line-item amount, subtotal, total, tax, credit, balance, what the gateway charges) is a
