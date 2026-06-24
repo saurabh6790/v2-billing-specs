@@ -85,6 +85,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [75](75-catalog-taxonomy-masters.md) | Catalog taxonomy masters — Plan Category + Sub-Category + Resource Type (replaces `plan_class`/enum) + migration | AFK | 27 | **PC** |
 | [76](76-category-aware-configurator.md) | Category-aware Plan Configurator — pluggable builders (`vm_rungs` + `simple`) + Custom mints sub-category | AFK | 75 | **PC** |
 | [77](77-new-product-families.md) | New families live — AI Tokens / SaaS Storage / Remote Storage (Frappe Box) + IP/Snapshot → add-ons | AFK | 75, 76 | **PC** |
+| [78](78-retire-addon-fold-into-plan.md) | Retire `Add-on` — fold into a metered single-resource `Plan` (billing semantics on Category) + migration ([ADR 0008](../docs/adr/0008-add-on-as-metered-single-resource-plan.md)) | AFK | 75, 76 | **PC** |
 
 ## Atlas Integration milestone (AT)
 
