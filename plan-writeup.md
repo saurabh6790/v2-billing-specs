@@ -1,49 +1,44 @@
-# Billing Plans & the Plan Configurator — a plain-English guide
+# The Billing Catalog — how plans, pricing, and the configurator work
 
-This document explains, without technical jargon, three things:
-
-1. **What a "plan" is** and the pieces it's built from.
-2. **The Plan Configurator** — the tool that creates plans for you in bulk.
-3. **How plans are used in billing** — how a customer sees them, picks one, and gets charged.
-
-It ends with a reference for the **Plans API** (the data endpoints other screens use).
+This writeup explains the catalog model we use to describe everything Frappe Cloud sells:
+what a plan is, how the new family-based taxonomy works, how the Plan Configurator builds
+plans in bulk, and how a plan reaches a customer's bill. It also covers the recent change
+that folded add-ons into plans.
 
 > 📷 **Screenshots:** wherever you see a `📷 [Screenshot: …]` marker, that's a spot to
-> drop a screenshot later. The surrounding text describes what the picture should show.
+> drop a picture later. The text around it describes what the picture should show.
 
 ---
 
-## 1. The big picture
+## 1. The mental model: a catalog is a shop
 
-Think of the catalogue like a shop.
-
-- A **Plan** is one thing on the shelf with a price tag — for example *"2 vCPU · 4 GB RAM · 40 GB disk, ₹4,000 / month"*.
-- Plans are organised into **families** and, inside a family, optional **profiles**.
-- Each plan can have **different prices in different regions and currencies**.
-
-Here's how the pieces fit together:
+- A **Plan** is one thing on the shelf with a price tag — *"2 vCPU · 4 GB RAM · 40 GB
+  disk, ₹4,000 / month."*
+- Plans are grouped into **families** (compute, tokens, storage…) and, inside a family,
+  optional **profiles** (CPU-optimised, memory-optimised…).
+- A single plan can carry **different price tags in different regions and currencies**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  PLAN CATEGORY  (the family)         e.g. "VM Plans"          │
 │  - which resources a plan here may contain (CPU, RAM, disk…)  │
-│  - which builder is used to author it (see section 2)         │
+│  - how it's billed (flat? metered?) and how it's authored     │
 │                                                               │
 │   ├── PLAN SUB-CATEGORY  (the profile)   e.g. "CPU Optimised" │
 │   │     - an optional label inside the family                 │
 │   │     - for compute, carries the RAM-per-CPU ratio (1:2)    │
 │   │                                                           │
-│   └── PLAN  (one sellable bundle)    e.g. "2 vCPU · 4 GB"     │
+│   └── PLAN  (one sellable thing)     e.g. "2 vCPU · 4 GB"     │
 │         ├── what's inside it:  2 CPU, 4 GB RAM, 40 GB disk    │
 │         └── price tags:  ₹4,000/mo in India · $49/mo global   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-The four building blocks, in plain terms:
+The building blocks, in plain terms:
 
 | Name | What it really is | Example |
 |------|-------------------|---------|
-| **Plan Category** | A *family* of products. Decides what kinds of resources a plan may contain and how it's authored. | "VM Plans", "AI Tokens", "Remote Storage" |
+| **Plan Category** | A *family* of products. Decides what resources a plan may contain, whether the family is flat-rate or metered, and how it's authored. | "VM Plans", "AI Tokens", "Remote Storage" |
 | **Plan Sub-Category** | An optional *profile* inside a family. For compute families it also stores the memory ratio. | "CPU Optimised", "Memory Optimised" |
 | **Plan** | One actual sellable item, with contents and prices. | "2 vCPU · 4 GB · 40 GB disk" |
 | **Catalog Rate** | One price tag for one plan, in one region + currency. | ₹4,000 / month, India |
@@ -52,80 +47,155 @@ The four building blocks, in plain terms:
 
 ---
 
-## 2. What's inside a single Plan
+## 2. Families are data, not code
 
-Open any plan and you'll see:
+The "what kind of thing is this" axis lives in three **master documents** you can author,
+rather than in fixed dropdowns in the code. That's what lets us sell things beyond VMs —
+AI tokens, SaaS storage, Frappe Box remote storage — without reopening the billing code for
+each one.
 
-- **Title** — the human name you read, e.g. *"CPU Optimised — 2 vCPU · 4 GB"*.
-- **A short ID** — a computer-generated code (a hash). This is the plan's *real* name behind the scenes, so you can rename the title any time and nothing breaks.
-- **Category** and **Sub-Category** — the family and profile it belongs to.
-- **Billing cycle** — *Monthly* or *Annual* (annual plans can carry a discount percentage).
+- **`Plan Category`** is the product family, and it's self-describing. It carries the
+  family's rules so both the authoring UI and the billing pipeline can read it directly:
+  - which **resource types** a member plan may include (a Tokens plan can't accidentally
+    contain Disk);
+  - whether the family is **flat-rate or metered**, and how it's priced;
+  - the **unit billing counts** (`vCPU bundle / mo`, `1M tokens`, `GB-day`);
+  - which **builder** the configurator uses to author it (see §5).
+- **`Plan Sub-Category`** is an *optional* profile, used only where a family has a real
+  variant axis. VM Plans have optimisation profiles; AI Tokens have none, and the UI never
+  forces a fake one.
+- **`Resource Type`** is the master list of billable primitives: `Compute, Memory, Disk,
+  Transfer, Tokens, Storage, Backup`.
+
+The four families we ship today:
+
+| Category | Profiles | Resources | Billing | Counts in | Builder |
+|----------|----------|-----------|---------|-----------|---------|
+| **VM Plans** | General / CPU / Memory / Storage Opt. | Compute, Memory, Disk, Transfer | Flat | vCPU bundle / mo | `vm_rungs` |
+| **AI Tokens** | *(none by default)* | Tokens | Metered (allowance + overage) | 1M tokens | `simple` |
+| **SaaS Storage** | *(none)* | Disk | Flat *or* metered | GB / mo *or* GB-day | `simple` |
+| **Remote Storage** (Frappe Box) | Data / Backups / Snapshots | Storage, Backup | Metered, live-priced | GB-day | `simple` |
+
+The billing engine itself didn't change — the rate spine, price-lock, metered formula, and
+invoicing all stayed put. Only the taxonomy moved into data, so adding a new family is
+authoring work rather than a code release.
+
+---
+
+## 3. Add-ons are now just plans
+
+We used to have two separate doctypes for "a priced resource": a `Plan` (a flat bundle) and
+an `Add-on` (a metered per-unit thing, like transfer overage at ₹0.80/GB). Once families
+became data (§2), the two stopped being meaningfully different:
+
+- Both already drew their prices from the same `Catalog Rate`.
+- A plan can already contain a *single* resource — which is exactly what an add-on is: one
+  resource, one unit, one rate.
+
+So we folded `Add-on` into `Plan`. **An add-on is now a metered, single-resource Plan.**
+
+- The `Add-on` doctype is **removed**, along with every "is it a Plan or an Add-on?" branch
+  across catalog, pricing, metering, and invoicing.
+- Its billing behaviour moved onto **`Plan Category`**:
+  - `billing_type` — **Fixed** (flat per cycle) or **Metered** (per-unit usage);
+  - `billing_interval` — the metering cadence: Hourly / Daily / Monthly;
+  - `pricing_mode` — **Grandfathered** (bill the rate locked at provision) or **Live**
+    (re-price at the current rate each period, for depreciating storage).
+- **Metering resolves by resource type.** Instead of "find the Add-on for this resource,"
+  it now finds the active metered single-resource Plan whose one include matches that
+  resource — same answer, one fewer doctype.
+- **One rule to keep it unambiguous:** at most one *active* metered single-resource Plan per
+  resource type. If two ever existed for the same resource, the old lookup silently picked
+  one; now it's rejected at save time instead.
+
+The migration is **billing-neutral** — every add-on becomes a plan, its rates are repointed,
+and a migrated overage bills the exact same amount it did before. The payoff isn't a cheaper
+bill; it's one priced entity instead of two, and a single place (`Plan Category`) that says
+whether a family is flat or metered.
+
+> 📷 [Screenshot: a Plan Category form showing billing_type / billing_interval / pricing_mode]
+
+---
+
+## 4. Anatomy of a single Plan
+
+Open any plan and you'll find:
+
+- **Title** — the human name, e.g. *"CPU Optimised — 2 vCPU · 4 GB."*
+- **A short ID (a hash)** — the plan's real name behind the scenes. Everything that
+  references a plan (rates, subscriptions, invoice lines, price-locks) points at this hash,
+  so the title is purely for display — rename it any time and nothing downstream breaks.
+- **Category** and **Sub-Category** — the family and profile it belongs to. The category is
+  what tells billing whether this plan is flat or metered.
+- **Billing cycle** — Monthly or Annual (annual plans can carry a discount).
 - **Active?** — only active plans are offered to customers.
-- **What's included** — a simple list of resources and amounts: *2 Compute (vCPU), 4 Memory (GB), 40 Disk (GB)*. No hidden maths; just quantities.
-- **Prices** — one or more **Catalog Rates** (see below).
+- **What's included** — a plain list of resources and quantities: *2 Compute (vCPU), 4
+  Memory (GB), 40 Disk (GB)*. A **metered** plan (a former add-on) has exactly **one** row
+  here — that single resource is what gets metered.
+- **Prices** — one or more **Catalog Rates** (next section).
 
-> 📷 [Screenshot: a single Plan form, showing Title, Category/Sub-Category, the
-> "Includes" table, and the billing cycle]
+> 📷 [Screenshot: a single Plan form — Title, Category/Sub-Category, the "Includes" table,
+> billing cycle]
 
-### How prices work (Catalog Rate)
+---
 
-A plan doesn't have a single price — it has a small list of price tags. Each tag says:
+## 5. How prices work (Catalog Rate)
+
+A plan doesn't have *a* price — it has a small stack of price tags. Each one says:
 
 > *"In **this region**, in **this currency**, the price is **this much**."*
 
-When billing needs the price for a customer, it picks the tag like this:
+When billing needs a price for a customer, it resolves the tag like this:
 
 ```
 Need a price for: currency = INR, region = ap-south-1 (Mumbai)
 
 1. Is there a tag for INR + Mumbai?      → use it.        ("regional price")
-2. Otherwise, is there a tag for INR     → use it.        ("global price")
-   with no region (the default)?
+2. Otherwise, a tag for INR with no       → use it.        ("global price")
+   region (the default)?
 3. Otherwise → this plan isn't sold in INR. Hide it.
 ```
 
-So a region-specific tag overrides the global one, and a plan with **no** matching tag in the customer's currency simply isn't offered to them.
+A region-specific tag overrides the global one, and a plan with **no** matching tag in the
+customer's currency simply isn't offered to them. One plan identity covers every currency
+and region — opening a new market means adding a price document, never a new plan.
 
-> 💡 Amounts are stored in the smallest unit of the currency (paise for INR, cents
-> for USD) to avoid rounding errors. Screens convert back to ₹/$ for display.
+> 💡 Amounts are stored in the smallest unit of the currency (paise, cents) to avoid
+> rounding errors. Screens convert back to ₹/$ for display.
 
 ---
 
-## 3. The Plan Configurator — making plans in bulk
+## 6. The Plan Configurator — making plans in bulk
 
 ### The problem it solves
 
-Cloud providers don't sell one server size — they sell a *ladder* of them (1 vCPU, 2 vCPU, 4 vCPU, …), each roughly double the last, each priced proportionally. Creating eight near-identical plans by hand is tedious and error-prone.
+Cloud providers don't sell one server size — they sell a *ladder* of them (1, 2, 4, 8
+vCPU…), each roughly double the last, each priced proportionally. Building eight
+near-identical plans by hand is tedious and easy to get wrong.
 
-The **Plan Configurator** is a reusable template. You describe the ladder once, press a button, and it generates all the plans and their prices for you.
+The **Plan Configurator** is a reusable template. You describe the ladder once, press a
+button, and it creates every plan and price for you.
 
-> 📷 [Screenshot: the Plan Configurator form, top section — Template Name, Category,
-> Builder, Sub-Category]
+> 📷 [Screenshot: the Plan Configurator form — Template Name, Category, Builder, Sub-Category]
 
-### Two ways to author: the "Builder"
+### One configurator, two builders
 
-The configurator works differently depending on the **family** you pick. Each family declares which **builder** it uses, and the configurator adapts automatically:
+The configurator adapts to the **family** you pick. Each family declares which **builder**
+it uses, and the form reshapes itself:
 
-| Builder | Used for | How you author plans |
-|---------|----------|----------------------|
+| Builder | Used for | How you author |
+|---------|----------|----------------|
 | **VM Rungs** | Compute families (VM Plans) | Describe a doubling ladder of sizes; it generates one plan per rung. |
-| **Simple** | Token / storage families (AI Tokens, SaaS Storage, Remote Storage) | List the plans row by row — a name, a quantity, a price multiplier. |
+| **Simple** | Token / storage families (AI Tokens, SaaS & Remote Storage) | List the plans row by row — a name, a quantity, a price multiplier. |
 
-You don't choose the builder directly — it's decided by the **Category** you select, and shown to you as read-only.
+You don't pick the builder directly — the **Category** decides it, and it's shown to you
+read-only.
 
----
+### 6a. VM Rungs — the size ladder
 
-### 3a. The "VM Rungs" builder (the size ladder)
-
-You fill in a few inputs:
-
-- **Sub-Category (profile)** — e.g. *CPU Optimised*. This auto-fills the memory ratio.
-- **Start size** and **Ceiling size** — the smallest and largest rung, in vCPU.
-- **Memory ratio** — GB of RAM per vCPU (e.g. 1:2 means 2 GB per vCPU). Filled in for you from the profile; editable.
-- **Base disk / base transfer / transfer step** — optional storage and data-transfer amounts.
-- **Base price** — the price of the *smallest* rung, per currency.
-
-Then press **Populate Rungs**. The configurator builds the ladder by doubling:
+You fill in a few inputs — the profile (which auto-fills the memory ratio), the smallest and
+largest size, optional disk/transfer, and the **base price of the smallest rung**. Then you
+press **Populate Rungs**, and it builds the ladder by doubling:
 
 ```
 START 1 vCPU ──×2──▶ 2 vCPU ──×2──▶ 4 vCPU ──×2──▶ 8 vCPU  CEILING
@@ -133,51 +203,32 @@ START 1 vCPU ──×2──▶ 2 vCPU ──×2──▶ 4 vCPU ──×2──
   ₹1,000             ₹2,000           ₹4,000          ₹8,000    (base × size)
 ```
 
-The rules it follows:
+The rules: **RAM** = vCPU × ratio; **disk** grows with size; **transfer** steps up by a
+fixed amount each rung (real transfer tiers aren't a clean double, so it's additive);
+**price** = base × how many times bigger the rung is than the start.
 
-- **RAM** = vCPU × the memory ratio.
-- **Disk** grows with the size (twice the size → twice the disk).
-- **Transfer** steps up by a fixed amount each rung (real transfer tiers aren't a clean double, so this is additive).
-- **Price** = base price × how many times bigger the rung is than the start.
+Everything it generates is **editable** before you commit — tweak a rung, add an odd
+1 vCPU / 3 GB size by hand, adjust one rung's transfer. And **Preview Pricing** shows the
+whole ladder in every currency *without saving anything*, as a sanity check.
 
-Everything it generates is **editable**. You can change any rung, add an odd in-between size by hand (say a 1 vCPU / 3 GB), or tweak one rung's transfer — before you generate anything.
+> 📷 [Screenshot: the Sizing inputs + the Rungs table after "Populate Rungs"]
+> 📷 [Screenshot: the "Pricing Preview" dialog]
 
-> 📷 [Screenshot: the Sizing inputs filled in, plus the Rungs table after "Populate Rungs"]
+### 6b. Simple — row by row
 
-**Preview Pricing** shows the whole ladder with prices in every currency, without saving anything — a sanity check before you commit.
+Some families aren't a ladder, they're a short list of named products (*"10M tokens,"
+"100M tokens"*). For those you fill a table: a **title**, the family's **resource type**,
+the **quantity** included, and a **price multiplier**. No ladder maths — what you type is
+what you get. This is also the builder that authors a **metered single-resource plan** (a
+former add-on): one resource, one rate.
 
-> 📷 [Screenshot: the "Pricing Preview" dialog with a table of sizes and prices]
+> 📷 [Screenshot: the Simple builder's "Plans" table]
 
----
+### 6c. Generating
 
-### 3b. The "Simple" builder (row by row)
-
-Some families aren't sizes on a ladder — they're a short list of named products (e.g. *"10M tokens"*, *"100M tokens"*). For these, you just fill a table:
-
-- a **title**,
-- the family's **resource type** (e.g. Tokens),
-- the **quantity** included,
-- a **price multiplier** (price = base price × multiplier).
-
-No ladder maths — what you type is what you get.
-
-> 📷 [Screenshot: the Simple builder's "Plans" table with a couple of token plans]
-
----
-
-### 3c. Generating the plans
-
-When you're happy, press **Generate Plans**. A dialog asks:
-
-- **Which region** (cluster) to price for — blank means "global / every region".
-- **Which currencies** to price in.
-- **Which of the listed plans** to actually create.
-
-It then runs in the background and:
-
-1. Creates one **Plan** per selected rung/row (with its included resources).
-2. Adds the **Catalog Rates** for the region and currencies you chose.
-3. Tells you how many were created vs skipped when it finishes.
+When you're happy, press **Generate Plans**. A dialog asks *which region* (blank = global),
+*which currencies*, and *which of the listed plans* to actually create. Then it runs in the
+background:
 
 ```
    Plan Configurator  (your template)
@@ -190,25 +241,29 @@ It then runs in the background and:
    └──────────────────────────────┘
 ```
 
-Two things worth knowing:
+Two things that make it easy to live with:
 
-- **It's safe to re-run.** A plan that was already generated is *skipped*, not duplicated. Only its prices for the new region are added.
-- **Re-price as you grow.** When a new region comes online, open the same template and run **Generate Plans** again with that region selected — it reuses the existing plans and just adds the new region's prices.
+- **It's safe to re-run.** A plan that already exists is *skipped*, not duplicated — the
+  configurator tracks plans by the hash it minted, not by name. Only the new region's
+  prices get added.
+- **Re-price as you grow.** When a new region comes online, open the same template, run
+  **Generate Plans** again with that region selected, and it reuses the existing plans and
+  just adds the new prices.
 
-> 📷 [Screenshot: the "Generate Plans" dialog — cluster field, currency checkboxes, plan checkboxes]
+> 📷 [Screenshot: the "Generate Plans" dialog — cluster, currency checkboxes, plan checkboxes]
 
 ---
 
-## 4. How plans are used in billing
+## 7. How a plan reaches a customer's bill
 
-This is the journey from "a plan exists" to "the customer is charged".
+The path from "a plan exists" to "the customer is charged":
 
 ```
   ┌─ Customer opens "New Server" in the dashboard
   │
   ▼
-  Dashboard asks the billing system: "what can THIS team buy in THIS region?"
-  │        (the get_eligible_plans API — see section 5)
+  Dashboard asks billing: "what can THIS team buy in THIS region?"
+  │        (the get_eligible_plans API — see §8)
   │
   │   The list is already filtered to:
   │     • active plans only
@@ -220,7 +275,7 @@ This is the journey from "a plan exists" to "the customer is charged".
   │
   ▼
   A PRICE LOCK is created  ── today's price is frozen for this customer
-  │                            (later catalogue price changes won't affect them)
+  │                            (later catalogue changes won't touch them)
   ▼
   The server runs
   │
@@ -228,36 +283,40 @@ This is the journey from "a plan exists" to "the customer is charged".
   Each month, the invoice charges the LOCKED price
 ```
 
-A few of these ideas in plain terms:
+A few of these in plain terms:
 
-- **Spending headroom.** Every team has a spending cap based on its trust level. The menu only shows plans whose price still fits within *cap minus what they're already spending*. A team on a ₹4,000 cap already running ₹1,000 of servers only sees plans priced ₹3,000 or less.
+- **Spending headroom.** Every team has a cap set by its trust level. The menu only shows
+  plans whose price still fits within *cap minus what they already spend*. A team on a
+  ₹4,000 cap already running ₹1,000 of servers sees only plans priced ₹3,000 or less.
 
-- **Grouped by profile.** On the "New Server" screen, plans are grouped into tabs by their sub-category (CPU Optimised, Memory Optimised, …), cheapest first. Plans with no profile fall under a "General" tab.
+- **Grouped by profile.** On "New Server," plans are tabbed by sub-category (CPU Optimised,
+  Memory Optimised…), cheapest first. Plans with no profile fall under a "General" tab.
+  Metered plans (former add-ons) aren't "Server" products, so they never appear here.
 
-- **Price lock = price protection.** When a customer provisions, the price they see is *frozen* for them. If you later raise the catalogue price, existing customers keep their old price; only new provisions get the new one. (This is why changing a Catalog Rate never disturbs anyone already running.)
+- **Price lock = price protection.** The price a customer sees at provision is frozen for
+  them. Raise the catalogue price later and existing customers keep their old rate; only new
+  provisions get the new one. This is also why a rate change edits a *document* instead of
+  forking a plan — change a Catalog Rate and nobody already running is disturbed.
 
-> 📷 [Screenshot: the customer "New Server" page showing plan tabs and plan cards with prices]
+> 📷 [Screenshot: the "New Server" page — plan tabs and plan cards with prices]
 
 ---
 
-## 5. The Plans API (reference)
+## 8. Reference — the Plans API
 
-These are the data endpoints screens call. Two audiences: **customers** (their own team) and **operators/admins** (the whole catalogue).
+The data endpoints screens call. Two audiences: **customers** (their own team) and
+**operators** (the whole catalogue).
 
-### 5a. Customer — what can this team buy?
+### Customer — what can this team buy?
 
-**`central.billing.api.dashboard.catalog.get_eligible_plans`**
-
-The menu of plans a team can actually provision in a region. Already filtered by currency, region availability, trust-level allow-lists, and remaining spending headroom.
-
-**Inputs**
+**`central.billing.api.dashboard.catalog.get_eligible_plans`** — the menu of plans a team
+can provision in a region, already filtered by currency, region, trust-level allow-lists,
+and remaining headroom.
 
 | Input | Meaning |
 |-------|---------|
-| `cluster` | The region the customer is provisioning in (e.g. `ap-south-1`). |
+| `cluster` | The region being provisioned in (e.g. `ap-south-1`). |
 | `team` | The team being priced (defaults to the signed-in team). |
-
-**Output (shape)**
 
 ```jsonc
 {
@@ -265,8 +324,8 @@ The menu of plans a team can actually provision in a region. Already filtered by
   "team": "team-acme",
   "cluster": "ap-south-1",
   "currency": "INR",
-  "tier": "t1",              // the team's trust level
-  "max_spend": 6000,         // their spending cap
+  "tier": "t1",              // trust level
+  "max_spend": 6000,         // spending cap
   "current_spend": 1000,     // what they already run
   "available": 5000,         // remaining headroom — plans must fit under this
 
@@ -274,7 +333,7 @@ The menu of plans a team can actually provision in a region. Already filtered by
   "plans": {
     "General": [
       {
-        "plan": "a1b2c3d4",          // the plan's short ID
+        "plan": "a1b2c3d4",          // the plan's short ID (hash)
         "title": "General — 1 vCPU · 4 GB",
         "sub_category": "General",
         "billing_cycle": "Monthly",
@@ -292,44 +351,44 @@ The menu of plans a team can actually provision in a region. Already filtered by
 }
 ```
 
-Notes:
-- If the region is **not allowed** for the team, `plans` comes back empty.
-- A plan is included only if **all** of these hold: it's active, the trust level admits it, it's priced in the team's currency for that region, and its price fits the remaining headroom.
+- If the region isn't allowed for the team, `plans` comes back empty.
+- A plan is included only if **all** hold: active, admitted by trust level, priced in the
+  team's currency for that region, and affordable within remaining headroom.
 
-### 5b. Operator — the whole catalogue
+### Operator — the whole catalogue
 
-**`central.billing.api.admin.catalog.get_catalog`**
-Lists every plan (with its India base price and how many servers are currently running it), every add-on, and the regions teams are running in. Operator-only.
+**`central.billing.api.admin.catalog.get_catalog`** — lists every plan (with its India base
+price and how many servers are running it) and the regions teams are running in.
+Operator-only. There's no separate add-on list anymore — metered plans are just plans.
 
-**`central.billing.api.admin.catalog.update_plan_rate`**
-Change a plan's price.
+**`central.billing.api.admin.catalog.update_plan_rate`** — change a plan's price.
 
 | Input | Meaning |
 |-------|---------|
 | `plan` | The plan's ID. |
-| `currency` | Currency to set the price in. |
+| `currency` | Currency to price in. |
 | `rate` | The new price. |
-| `cluster` | Region (blank = the global/default price). |
+| `cluster` | Region (blank = global default). |
 
-> Important: changing a price here **does not** create new plans and **does not**
-> touch anyone already running — existing customers keep their locked price; only
-> new provisions pick up the new one.
+> Changing a price here does not create plans and does not touch anyone already running —
+> existing customers keep their locked price; only new provisions pick up the new one.
 
 ---
 
-## 6. Quick glossary
+## 9. Glossary
 
-| Term you'll see | Plain meaning |
-|-----------------|---------------|
-| **Plan** | One sellable item with contents and a price. |
-| **Category / family** | A group of plans of the same kind (compute, tokens, storage). |
+| Term | Plain meaning |
+|------|---------------|
+| **Plan** | One sellable item with contents and a price. A *metered* plan with a single resource is what used to be an "add-on." |
+| **Category / family** | A group of plans of the same kind (compute, tokens, storage); also says whether the family is flat or metered, and how it's priced. |
 | **Sub-Category / profile** | An optional label inside a family; for compute it sets the RAM-to-CPU ratio. |
 | **Catalog Rate** | One price tag (region + currency + amount) for one plan. |
 | **Configurator** | A reusable template that generates many plans at once. |
 | **Builder** | How a family is authored — a size *ladder* (VM Rungs) or a *list* (Simple). |
 | **Rung** | One step on the size ladder (one generated plan). |
+| **Metered plan** | A single-resource plan billed per unit of usage (transfer, tokens, storage) — the former Add-on. |
+| **Grandfathered / Live** | A metered plan bills either the rate locked at provision (Grandfathered) or the current rate each period (Live). |
 | **Cluster / region** | A data-centre location (e.g. Mumbai). Plans can be priced per region. |
 | **Price lock** | The frozen price a customer keeps after they provision. |
 | **Headroom** | How much a team can still spend under its cap. |
 | **Trust level / tier** | A team's standing, which sets its spending cap and which plans it may buy. |
-```
