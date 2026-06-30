@@ -63,17 +63,7 @@ Rates are **not** child tables. Following ERPNext's `Item Price` pattern, every 
 
 `autoname` by `{priced_for}-{cluster}-{currency}` (cluster omitted when global). Plan/add-on identities are already distinct (`bundle-2vcpu`, `addon-bandwidth`), so the name is human-readable and the `(priced_doctype, priced_for, cluster, currency)` tuple is unique.
 
-**Price-lock** (append-only; keyed by `resource_id`) — see also `Subscription Resource` in [subscriptions.md](subscriptions.md).
-
-| Field | Type | Notes |
-|-------|------|-------|
-| resource_id | Data | Stable physical resource identity (recorded by Central at provision) — the lock key |
-| plan | Link → Plan | |
-| currency | Link → Currency | The team's billing currency at provision |
-| locked_rate | Long Int | **Rate units** (minor × 10⁶) — see [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). Locked at provision = the `shown_rate` Central resolved |
-| cluster | Data | The region the resource ran in (drives which rate was resolved) |
-| billing_interval | Select | Copied at lock time |
-| started_at / ended_at | Datetime | ended_at null = active |
+**Price-lock — folded into the `Subscription Change` ledger** ([ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md)). There is no standalone `Price Lock` doctype: a lock *is* the append-only `Subscription Change` row that opens a segment. A `Created` / `Plan Changed` row stamps a `locked_rate` + `currency` (resolved from the catalog when written, then frozen); `effective_at` is the segment boundary and the next change closes it. Billing reads that snapshot, never the live rate. Stop/start and other non-pricing transitions carry no rate (the segment continues at its locked rate); `Cancelled` closes it. The row is keyed by `subscription`; the physical `resource_id` is reachable via the Subscription's `asset_id`. Full field list in [subscriptions.md](subscriptions.md).
 
 ## Rate resolution
 
@@ -87,14 +77,14 @@ A team has **one billing currency** (see [architecture.md](architecture.md)); th
 
 ## Grandfathering (price-lock mechanism)
 
-1. Customer subscribes; Central resolves the **shown rate** (for the team's currency + the chosen cluster's region), calls the cluster manager to provision, and gets back the `resource_id`.
-2. In the same step Central writes an append-only price-lock row keyed by `resource_id`, capturing the **currency + locked rate** (= `shown_rate`; logs a discrepancy if it differs from Central's currently-resolved rate) and emits the `subscribed` event.
-3. Billing reads the lock forever.
+1. Customer subscribes; Central resolves the **shown rate** (for the team's currency + the chosen cluster's region) and calls the cluster manager to provision.
+2. In the same step Central writes an append-only `Subscription Change` row (`Created`) carrying the **currency + locked rate** (= shown rate) and `effective_at`. The row *is* the lock ([ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md)).
+3. Billing reads that row's snapshot forever.
 
 Rules:
-- Existing resource keeps its locked rate until **terminated/re-provisioned** — no time-based expiry.
-- Destroy-then-reprovision of the "same" bundle is a *different* `resource_id` → a *new* lock at the then-current resolved rate.
-- Upgrade/downgrade: old resource's lock closes (terminated), new resource opens a new lock at the new bundle's current rate.
+- Existing resource keeps its locked rate until **terminated/re-provisioned** — no time-based expiry. Stop/start does not re-price.
+- Destroy-then-reprovision of the "same" bundle is a *new* `Created` row → a *new* lock at the then-current resolved rate.
+- Upgrade/downgrade (**resize**): a `Plan Changed` row closes the open segment and opens a new one at the new shape's **current** rate — grandfathering protects only the unchanged resource.
 - Admin rate change = edit one `Catalog Rate` document, or **create a region-override document**. Existing locks untouched; new provisions lock the new rate. Zero new plans.
 - Admin escape hatch: bulk "re-lock to current rate" for forced migrations (e.g. sunsetting a bundle).
 
@@ -135,9 +125,9 @@ GET  /api/method/press_billing.plans.get_plan_pricing?plan=bundle-2vcpu&currency
 
 DocTypes that point at each other are wired as Frappe **connections** (the dashboard "Connections"/Links tab) so an admin can pivot between related records without a query. The links follow the actual link fields:
 
-- **Plan** → `Catalog Rate` (via the `priced_for` dynamic link, `priced_doctype = Plan`) and price-lock (via `plan`). Opening a bundle shows its rate documents grouped under "Pricing" and every lock that references it.
+- **Plan** → `Catalog Rate` (via the `priced_for` dynamic link, `priced_doctype = Plan`). Opening a bundle shows its rate documents grouped under "Pricing".
 - **Add-on** → `Catalog Rate` (via `priced_for`, `priced_doctype = Add-on`).
 - **Currency** → `Catalog Rate` (via `currency`).
-- **Price-lock** → `Plan` (via `plan`).
+- **Subscription** → `Subscription Change` (via `subscription`) — the change history *is* the price-lock ledger ([ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md)); opening a subscription shows every locked-rate segment.
 
 Dynamic-link connections use `non_standard_fieldnames`/`dynamic_links` in the parent's `*_dashboard.py` (`get_data`), matching how ERPNext's `Item` dashboard surfaces `Item Price`. (`cluster` is plain `Data` for now, so it has no connection until it becomes `Link → Cluster`.)

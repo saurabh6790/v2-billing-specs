@@ -138,22 +138,26 @@ Once a server exists, billing doesn't care how it was chosen — it reads the su
           ▼
    LOCK the price  ──────────  freeze today's price for this server
    │                            • bundle → the one flat price
-   │                            • custom → each ingredient's price
+   │                            • custom → the ingredients are summed into ONE
+   │                                       whole-config price, and that is locked
    ▼
    server runs…
           │
           ▼
-   each month, the invoice charges the locked price
-          • bundle → one line
-          • custom → one line per ingredient (vCPU, RAM, disk),
-                     so the bill shows exactly what was paid for
+   each month, the invoice charges the locked price — ONE line either way
+          • bundle → one line at the bundle's flat rate
+          • custom → one line at the locked config rate
+                     (the size is shown as the line's label, so the bill still
+                      says exactly what the server is)
 ```
 
 "Lock the price" is the existing **price-lock** mechanism — it already froze a bundle's price so a
-later catalog change wouldn't disturb a running customer. For a custom config it freezes the *set*
-of ingredient prices instead of one bundle price. Everything downstream (the monthly invoice run,
-proration for partial months, taxes, credits) is unchanged — a custom config just produces a few
-itemised lines instead of one.
+later catalog change wouldn't disturb a running customer. A custom config is summed into a single
+whole-config price at purchase, and *that* one number is locked (not each ingredient separately).
+Everything downstream (the monthly invoice run, proration for partial months, taxes, credits) is
+unchanged — a custom config bills exactly like a bundle: one locked line. (The lock itself is no
+longer a separate record — it is the subscription's change row; see
+[ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md).)
 
 ---
 
@@ -203,7 +207,7 @@ size starts, and the month's bill is split between them. Two things worth knowin
         ┌──────────────────────────────────────────────────────────────┐
         │                   THE BILLING PIPELINE (unchanged)            │
         │   lock → run → monthly invoice → tax → credits → pay           │
-        │   bundle = one line · custom = one line per ingredient         │
+        │   bundle = one line · custom = one line at the locked config rate│
         └──────────────────────────────────────────────────────────────┘
 ```
 

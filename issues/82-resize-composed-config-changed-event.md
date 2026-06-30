@@ -1,6 +1,8 @@
 # 82 — Resize a composed config: `changed`-event re-lock at current rates
 
-**Type:** AFK · **Milestone:** CC · **Spec:** [final-plan-pricing.md §5.2/§9](../final-plan-pricing.md), [plan-writeup.md §6.5](../plan-writeup.md) · **ADR:** [0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)
+> **Updated 2026-06-30 ([ADR 0010](../docs/adr/0010-price-lock-folded-into-subscription-change.md)).** The `changed`-event re-lock is a new **`Plan Changed` `Subscription Change`** row: close the open segment, re-resolve the component rates for the new shape and **sum them into the new whole-config rate**, write the new composition onto the Subscription, and stamp that config total as the new row's `locked_rate`. No per-resource rate is frozen. The preset↔composed switch is the same event — a flat bundle rate vs a summed config rate. The append-only ledger is the lock history.
+
+**Type:** AFK · **Milestone:** CC · **Spec:** [final-plan-pricing.md §5.2/§9](../final-plan-pricing.md), [plan-writeup.md §6.5](../plan-writeup.md) · **ADR:** [0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md), [0010](../docs/adr/0010-price-lock-folded-into-subscription-change.md)
 
 ## What to build
 
@@ -22,7 +24,7 @@ at **component** granularity.
 
 ## Acceptance criteria
 
-- [ ] Resizing a composed config closes the open segment and opens a new one with the new composition + component rates re-resolved at the **current** rate card; the lock history shows both, the old lock unaltered.
+- [ ] Resizing a composed config closes the open segment and opens a new one carrying the new composition (on the Subscription) + a `locked_rate` = the **config total re-resolved** at the **current** rate card; the lock history shows both, the old row unaltered.
 - [ ] Sliding off a preset opens a composed segment (no bundle discount); picking a preset from a composed config opens a preset flat segment. Both prorate correctly across the change within the month.
 - [ ] A resize to an off-ratio / out-of-bounds shape, or one exceeding headroom, is rejected before the Atlas call.
 - [ ] Resizing to the identical composition is a no-op (no event), matching #54.

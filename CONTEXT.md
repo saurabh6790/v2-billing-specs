@@ -43,10 +43,13 @@ stock a few. _Avoid_: "bundle" as the only sizing option. (Beyond presets, custo
 
 **Composed config** (a.k.a. custom config):
 A compute size a customer **designs on the slider** rather than picking off the shelf. Priced à la
-carte as `Σ(quantity × per-resource rate)`, it mints **no `Plan`** — the chosen composition + the
-locked component rates are recorded on the **Subscription**
-([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)). Proportion (RAM =
-vCPU × the profile's ratio) and bounds come from the `Plan Sub-Category`.
+carte as `Σ(quantity × per-resource rate)`, it mints **no `Plan`** — the chosen **composition** is
+recorded on the **Subscription**, and that sum is **locked as one whole-config rate** on the
+subscription's change row (per-resource charges are *not* frozen separately;
+[ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md) +
+[ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md)). It then bills as a single
+line at that locked rate. Proportion (RAM = vCPU × the profile's ratio) and bounds come from the
+`Plan Sub-Category`.
 _Avoid_: minting a Plan per config. (That is the proliferation trap ADR 0009 avoids.)
 
 **Rate card** (component rates):
@@ -137,10 +140,14 @@ above the floor with a different resource mix.
 _Avoid_: Penalty, termination fee, cancellation charge.
 
 **Price-lock**:
-The append-only record, keyed by **resource_id**, that freezes the rate (and allowance) a specific
-provisioned resource was shown at provision time. Billing reads it forever; it is how
-grandfathering works. Re-provisioning yields a new resource_id and a new lock.
-_Avoid_: Grandfather record, price history, snapshot (overloaded — see snapshot the resource).
+The append-only record that freezes the rate (and allowance) a specific provisioned resource was
+shown at provision time. Billing reads it forever; it is how grandfathering works. A resize
+re-resolves at current rates; stop/start does not re-price; re-provisioning is a new lock.
+Since [ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md) the lock is **not a
+separate doctype** — it *is* the **`Subscription Change`** row that opens a segment (`locked_rate` +
+`currency` + `effective_at`); the physical resource_id is reached via the Subscription's `asset_id`.
+_Avoid_: Grandfather record, price history, snapshot (overloaded — see snapshot the resource); a
+standalone "Price Lock" doctype (retired).
 
 **Shown rate**:
 The live rate resolved for the customer's currency + cluster at purchase and displayed in the UI.

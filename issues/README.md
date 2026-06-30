@@ -87,7 +87,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [77](77-new-product-families.md) | New families live — AI Tokens / SaaS Storage / Remote Storage (Frappe Box) + IP/Snapshot → add-ons | AFK | 75, 76 | **PC** |
 | [78](78-retire-addon-fold-into-plan.md) | Retire `Add-on` — fold into a metered single-resource `Plan` (billing semantics on Category) + migration ([ADR 0008](../docs/adr/0008-add-on-as-metered-single-resource-plan.md)) | AFK | 75, 76 | **PC** |
 | [79](79-per-resource-rate-card.md) | Per-resource rate card — price `Resource Type` via `Catalog Rate` (`priced_doctype = Resource Type`) + seed + admin edit | AFK | 27, 75 | **CC** |
-| [80](80-composed-subscription-itemized-invoice.md) | Composed Subscription — composition + locked component rates on the Subscription; itemized invoice line per resource | AFK | 79, 04, 03, 09 | **CC** |
+| [80](80-composed-subscription-itemized-invoice.md) | Composed Subscription — composition on the Subscription; whole-config rate locked on the change row; bills one line at the locked rate | AFK | 79, 04, 03, 09 | **CC** |
 | [81](81-sub-category-proportionality-bounds.md) | Profile proportionality + bounds on `Plan Sub-Category` (ratio, vCPU steps, disk range) validated at provision | AFK | 80, 75 | **CC** |
 | [82](82-resize-composed-config-changed-event.md) | Resize a composed config — `changed`-event re-lock at current rates + preset↔composed switch | AFK | 80, 81, 54 | **CC** |
 | [83](83-eligibility-rate-card-bounds-headroom.md) | `get_eligible_plans` returns rate card + profile bounds + headroom; provision re-validates server-side | AFK | 79, 81, 07 | **CC** |
