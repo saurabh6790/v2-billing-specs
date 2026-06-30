@@ -12,8 +12,12 @@ that folded add-ons into plans.
 
 ## 1. The mental model: a catalog is a shop
 
-- A **Plan** is one thing on the shelf with a price tag — *"2 vCPU · 4 GB RAM · 40 GB
-  disk, ₹4,000 / month."*
+- A **Plan** is a **preset** on the shelf with a price tag — *"2 vCPU · 4 GB RAM · 40 GB
+  disk, ₹4,000 / month."* We stock a *few* sensible presets.
+- Beyond the presets, a customer can **design their own config** — slide vCPU, RAM, and
+  disk to the exact size they need. A custom config is priced **from its parts** (so much
+  per vCPU, per GB RAM, per GB disk), and the size they choose is recorded on their
+  **subscription** rather than becoming a new shelf item (see §6.5 / §7).
 - Plans are grouped into **families** (compute, tokens, storage…) and, inside a family,
   optional **profiles** (CPU-optimised, memory-optimised…).
 - A single plan can carry **different price tags in different regions and currencies**.
@@ -176,6 +180,10 @@ near-identical plans by hand is tedious and easy to get wrong.
 The **Plan Configurator** is a reusable template. You describe the ladder once, press a
 button, and it creates every plan and price for you.
 
+> Now that customers can **design their own config** (§6.5), the configurator no longer has
+> to bake a long ladder of compute sizes — a handful of presets plus the per-resource
+> **rate card** is enough, and the slider fills the continuum between them.
+
 > 📷 [Screenshot: the Plan Configurator form — Template Name, Category, Builder, Sub-Category]
 
 ### One configurator, two builders
@@ -254,6 +262,73 @@ Two things that make it easy to live with:
 
 ---
 
+## 6.5 Design your own config — the slider
+
+Presets cover the common sizes, but a customer who needs an in-between machine shouldn't have
+to round up to the next preset and overpay. So alongside the presets we let them **build their
+own** with a slider — and price it **from its parts**.
+
+### A price per resource
+
+Operators publish a small **rate card** — a price for each raw resource, per region and
+currency:
+
+```
+1 vCPU      $1 / month
+1 GB RAM    $1 / month
+1 GB disk   $0.50 / month
+```
+
+These live in the same place as every other price tag (`Catalog Rate`), so they resolve by
+region and currency just like a plan's price. A custom config's price is simply the sum:
+
+```
+   2 vCPU  × $1.00  = $2.00
+   4 GB    × $1.00  = $4.00
+  40 GB    × $0.50  = $20.00
+  ─────────────────────────
+  custom config       $26.00 / month
+```
+
+> 💡 A **preset** can be priced *below* this sum — that's the bundle discount, the reward for
+> taking a ready-made size. You keep that discount only while you sit exactly on the preset;
+> the moment you start sliding, you're paying à la carte.
+
+### The slider keeps the shape sane
+
+You can't ask for *3 vCPU and 1 GB of RAM* — that's not a real machine. The slider enforces
+**proportion**, taken from the optimization **profile** you picked:
+
+```
+  Profile: General  (RAM = vCPU × 2)
+
+  vCPU   ●───────────────────  2          ← you drag this
+  RAM    (follows)             4 GB        ← derived, can't go off-ratio
+  Disk   ●──────────           40 GB       ← independent, within bounds
+
+  Estimated:  $26.00 / month               ← updates live
+```
+
+- **vCPU** snaps to allowed steps; **RAM follows by the profile's ratio** (1:2 for General,
+  1:4 for memory-optimised), so an off-ratio shape is impossible.
+- **Disk** is its own slider, within a min/max.
+- The estimate **recomputes live**, and the slider **won't let you past your spending
+  headroom** (§7) — the cap is a hard stop on how far right you can drag.
+
+> 📷 [Screenshot: the "Design your own" slider — vCPU/RAM/disk, live estimate, headroom cap]
+
+### Upgrading and downgrading later is the same slider
+
+To resize a running machine, the customer opens the **same slider** and drags. On confirm it's
+treated as a **plan change**: the old size stops, the new size starts, and the bill prorates
+the two within the month. A resize **re-reads today's rate card** — so a slider move is priced
+at current rates, and the size you *don't* touch keeps the price it was given. (Contrast the
+old design, where upgrading meant picking a different pre-built plan from a list.)
+
+> 📷 [Screenshot: the resize slider on an existing server, showing old vs new estimate]
+
+---
+
 ## 7. How a plan reaches a customer's bill
 
 The path from "a plan exists" to "the customer is charged":
@@ -271,16 +346,21 @@ The path from "a plan exists" to "the customer is charged":
   │     • allowed by the team's trust level
   │     • affordable within the team's remaining spending headroom
   ▼
-  Customer picks a plan
+  Customer picks a PRESET, or designs a config on the slider (§6.5)
   │
   ▼
   A PRICE LOCK is created  ── today's price is frozen for this customer
-  │                            (later catalogue changes won't touch them)
+  │      • preset → the flat bundle rate is locked
+  │      • custom → the chosen size + each resource's rate are locked,
+  │                 and the size is written onto the SUBSCRIPTION
+  │                 (later catalogue changes won't touch a running machine)
   ▼
   The server runs
   │
   ▼
   Each month, the invoice charges the LOCKED price
+  │      • preset → one flat line
+  │      • custom → one line per resource (Compute, Memory, Disk…)
 ```
 
 A few of these in plain terms:
@@ -347,13 +427,28 @@ and remaining headroom.
       }
     ],
     "CPU Optimised": [ /* … */ ]
+  },
+
+  // the rate card + bounds the slider needs to let a customer design their own config
+  "rate_card": {
+    "Compute": { "rate": 1000, "unit": "vCPU" },   // resolved for region+currency
+    "Memory":  { "rate": 1000, "unit": "GB" },
+    "Disk":    { "rate": 500,  "unit": "GB" }
+  },
+  "profiles": {
+    "General":        { "ram_ratio": 2, "vcpu_steps": [1, 2, 4, 8], "disk_min": 10, "disk_max": 320 },
+    "Memory Optimised": { "ram_ratio": 4, "vcpu_steps": [2, 4, 8],   "disk_min": 20, "disk_max": 640 }
   }
 }
 ```
 
 - If the region isn't allowed for the team, `plans` comes back empty.
-- A plan is included only if **all** hold: active, admitted by trust level, priced in the
+- A preset is included only if **all** hold: active, admitted by trust level, priced in the
   team's currency for that region, and affordable within remaining headroom.
+- The `rate_card` + `profiles` let the slider compute a custom config's price and bound it to
+  allowed shapes; the slider also caps itself at `available` (headroom). The server
+  **re-validates** the composition, ratio, bounds, and headroom when the customer provisions —
+  the client bounds are a convenience, not the gate.
 
 ### Operator — the whole catalogue
 
@@ -379,7 +474,10 @@ Operator-only. There's no separate add-on list anymore — metered plans are jus
 
 | Term | Plain meaning |
 |------|---------------|
-| **Plan** | One sellable item with contents and a price. A *metered* plan with a single resource is what used to be an "add-on." |
+| **Plan / preset** | A ready-made sellable size with contents and a flat price (possibly discounted). A *metered* plan with a single resource is what used to be an "add-on." |
+| **Custom config** | A size the customer builds on the slider; priced from its parts and recorded on their subscription, not added to the catalogue. |
+| **Rate card / component rate** | The per-resource prices ($/vCPU, $/GB RAM, $/GB disk) that a custom config is summed from — stored as ordinary `Catalog Rate`s. |
+| **Bundle discount** | A preset priced below its component sum; kept only while the customer sits exactly on the preset. |
 | **Category / family** | A group of plans of the same kind (compute, tokens, storage); also says whether the family is flat or metered, and how it's priced. |
 | **Sub-Category / profile** | An optional label inside a family; for compute it sets the RAM-to-CPU ratio. |
 | **Catalog Rate** | One price tag (region + currency + amount) for one plan. |

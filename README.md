@@ -16,6 +16,7 @@ Spec for the **Billing** layer of Central — the sole system of record for mone
 |------|--------|
 | [architecture.md](architecture.md) | Problem statement, single-app shape, cluster-manager seam, source-of-truth, data/control flow, cross-cutting decisions |
 | [plans-and-pricing.md](plans-and-pricing.md) | Plans, resources, grandfathering (price-lock), plan distribution & price display |
+| [bundle-and-resource-picker.md](bundle-and-resource-picker.md) | Plain-language architecture tour: curated bundles vs the design-your-own resource picker, the per-resource rate card, and how a config reaches the bill ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) |
 | [provisioning-and-entitlements.md](provisioning-and-entitlements.md) | Central-driven provisioning (cluster-manager API), trust tiers, caps, enforcement |
 | [subscriptions.md](subscriptions.md) | Subscription intent, two-axis state, trial/free, lifecycle |
 | [metering.md](metering.md) | Usage Meter — counter/gauge rollups, forecast |

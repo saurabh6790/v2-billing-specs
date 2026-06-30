@@ -38,18 +38,26 @@ A **hybrid** model:
 
 ---
 
-## 3. The one word: **rate** (kept)
+## 3. The pricing word: **rate** — flat for presets, composed for custom configs ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md))
 
-There is no `price`, no `price_per_unit`, no `quantity_included × price`. The single pricing word
-is **rate**.
+The single pricing word is **rate**. There is no `price`, no separate `price_per_unit` concept —
+just a rate resolved from `Catalog Rate`. Compute now has **two pricing modes**, and the mode
+decides whether one rate covers the whole thing or the rate is per-resource:
 
-- **Bundle** → the rate *is* the price. Never summed from priced sub-resources.
-- **Add-on** → `rate × quantity`.
+- **Preset (flat)** → a curated `Plan` whose rate *is* the price, never summed from parts. A
+  preset's rate **may sit below its component sum** — a deliberate bundle discount tied to
+  subscribing to the preset (not to its shape).
+- **Composed (custom config)** → `Σ(include.quantity × per-resource rate)`. The per-resource rate
+  card is `Resource Type`s priced through the same `Catalog Rate` spine (§6). The price *is* its
+  parts — this is the deliberate, ADR-0009 reversal of the old "never decompose a bundle" rule,
+  scoped to the composed compute path only.
+- **Add-on / metered** → `rate × quantity` (a metered single-resource Plan, [ADR 0008](docs/adr/0008-add-on-as-metered-single-resource-plan.md)).
 
-The one legitimate multiplier on a bundle is **time**: billing prorates the bundle rate by the
-days a resource was alive (`days × rate / days_in_period`, `invoicing.md`). "Flat-rate" means *one
-rate for the whole bundle, never decomposed into priced parts* — not *flat per month regardless of
-usage*.
+The one legitimate multiplier on top of any of these is **time**: billing prorates by the days a
+resource was alive (`days × rate / days_in_period`, `invoicing.md`). The old §3 axiom — *"one rate
+for the whole bundle, never decomposed"* — still holds for **presets and the token/storage
+families**; it no longer holds for a composed compute config, where decomposition into priced parts
+*is* the model.
 
 ---
 
@@ -70,11 +78,14 @@ overage.
 
 ---
 
-## 5. Plan = bundle (kept, with versioning resolved)
+## 5. Plan = preset; the running config lives on the Subscription ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md))
 
-A **Plan (bundle)** is a flat-rate sellable with **one immutable identity forever**
+A **Plan** is a curated **preset** — a flat-rate sellable with **one immutable identity forever**
 (`bundle-2vcpu`), carrying its composition (`includes`, no price) and surfacing its rates from
-`Catalog Rate` (§6).
+`Catalog Rate` (§6). We ship a *few* of these as sensible defaults. Beyond them, a customer can
+**design their own config** (§5.2): the composition they actually run is written onto the
+**Subscription**, priced à la carte from the component rate card — no `Plan` is minted per custom
+config, which keeps the infinite continuum of shapes off the catalog-proliferation path.
 
 ### Versioning — the explicit correction
 
@@ -165,6 +176,41 @@ with `Resource Type = Tokens`. The redesign is contained to the **taxonomy** and
 
 ---
 
+## 5.2 Design-your-own config — the composed compute path ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md))
+
+Presets cover the common cases; a customer who needs an in-between size builds their own. The
+mechanics:
+
+- **Per-resource rate card.** `Resource Type`s become *priceable* through the existing
+  `Catalog Rate` spine — `priced_doctype = Resource Type`, `priced_for = Compute`,
+  `rate = $1 / vCPU / mo` — region × currency, resolved regional-over-global exactly like a plan
+  rate. No new doctype; the rate card is just more `Catalog Rate` rows.
+- **Price = its parts.** A composed config bills `Σ(include.quantity × component_rate)`,
+  time-prorated by days alive, with **one itemized invoice line per resource** (`Compute 2 vCPU ×
+  $1`, `Memory 4 GB × $1`, `Disk 40 GB × $0.50`). A preset still bills its single flat line.
+- **Proportionality on `Plan Sub-Category`.** The optimization profile already carries the RAM:CPU
+  ratio; it is promoted from a configurator pre-fill to a **runtime constraint** and gains
+  **bounds** (min/max vCPU, the allowed vCPU step set, the disk range). The slider snaps vCPU to a
+  step and **auto-derives RAM = vCPU × ratio**, so an off-ratio shape (`3 vCPU · 1 GB`) is
+  impossible by construction; disk is an independent bounded slider; the live price recomputes from
+  the rate card and the slider caps its reach at the team's remaining headroom (§7-of-`tax`/trust
+  tier), re-validated server-side at provision.
+- **Lock + resize.** Component rates are resolved live and **locked** at provision (shown = locked)
+  and held while the config is unchanged. A **resize** (slider moved + confirmed) is the same
+  `changed` event as a plan change ([issue #54](issues/54-changed-event-resize-plan-change.md)):
+  close the open segment, re-resolve all components at the **current** rate card, open a new
+  segment + lock. Grandfathering protects only the *unchanged* config — now at component
+  granularity (§9).
+- **Mode switching is a plan change.** Sliding off a preset onto a custom shape drops the bundle
+  discount and lands on composed pricing; picking a preset from a custom shape does the reverse.
+  Both are ordinary `changed` events with clean segment proration across the switch.
+
+The **eligibility API** therefore returns the curated presets *plus* the component rate card, the
+profile bounds, and the headroom ceiling, so the slider can compute and bound itself; the server
+re-validates composition, ratio, bounds, and headroom at provision.
+
+---
+
 ## 6. Catalog Rate — one standalone DocType (kept)
 
 Rates are **not** child tables. Following ERPNext's `Item Price`, every rate is a row in **one**
@@ -172,11 +218,11 @@ standalone DocType — **`Catalog Rate`** — shared by Plan and Add-on through 
 
 | Field | Type | Notes |
 |-------|------|-------|
-| priced_doctype | Link → DocType | `Plan` or `Add-on` |
-| priced_for | Dynamic Link | the specific `bundle-2vcpu` / `addon-snapshot` |
+| priced_doctype | Link → DocType | `Plan` (preset flat rate / metered add-on) or `Resource Type` (a component rate, [ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) |
+| priced_for | Dynamic Link | the specific `bundle-2vcpu` / `Compute` |
 | cluster | Data | **blank = global default**; else region key (`ap-south-1`) |
 | currency | Link → Currency | INR, USD, … |
-| rate | Long Int | **Rate units** (minor × 10⁶), never a float — bundle = flat rate; add-on = per-unit rate. See [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) |
+| rate | Long Int | **Rate units** (minor × 10⁶), never a float — preset = flat bundle rate; component = per-unit rate (`$/vCPU`, `$/GB`); add-on = per-unit usage rate. See [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) |
 
 **Resolution** for `(plan-or-addon, team currency, resource cluster)`: query by
 `priced_doctype + priced_for + currency`, prefer the row whose `cluster` matches the resource's
@@ -253,6 +299,10 @@ Rules:
 
 - A grandfathered resource keeps its locked rate until **terminated / re-provisioned** — no
   time-based expiry. (Live-priced add-ons, §8, skip step 2 by design.)
+- For a **composed config** (§5.2) the lock holds the **set of per-resource rates** in force at
+  provision, not a single bundle rate. A **resize re-resolves** all components at the current rate
+  card (the `changed`-event re-lock, [issue #54](issues/54-changed-event-resize-plan-change.md)) —
+  grandfathering protects only the unchanged config.
 - Destroy-then-reprovision is a **different `resource_id`** → a new lock at the then-current rate.
 - An admin rate change edits / adds **one `Catalog Rate` document**; existing locks untouched, new
   provisions lock the new rate. **Zero new plans.**
@@ -264,7 +314,8 @@ Rules:
 
 | Type | Used for | Status |
 |------|----------|--------|
-| **Fixed** | VM bundles | implemented |
+| **Fixed** | VM presets (curated flat bundle rate) | implemented |
+| **Composed** | design-your-own compute config — `Σ(qty × per-resource rate)` ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) | **new** |
 | **Metered** | snapshots (live), transfer / IPs (counter / gauge) | implemented |
 | **Tiered** | quantity-banded usage (APIs, transfer steps) | **future** |
 
@@ -337,6 +388,7 @@ names — `hash` only governs newly-minted plans, so no rename/migration.
 | Pricing types | Fixed / Metered / Tiered | Fixed / Metered | **taxonomy adopted; Tiered = future, honestly scoped** |
 | Configurator | yes | — | **draft added (authoring-only)** |
 | Grandfathering | (not addressed) | price-lock by `resource_id` | **kept — and explicitly *only* grandfathering** |
+| Sizing | doubling ladder of bundles only | flat bundles only | **presets + design-your-own composed config, priced from a per-resource rate card ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md))** |
 
 ---
 
