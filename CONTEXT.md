@@ -8,10 +8,11 @@ This is a glossary, not a spec — see `final-plan-pricing.md`, `plans-and-prici
 
 ### Catalog
 
-**Bundle**:
+**Bundle** (a.k.a. **preset**):
 A flat-rate sellable offering of bundled resources (e.g. 2 vCPU + 4 GB + 80 GB). Has **one
 immutable identity forever** (`bundle-2vcpu`); a price change never forks a new one. Modelled as
-the **Plan** DocType.
+the **Plan** DocType. We stock a *few*; customers size in between with a **composed config**
+([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)).
 _Avoid_: Plan version, tier, SKU. (A bundle is never "versioned" — see **Rate**.)
 
 **Add-on**:
@@ -28,20 +29,69 @@ stale-high rate. The customer is always on the current (typically lower) rate.
 _Avoid_: Spot price, current price. (It is still a catalog rate — just read late, not locked.)
 
 **Rate**:
-The single pricing word. For a **bundle**, the rate *is* the price (never `quantity × rate`).
+The single pricing word. For a **preset** (curated `Plan`), the rate *is* the price (never
+`quantity × rate`). For a **composed config**, the price is `Σ(quantity × per-resource rate)` from
+the rate card ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)).
 For an **add-on**, it is the per-unit price. A rate change is a new **Catalog Rate** document,
-never a new bundle.
+never a new plan.
 _Avoid_: Price, price_per_unit, cost, tariff.
 
-**Composition** (the bundle's *includes*):
-The resources a bundle contains (compute / memory / disk …), recorded as spec only — it carries
-**no price**. Also serves as the **allowance** baseline that add-on overage is measured against.
-_Avoid_: Line items, priced parts. (Composition is never decomposed into priced sub-resources.)
+**Preset**:
+A curated `Plan` — a ready-made compute size sold at a flat rate that **may sit below its
+component sum** (a bundle discount kept only while the customer sits exactly on the preset). We
+stock a few. _Avoid_: "bundle" as the only sizing option. (Beyond presets, customers compose.)
+
+**Composed config** (a.k.a. custom config):
+A compute size a customer **designs on the slider** rather than picking off the shelf. Priced à la
+carte as `Σ(quantity × per-resource rate)`, it mints **no `Plan`** — the chosen composition + the
+locked component rates are recorded on the **Subscription**
+([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)). Proportion (RAM =
+vCPU × the profile's ratio) and bounds come from the `Plan Sub-Category`.
+_Avoid_: minting a Plan per config. (That is the proliferation trap ADR 0009 avoids.)
+
+**Rate card** (component rates):
+The per-resource prices a composed config is summed from — `$/vCPU`, `$/GB RAM`, `$/GB disk` —
+stored as ordinary `Catalog Rate` rows with `priced_doctype = Resource Type`, resolved
+regional-over-global like any rate. _Avoid_: a separate "Resource Rate" doctype. (It is `Catalog Rate`.)
+
+**Composition** (a plan's / config's *includes*):
+The resources it contains (compute / memory / disk …) with their quantities. For a **preset** it is
+spec-only (no price) and serves as the **allowance** baseline for add-on overage. For a **composed
+config** the same quantities are *also* what the price is summed from against the rate card
+([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)).
+_Avoid_: decomposing a *preset* into priced parts. (Only a composed config is summed from its parts.)
 
 **Catalog Rate**:
-One standalone DocType (ERPNext `Item Price` style) holding every bundle's and add-on's rate, one
-row per `(priced_for, cluster, currency)`. A new currency or region is a new Catalog Rate
-*document*, never a new bundle and never a new column.
+One standalone DocType (ERPNext `Item Price` style) holding every preset's, add-on's, and
+**component**'s rate, one row per `(priced_doctype, priced_for, cluster, currency)`. `priced_for`
+is a `Plan` (preset / metered add-on) or a `Resource Type` (a rate-card component, [ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)).
+A new currency or region is a new Catalog Rate *document*, never a new plan and never a new column.
+
+**Product family** (Plan Category):
+What *kind of thing* a plan sells — `VM Plans`, `AI Tokens`, `SaaS Storage`, `Remote Storage` —
+modelled as the **Plan Category** master ([ADR 0007](docs/adr/0007-polymorphic-catalog-category-masters.md)).
+A Category is **behavioral and self-describing**: it declares the `allowed_resource_types` a member
+plan may include, its `billable_unit` (what billing counts — `1M tokens`, `GB-day`), its
+`meter_kind` (none / counter / gauge), its `sub_category_label`, and which `configurator_builder`
+authors it. Adding a family is a new Category *document*, not a schema change.
+_Avoid_: plan type, plan_class. (`plan_class` was the mandatory VM-only enum this replaces.)
+
+**Sub-Category** (Plan Sub-Category):
+An **optional** variant axis within a family — VM Plans → `CPU Optimised` / `Memory Optimised` /
+`General Purpose`; Remote Storage → `Data` / `Backups` / `Snapshots`. A family with no natural
+variant (AI Tokens, flat SaaS Storage) has **none** — the plan sits directly under its Category.
+What the axis *means* is the Category's `sub_category_label`.
+_Avoid_: requiring a sub-category everywhere. (It is optional by design.)
+
+**Resource Type**:
+A composition primitive a bundle is built from — `Compute, Memory, Disk, Transfer, Tokens,
+Storage, Backup` — modelled as a master that `Plan Includes` and `Add-on` link to. A Resource Type
+is also **priceable**: a `Catalog Rate` with `priced_for = Compute` is the rate-card component a
+composed config is summed from ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)).
+**`IP` and `Snapshot` are not resource types**: `IP` is an add-on; `Snapshot`/`Storage` is a
+live-priced add-on or the primary product of the Remote Storage family. They are billed
+independently of any bundle's composition.
+_Avoid_: putting IP/Snapshot in composition. (They are add-ons or their own family.)
 
 **Minor unit**:
 The smallest indivisible amount of a currency — **paisa** for INR, **cent** for USD. All settled
