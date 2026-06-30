@@ -1,5 +1,7 @@
 # 54 — `changed` event on resize / plan change
 
+> **Updated 2026-06-30 ([ADR 0010](../docs/adr/0010-price-lock-folded-into-subscription-change.md)).** The `changed` event is a **`Plan Changed` `Subscription Change`** row: it closes the open segment at `effective_at` and stamps a **freshly re-resolved** `locked_rate` (resize uses *current* rates — grandfathering protects only the unchanged resource). "New lock + lock history" = the append-only ledger; the old row is never edited. No separate `Price Lock` write.
+
 **Type:** AFK · **Milestone:** Atlas Integration · **Spec:** [atlas-integration/01-atlas-central-integration.md](../atlas-integration/01-atlas-central-integration.md), [plans-and-pricing.md](../plans-and-pricing.md)
 
 ## What to build

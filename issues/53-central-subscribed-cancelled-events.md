@@ -1,5 +1,7 @@
 # 53 — Central records `subscribed`/`cancelled` from Atlas lifecycle
 
+> **Updated 2026-06-30 ([ADR 0010](../docs/adr/0010-price-lock-folded-into-subscription-change.md)).** "Record the event + the price lock" now means writing one **`Subscription Change`** row (`Created` on provision, `Cancelled` on terminate) carrying `locked_rate` + `currency` + `effective_at` — not a separate event-log row and `Price Lock` row. Idempotency, the resize re-lock, and stop/start-record-nothing are unchanged in intent.
+
 **Type:** AFK · **Milestone:** Atlas Integration · **Spec:** [atlas-integration/01-atlas-central-integration.md](../atlas-integration/01-atlas-central-integration.md)
 
 ## What to build

@@ -19,9 +19,9 @@ for sub in active_subscriptions:
     enqueue("cloud_billing.billing.generate_draft_invoice", subscription=sub)
 ```
 
-Each job (**draft from Central's own records** — Central recorded the events + metered rollups as it provisioned/metered, so there is nothing to pull; [ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)):
-1. Read the team's event log + meter rollups (already in Central; refresh the current period's metered figures from the cluster manager if stale).
-2. Compute line items per segment using the **locked price** (keyed by `resource_id`) + metered line items.
+Each job (**draft from Central's own records** — Central recorded the change rows + metered rollups as it provisioned/metered, so there is nothing to pull; [ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)):
+1. Read the team's `Subscription Change` ledger + meter rollups (already in Central; refresh the current period's metered figures from the cluster manager if stale).
+2. Compute line items per segment using the **locked price snapshot carried on each change row** + metered line items.
 3. Apply tax ([tax.md](tax.md)).
 4. Create a `Draft` invoice — no payment yet.
 
@@ -36,11 +36,13 @@ Each job: apply credits (`FOR UPDATE` lock) → `Draft → Open` → notify → 
 
 ## Billing computation
 
-Join Central's event log (time windows) to Central price-locks (locked price). Day-granularity by default.
+Walk the subscription's `Subscription Change` ledger ([ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md)): each rate-bearing row (`Created` / `Plan Changed`) opens a segment at its **own `locked_rate` snapshot**, running until the next change; `Cancelled` (and any row with no rate — stop/start, payment-method, standing changes) is a boundary, not a billable segment. The time window and the locked price are the **same row**, so there is no join. Day-granularity by default.
 
 ```
-Event log (resource R):  plan-2vcpu Jun1→Jun10, plan-4vcpu Jun10→Jun22, plan-2vcpu Jun22→Jun30
-Locked prices:           plan-2vcpu ₹1000/mo, plan-4vcpu ₹2000/mo   (display)
+Change ledger (resource R):  Created plan-2vcpu @₹1000  Jun1
+                             Plan Changed plan-4vcpu @₹2000  Jun10   (resize → re-resolved)
+                             Plan Changed plan-2vcpu @₹1000  Jun22
+Each row carries its own locked_rate snapshot (display ₹/mo).
 Result (new plan wins the day of change), all math in integers:
   plan-2vcpu Jun1–9   =  9 × (₹1000) / 30 → round_half_up = 30000 paisa (₹300.00)
   plan-4vcpu Jun10–21 = 12 × (₹2000) / 30 → round_half_up = 80000 paisa (₹800.00)
@@ -56,7 +58,7 @@ Result (new plan wins the day of change), all math in integers:
 Rules:
 - **New plan wins the day** of a change.
 - **`max(1, end − start)` floor** — a resource created *and* destroyed the same day is charged 1 day, not zero (closes the same-day-churn free faucet).
-- **Granularity follows `billing_interval`.** The engine is generic over the unit (read from the locked resource). `daily`/`monthly` exercised at launch; `hourly` wired but unused (lights up for GPU/burst tiers later, no rewrite).
+- **Granularity follows `billing_interval`.** The engine is generic over the unit (read from the locked segment). `daily`/`monthly` exercised at launch; `hourly` wired but unused (lights up for GPU/burst tiers later, no rewrite).
 
 ## Data Model
 
@@ -82,9 +84,9 @@ Rules:
 
 | Field | Type | Notes |
 |-------|------|-------|
-| subscription_resource | Link | Source of locked price |
+| subscription_resource | Link | The provisioned resource (`asset_id`) the segment billed |
 | resource_type / unit / quantity | | |
-| rate | Long Int | **Rate units** (minor × 10⁶) — locked rate copied at generation |
+| rate | Long Int | **Rate units** (minor × 10⁶) — the `Subscription Change` row's `locked_rate` snapshot, copied at generation |
 | days | Int | Whole units active (with max-1 floor) |
 | amount | Long Int | **Minor units** — `round_half_up(days × rate / units_in_period / 10⁶)`; rounded **once, here** |
 

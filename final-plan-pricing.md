@@ -185,9 +185,13 @@ mechanics:
   `Catalog Rate` spine — `priced_doctype = Resource Type`, `priced_for = Compute`,
   `rate = $1 / vCPU / mo` — region × currency, resolved regional-over-global exactly like a plan
   rate. No new doctype; the rate card is just more `Catalog Rate` rows.
-- **Price = its parts.** A composed config bills `Σ(include.quantity × component_rate)`,
-  time-prorated by days alive, with **one itemized invoice line per resource** (`Compute 2 vCPU ×
-  $1`, `Memory 4 GB × $1`, `Disk 40 GB × $0.50`). A preset still bills its single flat line.
+- **Price = its parts, locked as one number.** A composed config's rate is
+  `Σ(include.quantity × component_rate)`, resolved **live** from the rate card so the slider shows the
+  price update as the shape changes (`Compute 2 vCPU × $1`, `Memory 4 GB × $1`, `Disk 40 GB × $0.50`).
+  At provision that sum is **locked as the whole-config rate** (one number) on the subscription's
+  change row — per-resource charges are *not* frozen separately. Billing then bills the config as a
+  **single time-prorated line** at its locked rate (the composition is shown as the line's
+  description), exactly like a preset's flat line.
 - **Proportionality on `Plan Sub-Category`.** The optimization profile already carries the RAM:CPU
   ratio; it is promoted from a configurator pre-fill to a **runtime constraint** and gains
   **bounds** (min/max vCPU, the allowed vCPU step set, the disk range). The slider snaps vCPU to a
@@ -195,12 +199,12 @@ mechanics:
   impossible by construction; disk is an independent bounded slider; the live price recomputes from
   the rate card and the slider caps its reach at the team's remaining headroom (§7-of-`tax`/trust
   tier), re-validated server-side at provision.
-- **Lock + resize.** Component rates are resolved live and **locked** at provision (shown = locked)
-  and held while the config is unchanged. A **resize** (slider moved + confirmed) is the same
-  `changed` event as a plan change ([issue #54](issues/54-changed-event-resize-plan-change.md)):
-  close the open segment, re-resolve all components at the **current** rate card, open a new
-  segment + lock. Grandfathering protects only the *unchanged* config — now at component
-  granularity (§9).
+- **Lock + resize.** The config's rate is resolved live and the **whole-config total locked** at
+  provision (shown = locked), held while the config is unchanged; the composition itself is locked on
+  the Subscription. A **resize** (slider moved + confirmed) is the same `changed` event as a plan
+  change ([issue #54](issues/54-changed-event-resize-plan-change.md)): close the open segment,
+  **re-resolve the config total** at the **current** rate card, open a new segment + lock.
+  Grandfathering protects only the *unchanged* config (§9).
 - **Mode switching is a plan change.** Sliding off a preset onto a custom shape drops the bundle
   discount and lands on composed pricing; picking a preset from a custom shape does the reverse.
   Both are ordinary `changed` events with clean segment proration across the switch.
@@ -243,7 +247,7 @@ two states matter for pricing** — the running/stopped split is *operational*
 | Billing state | Operational states | What is billed |
 |---------------|--------------------|----------------|
 | **Alive** | `running` **or** `stopped` | full **bundle rate**, time-prorated by days alive |
-| **Terminated** | `terminated` | nothing — the bundle's price-lock closes; only retained **snapshots** keep billing (§8) |
+| **Terminated** | `terminated` | nothing — a `Cancelled` change row closes the open segment; only retained **snapshots** keep billing (§8) |
 
 **A stopped VM still bills the full bundle** — its resources stay reserved (DigitalOcean model,
 *not* AWS "stopped = pay only for storage"). This resolves the draft's internal contradiction and
@@ -251,9 +255,9 @@ means:
 
 - No "disk-retention rate," no mandatory disk add-on, no second rate on the lock. (The earlier
   synthesis invented these; they are deleted.)
-- The billing engine needs **no stop/start events** — it already segments the event log on plan
-  changes and closes the lock on terminate (`invoicing.md:42`). Stopping changes nothing on the
-  invoice.
+- The billing engine needs **no stop/start price events** — it segments the `Subscription Change`
+  ledger on `Plan Changed` rows and closes the segment on `Cancelled` (terminate); a `Paused`/`Resumed`
+  row carries no rate. Stopping changes nothing on the invoice ([ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md)).
 
 ---
 
@@ -288,22 +292,31 @@ Price-lock's **sole job is grandfathering**: freeze the rate a specific provisio
 shown, so a later catalog rate rise affects only *new* provisions. It is **not** a commitment
 mechanism (§5).
 
+> **Updated 2026-06-30 ([ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md)).** The
+> price-lock is no longer a standalone `Price Lock` doctype joined to a separate event log — it is the
+> append-only **`Subscription Change`** row that opens a segment, carrying `locked_rate` + `currency` +
+> `effective_at`. One ledger holds both the time window and the rate; billing reads it with no join.
+
 Pricing has **three roles, one number**:
 
 1. **Read live at purchase** — the regional UI shows the resolved rate for currency + cluster.
-2. **Locked at provision** — Central resolves the **shown rate**, provisions via the cluster manager,
-   and writes an append-only price-lock row + `subscribed` event with `resource_id`. **Rate shown = rate locked.**
-3. **Frozen for billing** — billing reads the lock forever.
+2. **Locked at provision/resize** — Central resolves the **shown rate**, provisions via the cluster
+   manager, and writes a `Created` / `Plan Changed` `Subscription Change` row stamping that rate.
+   **Rate shown = rate locked.** Stop/start and other non-pricing transitions carry no rate (the
+   segment continues at its locked rate); only a resize re-resolves.
+3. **Frozen for billing** — billing reads the row's snapshot forever.
 
 Rules:
 
 - A grandfathered resource keeps its locked rate until **terminated / re-provisioned** — no
   time-based expiry. (Live-priced add-ons, §8, skip step 2 by design.)
-- For a **composed config** (§5.2) the lock holds the **set of per-resource rates** in force at
-  provision, not a single bundle rate. A **resize re-resolves** all components at the current rate
-  card (the `changed`-event re-lock, [issue #54](issues/54-changed-event-resize-plan-change.md)) —
-  grandfathering protects only the unchanged config.
-- Destroy-then-reprovision is a **different `resource_id`** → a new lock at the then-current rate.
+- For a **composed config** (§5.2) the opening row holds the **whole-config rate** —
+  `Σ(qty × component_rate)` in force at provision — as its single `locked_rate`; the composition
+  itself is locked on the Subscription, and per-resource charges are not frozen. A **resize
+  re-resolves** the config total at the current rate card (the `changed`-event re-lock = a new
+  `Plan Changed` row, [issue #54](issues/54-changed-event-resize-plan-change.md)) — grandfathering
+  protects only the unchanged config.
+- Destroy-then-reprovision is a **new `Created` row** (new `resource_id` via `asset_id`) → a new lock at the then-current rate.
 - An admin rate change edits / adds **one `Catalog Rate` document**; existing locks untouched, new
   provisions lock the new rate. **Zero new plans.**
 - Escape hatch: bulk "re-lock to current rate" for forced migrations (sunsetting a bundle).

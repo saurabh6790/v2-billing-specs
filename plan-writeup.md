@@ -350,17 +350,18 @@ The path from "a plan exists" to "the customer is charged":
   │
   ▼
   A PRICE LOCK is created  ── today's price is frozen for this customer
+  │   (the lock IS the subscription's change row — one rate, not a separate doctype)
   │      • preset → the flat bundle rate is locked
-  │      • custom → the chosen size + each resource's rate are locked,
-  │                 and the size is written onto the SUBSCRIPTION
+  │      • custom → the chosen size is written onto the SUBSCRIPTION and its
+  │                 prices are summed into ONE whole-config rate, which is locked
   │                 (later catalogue changes won't touch a running machine)
   ▼
   The server runs
   │
   ▼
-  Each month, the invoice charges the LOCKED price
+  Each month, the invoice charges the LOCKED price — ONE line either way
   │      • preset → one flat line
-  │      • custom → one line per resource (Compute, Memory, Disk…)
+  │      • custom → one line at the locked config rate (the size shown as its label)
 ```
 
 A few of these in plain terms:
