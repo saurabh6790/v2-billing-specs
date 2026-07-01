@@ -96,23 +96,25 @@ live-priced add-on or the primary product of the Remote Storage family. They are
 independently of any bundle's composition.
 _Avoid_: putting IP/Snapshot in composition. (They are add-ons or their own family.)
 
-**Minor unit**:
-The smallest indivisible amount of a currency — **paisa** for INR, **cent** for USD. All settled
-money (line-item amount, subtotal, total, tax, credit, balance, what the gateway charges) is a
-**64-bit integer count of minor units** — never a float, never a `Currency` field. The integer ÷
-the currency's per-currency factor (`100` for INR/USD, `1` for JPY, `1000` for BHD — read from the
-**Currency** DocType, never hardcoded) is a display step only. See
-[ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). This is the Razorpay (paise) / Stripe
-(cents) charge model used as the internal representation.
-_Avoid_: float rupees, `Currency` field, "amount in rupees". (₹10.00 is `1000`, not `10.0`.)
+**Money representation**:
+All money in the billing app — per-unit **rate**s, line-item amounts, subtotal, total, tax, credit,
+balance — is a Frappe **`Currency` (float) in major units** (₹/$/€), not an internal minor-unit
+integer. ₹10.00 is stored `10.0`. Conversion to the **gateway minor unit** (Razorpay paise / Stripe
+cents — the integer the gateway actually charges) happens *only* at the gateway boundary as
+`round(major × factor)`, where the per-currency factor is `100` for INR/USD, `1` for JPY, `1000` for
+BHD (JPY is a real trap — never `/100` blindly).
+[ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)'s integer minor-units model was **never
+built and is deprecated**.
+_Avoid_: integer minor units as the internal type, `Long Int` money, "amount in paisa". (₹10.00 is
+`10.0`, not `1000`.)
 
-**Rate unit**:
-The sub-minor scale a **per-unit rate** is stored at — minor units × 10⁶ — so a sub-paisa metered
-rate (the real €0.009/GB transfer rate → `900000` rate units) is representable, mirroring Stripe's
-`unit_amount_decimal`. Held as `Long Int`; the scale is currency-independent (six extra decimals).
-A flat bundle rate is the whole-number case. Rounding from rate units to settled minor units happens
-**once per line item** (half away from zero), never on a stored or intermediate value.
-_Avoid_: storing per-unit rates in plain paisa (overcharges sub-paisa meters).
+**Rate precision**:
+A per-unit metered **rate** (`€0.009`/GB transfer, `0.12`/vCPU, `0.8` overage) is a `Currency` float
+whose **field precision** must be wide enough to hold sub-cent values — the float model's answer to
+sub-paisa rates (what deprecated [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) solved
+with a `MINOR × 10⁶` integer scale). A flat bundle rate is the whole-number case. Rounding to the
+settled amount happens **once per line item**.
+_Avoid_: a 2-dp rate field (silently overcharges sub-cent meters); `Long Int` rate units.
 
 ### Pricing in time
 
@@ -180,10 +182,13 @@ _Avoid_: Deleted, cancelled, off.
   (**price-lock**); depreciating storage (**snapshot**) is a deliberate **live-priced** exception.
   `metering.md` still says "rate locked at provision" — that holds for grandfathered add-ons but
   not live-priced ones; reconcile when that doc is next touched.
-- **"rate" / "amount" are integers, not rupees.** A **rate** is in **rate units** (minor × 10⁶); an
-  **amount** is in **minor units** (paisa/cent). Both are `Long Int` (`bigint`) — never a float,
-  `Currency`, or plain `Int` (which caps at ₹2.1 cr). Any spec table still typing money `Currency`
-  predates [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) and is being migrated.
+- **Money is float `Currency` in major units, not integer minor units.**
+  [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) proposed integer minor/rate units
+  (`Long Int`) but was **never implemented and is deprecated** — rates and amounts are `Currency`
+  floats in rupees/dollars (₹10.00 = `10.0`). Minor units (paise/cents) exist only at the gateway
+  boundary as the integer the gateway charges. Spec docs and issues (#79/#80, `invoicing.md`,
+  `metering.md`) that still describe `Long Int` minor/rate units are aspirational, not what's built,
+  and are the remaining reconcile debt.
 
 ## Example dialogue
 

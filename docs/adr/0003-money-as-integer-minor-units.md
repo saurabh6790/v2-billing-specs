@@ -1,5 +1,18 @@
 # Money is stored as integer minor units, never a float
 
+> **Status: DEPRECATED (2026-07-01) — never implemented.**
+> The integer minor-units model below was a design intent that the billing code never adopted.
+> In the shipped implementation **money is Frappe `Currency` (float) in major units** throughout
+> — rates (`Catalog Rate.rate`), line-item amounts, subtotals, tax, credits, and balances are all
+> `Currency`, and there is **no internal paisa/cent conversion** (₹10.00 is stored `10.0`, not
+> `1000`). Conversion to gateway minor units (Razorpay paise / Stripe cents) happens only at the
+> gateway boundary. Per-unit metered rates rely on the rate field's decimal **precision** being set
+> high enough to hold sub-cent rates (e.g. `0.009`/GB) rather than the `MINOR × 10⁶` integer scale
+> described here. This decision was recorded in
+> [catalog-pricing-decisions.md](../../catalog-pricing-decisions.md) ("Money stays float
+> `Currency`"). The text below is retained for historical context — it does **not** describe the
+> system as built.
+
 Frappe's `Currency` fieldtype is a binary float. Every monetary value in the billing system —
 rates, line-item amounts, subtotals, tax, credits, balances — was typed `Currency`, so every
 multiply, prorate, sum, and tax calculation accumulated binary-floating-point error. The v1 system
