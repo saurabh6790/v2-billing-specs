@@ -33,7 +33,7 @@ Every one maps to a standing control; an audit's first job is proving each stays
 | SQL injection | Injection | QueryBuilder / parameterised `%s` only | §6 |
 | "Pay Now" on locked invoices, no state machine | Logic / integrity | Webhook-driven state machine, idempotency | §4 |
 | Billed for things that weren't running | Integrity | Bill from Central-recorded runtime (written as it provisions), not bare intent | §2 |
-| Float money drift | Integrity | Integer minor units ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) | §4 |
+| Float money drift | Integrity | Money is float `Currency` in major units, rounded once at each boundary; the reconciliation job cross-checks stored vs recomputed ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) minor-units model deprecated) | §4 |
 
 ## 2. Trust boundaries
 
@@ -144,9 +144,12 @@ whether it "works."
 
 Money correctness is a security property here, not just an accounting one.
 
-- **Integer minor units only** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) — no
-  `Currency`/float on money; conversion and rounding live solely in the `money` module. Eliminates
-  the float-drift class and makes amounts byte-reproducible (the reconciliation job depends on it).
+- **Float `Currency`, major units** — money is stored as a float `Currency` in major units (₹, $);
+  each amount is rounded to the currency's 2 decimals **once**, at its source, and never re-rounded
+  or re-scaled downstream, so an amount is reproducible (the reconciliation job cross-checks stored
+  vs recomputed). *([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)'s integer minor-units /
+  dedicated `money` module was never implemented and is deprecated; any minor-unit conversion is
+  local to a gateway adapter that requires it.)*
 - **Append-only ledgers** — Credit Ledger Entry and Price-Lock are append-only; balances are
   **computed from sums**, never stored as a mutable scalar (the v1 negative-balance bug).
 - **Concurrency** — credit application and any balance mutation take `SELECT … FOR UPDATE` on the
@@ -230,9 +233,11 @@ is a finding with a known fix location.
 - [ ] No business logic executes in the request cycle (state transition is enqueued).
 
 **Money integrity**
-- [ ] No `Currency`/float fieldtype on any money column (grep the doctype JSON); money is `Long Int`
-      per [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md).
-- [ ] All `× factor` / `/ factor` / rounding goes through the `money` module — nowhere else.
+- [ ] Money columns are `Currency` (float, major units); each amount is rounded to 2 decimals once
+      at its source and never re-rounded or re-scaled downstream. *([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)
+      integer minor-units model deprecated.)*
+- [ ] Any minor-unit conversion (e.g. paise/cents for a gateway API) is local to that gateway
+      adapter — never a system-wide storage representation.
 - [ ] Every balance mutation is inside a `FOR UPDATE` block; no stored scalar balance.
 - [ ] Outbound charges carry an idempotency key; concurrent charge of one invoice yields one capture.
 - [ ] `Paid` is reachable only from a verified capture webhook, never the API response.
@@ -266,7 +271,7 @@ Before writing code, find your change in this table and meet its obligation.
 |-----------------|------------|
 | A whitelisted endpoint | First line calls `require_billing_admin()` or `require_team_access(team)`. Never `allow_guest` (except a gateway webhook, which is signature-gated). |
 | A new gateway | Implement the adapter contract incl. `verify_webhook_signature`; keys go in `Payment Gateway` config; outbound charge is idempotent; nothing card-shaped reaches the server. |
-| A money calculation | Use the `money` module for every conversion/round; store `Long Int`; mutate balances under `FOR UPDATE`; never settle on an API response. |
+| A money calculation | Store as `Currency` (float, major units); round to 2 decimals once at the source, never downstream; mutate balances under `FOR UPDATE`; never settle on an API response. |
 | A token / signed artifact | Sign in Central with the private key; verify with the public key; include expiry; never trust a client-widened cap. |
 | A secret / credential | Site config + `get_password`/`frappe.conf`; rotatable; never logged or committed. |
 | A customer-facing query | Team-scope through `require_team_access`; derive team from session; never from the client. |
@@ -288,4 +293,4 @@ Before writing code, find your change in this table and meet its obligation.
 
 - This doc is the security **standard**; per-feature security acceptance criteria live on their
   issues. When a control's canonical seam moves, update §1/§3–§8 references here in the same change.
-- Terms (Central, Agent, price-lock, trust tier, minor unit) are defined in [CONTEXT.md](CONTEXT.md).
+- Terms (Central, Agent, price-lock, trust tier, money representation) are defined in [CONTEXT.md](CONTEXT.md).

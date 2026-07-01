@@ -43,17 +43,20 @@ Change ledger (resource R):  Created plan-2vcpu @₹1000  Jun1
                              Plan Changed plan-4vcpu @₹2000  Jun10   (resize → re-resolved)
                              Plan Changed plan-2vcpu @₹1000  Jun22
 Each row carries its own locked_rate snapshot (display ₹/mo).
-Result (new plan wins the day of change), all math in integers:
-  plan-2vcpu Jun1–9   =  9 × (₹1000) / 30 → round_half_up = 30000 paisa (₹300.00)
-  plan-4vcpu Jun10–21 = 12 × (₹2000) / 30 → round_half_up = 80000 paisa (₹800.00)
-  plan-2vcpu Jun22–30 =  9 × (₹1000) / 30 → round_half_up = 30000 paisa (₹300.00)
+Result (new plan wins the day of change), all math in float major units:
+  plan-2vcpu Jun1–9   =  9 × ₹1000 / 30 → round(·, 2) = ₹300.00
+  plan-4vcpu Jun10–21 = 12 × ₹2000 / 30 → round(·, 2) = ₹800.00
+  plan-2vcpu Jun22–30 =  9 × ₹1000 / 30 → round(·, 2) = ₹300.00
 ```
 
-> Rate is held in **rate units** (minor × 10⁶), quantity/days are exact, and the divide rounds
-> **half away from zero to the minor unit once per line item** — see
-> [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). Summing line items into the subtotal is
-> exact integer addition, so two independent recomputations of an invoice are bit-identical (the
-> reconciliation job depends on this).
+> Rate is a `Currency` float in **major units**, quantity/days are exact, and the divide rounds
+> to 2 decimals once per line item; summing line items into the subtotal is float addition. Two
+> independent recomputations of an invoice agree (the reconciliation job depends on this).
+>
+> *(Deprecated — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)'s integer minor-units
+> model, where rate was held in "rate units" (minor × 10⁶) and rounded half-away-from-zero to the
+> minor unit, was never implemented. Money is stored as float `Currency` in major units throughout;
+> the only minor-unit conversion is at a gateway boundary that requires it.)*
 
 Rules:
 - **New plan wins the day** of a change.
@@ -71,12 +74,12 @@ Rules:
 | invoice_type | Select | billable / cost_report (free/trial) |
 | period_start / period_end | Date | |
 | status | Select | Draft / Open / Paid / Overdue / Waived / Cancelled |
-| subtotal | Long Int | **Minor units** (paisa/cent) — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). Σ of already-rounded line-item amounts (integer sum, exact) |
+| subtotal | Currency | Float, **major units**. Σ of already-rounded line-item amounts. (Not integer minor units — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) deprecated.) |
 | (tax block) | | See [tax.md](tax.md) — output tax, zero-rating, withholding |
-| credit_applied | Long Int | Minor units |
-| total | Long Int | Minor units — subtotal + output_tax |
-| expected_collection | Long Int | Minor units — total − tds_amount (auto-charge target) |
-| amount_paid | Long Int | Minor units — `paid` when amount_paid ≥ expected_collection |
+| credit_applied | Currency | Float, major units |
+| total | Currency | Float, major units — subtotal + output_tax |
+| expected_collection | Currency | Float, major units — total − tds_amount (auto-charge target) |
+| amount_paid | Currency | Float, major units — `paid` when amount_paid ≥ expected_collection |
 | due_date | Date | |
 | erpnext_invoice / pdf_url | Data | |
 
@@ -86,9 +89,9 @@ Rules:
 |-------|------|-------|
 | subscription_resource | Link | The provisioned resource (`asset_id`) the segment billed |
 | resource_type / unit / quantity | | |
-| rate | Long Int | **Rate units** (minor × 10⁶) — the `Subscription Change` row's `locked_rate` snapshot, copied at generation |
+| rate | Currency | Float, **major units** per month — the `Subscription Change` row's `locked_rate` snapshot, copied at generation |
 | days | Int | Whole units active (with max-1 floor) |
-| amount | Long Int | **Minor units** — `round_half_up(days × rate / units_in_period / 10⁶)`; rounded **once, here** |
+| amount | Currency | Float, major units — `round(days × rate / units_in_period, 2)`; rounded **once, here** |
 
 ## Invoice states
 

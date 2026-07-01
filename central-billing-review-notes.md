@@ -74,10 +74,13 @@ with no subject. Decided in principle (every Plan declares what it bills). **Fix
 
 [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) calls for integer minor units, but
 `Catalog Rate.rate` is a `Currency` (float) and live data uses fractional **major** units
-(e.g. `0.12`/vCPU, `0.8` overage). The "minor units" wording in issues #79/#80 is aspirational,
-not what's stored. **Fix:** reconcile — either move money to integer minor units as ADR 0003
-intends (a real migration across rates/invoices), or amend ADR 0003 to record that rates are
-major-unit Currency. Today the ADR and the code disagree.
+(e.g. `0.12`/vCPU, `0.8` overage). The "minor units" wording in issues #79/#80 was aspirational,
+not what's stored.
+
+**Resolved (#90):** money is float `Currency` in major units throughout; ADR 0003's integer
+minor-units model is marked deprecated-never-implemented, and the specs corpus (invoicing,
+metering, tax, credits, commitment, payments, security, observability, issues #79/#80, and the
+now-OBSOLETE migration issues #34–#39) has been swept to describe the float model.
 
 ## 7. Composed-config input validation is implicit (hardening)
 

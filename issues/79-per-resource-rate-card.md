@@ -9,8 +9,10 @@ parts. This reuses the existing `Catalog Rate` spine — no new rate doctype, no
 path.
 
 - `Catalog Rate.priced_doctype` admits `Resource Type` alongside `Plan`; `priced_for` Dynamic-Links
-  to a `Resource Type` (`Compute`, `Memory`, `Disk`). The row's `rate` is a per-unit rate in rate
-  units (`$/vCPU`, `$/GB`) — see [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md).
+  to a `Resource Type` (`Compute`, `Memory`, `Disk`). The row's `rate` is a per-unit rate as a float
+  `Currency` in major units (`$/vCPU`, `$/GB`). *(Not integer "rate units" —
+  [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)'s minor-units model was never
+  implemented and is deprecated.)*
 - Resolution for a `(Resource Type, currency, cluster)` is **regional-over-global**, identical to a
   plan rate: prefer the row whose `cluster` matches, else the blank-cluster (global) row.
 - Seed a starter **rate card** (Compute / Memory / Disk) per shipped currency and the global
@@ -26,7 +28,7 @@ path.
 - [ ] Resolving a component rate for `(Compute, INR, ap-south-1)` prefers the regional row and falls back to the blank-cluster global row; missing currency ⇒ no rate (not zero).
 - [ ] Compute / Memory / Disk component rates are seeded for the shipped currencies + global default.
 - [ ] The admin endpoint sets a component rate; the change is a single document edit, creates no plans, and (verified in #80) leaves locked running configs unaffected.
-- [ ] Test: resolve `Σ(qty × component_rate)` for `2 vCPU · 4 GB · 40 GB` against the seeded card and assert the expected total in minor units.
+- [ ] Test: resolve `Σ(qty × component_rate)` for `2 vCPU · 4 GB · 40 GB` against the seeded card and assert the expected total (float `Currency`, major units).
 
 ## Blocked by
 

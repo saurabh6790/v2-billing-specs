@@ -1,5 +1,7 @@
 # 35 — Rates → rate units (`minor × 10⁶`): Catalog Rate, price-lock, shown_rate + proration engine
 
+> **OBSOLETE — do not build.** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)'s integer minor-units money model was never implemented and is **deprecated**; rates are stored as float `Currency` in major units (see [catalog-pricing-decisions.md](../catalog-pricing-decisions.md)). This migration is retired.
+
 **Type:** AFK · **Milestone:** Phase 1 (foundation) · **Spec:** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md), [plans-and-pricing.md](../plans-and-pricing.md), [invoicing.md](../invoicing.md)
 
 ## What to build

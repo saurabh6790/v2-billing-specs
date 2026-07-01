@@ -38,7 +38,7 @@ per-resource term lock, remaining-term fee). Terms are defined in
 | name | Data | |
 | team | Link → Team | |
 | currency | Link → Currency | Copied from the team's billing currency at creation; commitment amounts are in this currency |
-| floor | Long Int | **Minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) — the minimum monthly fixed-bundle spend the team commits to |
+| floor | Currency | Float, **major units** — the minimum monthly fixed-bundle spend the team commits to |
 | term_months | Int | Commitment term length; `billing_cycle = annual` on a Plan is shorthand for `term_months = 12` |
 | discount_pct | Float | Percentage discount applied to fixed-bundle line items when the floor is met; a rate, not money — stays `Float` |
 | started_at | Date | First day of the first covered billing period |
@@ -60,10 +60,10 @@ record is left as-is (append-only history of terms).
 | team | Link → Team | |
 | billing_period | Data | `YYYY-MM` — the calendar month this rollup covers |
 | currency | Link → Currency | |
-| fixed_bundle_spend | Long Int | **Minor units** — sum of all fixed-bundle `Invoice Line Item.amount` for this team × period. Computed once at invoice generation (Draft phase); never updated after the invoice is Open |
+| fixed_bundle_spend | Currency | Float, **major units** — sum of all fixed-bundle `Invoice Line Item.amount` for this team × period. Computed once at invoice generation (Draft phase); never updated after the invoice is Open |
 | commitment | Link → Commitment | The active Commitment at the time of generation; null if the team had none |
 | floor_met | Check | `fixed_bundle_spend ≥ commitment.floor`; false when no commitment |
-| discount_applied | Long Int | **Minor units** — total discount given on the invoice for this period (0 when floor not met or no commitment) |
+| discount_applied | Currency | Float, **major units** — total discount given on the invoice for this period (0 when floor not met or no commitment) |
 
 The rollup is created by `generate_draft_invoice` alongside the `Invoice` draft.
 It is the sole input to breach detection and clawback computation, so both
@@ -118,9 +118,10 @@ and add-on line items are written at list and are never touched. The
 `Team Fixed-Bundle Spend Rollup.discount_applied` accumulates the sum of
 `discount_given` across all fixed-bundle lines for audit and clawback input.
 
-All arithmetic is integer minor units; the `discount_pct` percentage is the
-only `Float` in this path, and the single rounding step converts it back to a
-minor-unit integer per line item ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)).
+All money is a float `Currency` in major units; the `discount_pct` percentage is a
+rate, and the single rounding step rounds the result to the currency's 2 decimals
+per line item. *([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)'s integer
+minor-units model was never implemented and is deprecated.)*
 
 ## Clawback computation
 
@@ -141,7 +142,7 @@ line types). It has:
 |-------|-------|
 | `line_type` | `clawback` |
 | `description` | "Commitment clawback — discount repayment for {N} months" |
-| `amount` | `clawback_amount` in minor units (positive — adds to total) |
+| `amount` | `clawback_amount` (float, major units; positive — adds to total) |
 | `commitment` | Link → the breached Commitment |
 
 After the clawback line is written:
@@ -229,8 +230,9 @@ cloud_billing.commitment.evaluate_commitment(team, billing_period)
 - **Early voluntary exit is not modelled.** A customer cannot "cancel" a
   Commitment short of breaching it (missing the floor). There is no early-exit
   path that waives the clawback.
-- **`floor` and all amounts are `Long Int` minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)).
-  The `floor` field in issue #30 was typed `Currency` — that is corrected here.
+- **`floor` and all amounts are float `Currency` in major units** — consistent with issue #30's
+  `Currency` typing. *([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)'s proposal to retype
+  money as `Long Int` minor units was never implemented and is deprecated.)*
 - **Commitment does not affect metered or add-on billing** in any way —
   neither the floor test, the discount, nor the clawback touches those lines.
 - The `Team Fixed-Bundle Spend Rollup` is the permanent audit record linking

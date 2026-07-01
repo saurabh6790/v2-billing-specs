@@ -229,7 +229,7 @@ it unlocks, and how to advance*.
 
 - Tier ladder + caps from `get_trust_tier` (`tier`, `max_spend`,
   `max_resource_count`, `allowed_plans`, `allowed_clusters`, `promoted_at`,
-  `promotion_basis`). Money fields are minor units → `money()` (billing-ui.md).
+  `promotion_basis`). Money fields are float `Currency`, major units → `money()` (billing-ui.md).
 - "Next tier" progress bars (`Progress`) need the *thresholds + current
   historical-paid counters*. If `get_trust_tier` doesn't yet return the next-tier
   rule + progress, render that block from **dummy data** and flag it 🟡 until the

@@ -186,9 +186,8 @@ _Avoid_: Deleted, cancelled, off.
   [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) proposed integer minor/rate units
   (`Long Int`) but was **never implemented and is deprecated** — rates and amounts are `Currency`
   floats in rupees/dollars (₹10.00 = `10.0`). Minor units (paise/cents) exist only at the gateway
-  boundary as the integer the gateway charges. Spec docs and issues (#79/#80, `invoicing.md`,
-  `metering.md`) that still describe `Long Int` minor/rate units are aspirational, not what's built,
-  and are the remaining reconcile debt.
+  boundary as the integer a gateway adapter charges. The spec corpus has been swept to describe this
+  float model (#90); the ADR 0003 migration issues #34–#39 are marked OBSOLETE.
 
 ## Example dialogue
 

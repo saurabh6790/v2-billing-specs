@@ -84,7 +84,7 @@ like [Credit Ledger Entry](credits.md).
 | `grain` | Select | `day` / `month` — the period the value covers. |
 | `period_start` / `period_end` | Date | Half-open `[start, end)`. |
 | `dimension` | Data | Bounded slice key, e.g. `region=IN`, `currency=INR`, `plan=bundle-2vcpu`, or `all`. One row per (metric, period, dimension). |
-| `value_minor` | Long Int | Money metrics only — **minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)). Null for ratios/counts. |
+| `value_money` | Currency | Money metrics only — float, **major units**. Null for ratios/counts. *([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) minor-units model deprecated.)* |
 | `value_num` | Float | Non-money values (rates, counts, ratios as 0–1). Null for money. |
 | `currency` | Link | Set when `value_minor` is set; null otherwise. A money metric is **never** summed across currencies — report per currency, convert at presentation only. |
 | `source_query_hash` | Data | Hash of the SQL/qb that produced the value — lets a later run prove it used the same definition. |
@@ -159,9 +159,10 @@ same funnel as **collection success rate** (§8) and **involuntary churn**.
 
 ## 6. Plane A — credits, wallet, metering, money integrity
 
-Source seams: Credit Ledger Entry + Credit Wallet anchor (`credits.py`, #06/#11), the money module
-(#34, [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)), invoice assembly (#09), Usage
-Meter rollup (#12).
+Source seams: Credit Ledger Entry + Credit Wallet anchor (`credits.py`, #06/#11), invoice assembly
+(#09), Usage Meter rollup (#12). *(Money is float `Currency` in major units; the dedicated integer
+money module of [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)/#34 was never built and is
+deprecated.)*
 
 **Money integrity — the non-negotiable sub-tier.** These should be *structurally impossible* to
 trip; any non-zero value pages **and** surfaces on a board management can see, because trust in the
@@ -173,7 +174,7 @@ number *is* the product.
 | `money.minor_unit_factor_miss` | counter | A currency hit the ISO-4217 factor table with no entry → silent mis-scaling. Must be 0. |
 | `invoice.line_sum_mismatch` | counter | Σ(line items) ≠ invoice total — should be impossible; >0 = assembly math bug. |
 | `ledger.balance_drift` | counter | Wallet anchor balance ≠ Σ(append-only ledger entries) — the canary for the wallet/ledger split. |
-| `payment.amount_vs_invoice_mismatch` | counter | Amount captured ≠ amount owed — FX/minor-unit boundary bug (#38). |
+| `payment.amount_vs_invoice_mismatch` | counter | Amount captured ≠ amount owed — FX / gateway-unit boundary bug. |
 | `erpnext.push_amount_mismatch` | counter | Amount pushed to Sales Invoice ≠ Paid invoice amount (#39 boundary). |
 
 **Credit & wallet operational**
@@ -326,8 +327,8 @@ names the seam it verifies.
       snapshot behind it.
 - [ ] No metric is labelled with `customer_id` / `invoice_id` / `team` / raw amount (`grep` the
       `metrics.` call sites).
-- [ ] No `value_minor` in `Metric Snapshot` was produced by float arithmetic (definition functions
-      sum integer columns only; cross-check against [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)).
+- [ ] `value_money` in `Metric Snapshot` is a float `Currency` in major units, rounded once at the
+      source (definition functions never re-round or re-scale a money figure they aggregate).
 
 ## Status
 

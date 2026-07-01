@@ -49,8 +49,9 @@ Every team carries a `collection_mode`. For INR teams it is one of:
 
 ## The ₹15,000 threshold
 
-- **Threshold = ₹15,000 per debit** (`INR_EMANDATE_SILENT_MAX`, in minor units =
-  `1_500_000` paise). It is the RBI silent-debit ceiling for our merchant category.
+- **Threshold = ₹15,000 per debit** (`INR_EMANDATE_SILENT_MAX = 15000`, a float in major
+  units, like all money; the Razorpay call converts to paise at the boundary). It is the RBI
+  silent-debit ceiling for our merchant category.
 - **Tripped by the larger of**: (a) the invoice about to be charged, or (b) the
   **month-to-date forecast** (so we warn *before* the bill lands, not after a
   failed charge). Forecasting reuses the dashboard engine ([#18](issues/18-customer-dashboard-forecast.md)).

@@ -27,7 +27,7 @@ The entitlement cap is the current trust tier's limit.
 | name | Data | |
 | team | Link → Team | |
 | tier | Select | t0 (entry/trial) / t1 / t2 / … (admin-defined ladder) |
-| max_spend | Long Int | **Minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) — monthly cap (= mandate ceiling for mandate teams) |
+| max_spend | Currency | Float, **major units** — monthly cap (= mandate ceiling for mandate teams). *([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) minor-units model deprecated.)* |
 | max_resource_count | Int | |
 | allowed_plans | JSON | |
 | allowed_clusters | JSON | Trial = single cluster |

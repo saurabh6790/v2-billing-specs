@@ -8,7 +8,7 @@ Create the two DocTypes that underpin the Commitment feature, wire the evaluatio
 
 `Commitment` and `Team Fixed-Bundle Spend Rollup` schemas are defined in [commitment.md](../commitment.md). Key constraints:
 
-- `floor` is `Long Int` minor units — not `Currency` (ADR 0003).
+- `floor` is `Currency` (float, major units). *(ADR 0003's proposal to retype it `Long Int` minor units was never implemented and is deprecated.)*
 - `ends_at` is computed at creation (`started_at` + `term_months` calendar months) and never recomputed.
 - Rollup rows are permanent money records — never pruned by log-cleanup jobs.
 
@@ -16,7 +16,7 @@ Create the two DocTypes that underpin the Commitment feature, wire the evaluatio
 
 ## Acceptance criteria
 
-- [ ] `Commitment` DocType exists with all fields; `floor` is `Long Int` (not `Currency`).
+- [ ] `Commitment` DocType exists with all fields; `floor` is `Currency` (float, major units).
 - [ ] `Team Fixed-Bundle Spend Rollup` DocType exists with all fields.
 - [ ] Saving a second `active` Commitment for the same team is rejected with a clear error.
 - [ ] `generate_draft_invoice` calls `evaluate_commitment` and produces a rollup row for teams with an active Commitment.

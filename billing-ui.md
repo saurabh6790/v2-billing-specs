@@ -141,10 +141,11 @@ export const canManage = computed(() => caps.data?.includes('billing:manage') ??
 
 ## Money display
 
-All settled money arrives as **integer minor units** (paisa/cent) per
-[ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). The UI **never** does
-money math — the backend rounds once and returns minor units plus a `currency`.
-Format for display only:
+All settled money arrives as a **float `Currency` in major units** (₹, $) plus a
+`currency`. The UI **never** does money math — the backend rounds once and returns
+the final figure. *([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)'s
+integer minor-units model was never implemented and is deprecated.)* Format for
+display only:
 
 ```ts
 // utils/money.ts — display-only; mirrors backend utils.money
@@ -468,8 +469,8 @@ block). `FormControl` fields, `space-y-4`, Cancel/Save pair.
 ### Billing settings — `get_billing_settings` / `save_billing_settings`
 - **Settlement mode**: `Select` postpaid (autopay) / prepaid (credits-only) — this
   is the toggle the Overview headline keys off.
-- **Thresholds**: minimum balance / spend alert (`FormControl` numeric, minor-unit
-  aware) — feed the 80% top-up forecast and dunning notifications.
+- **Thresholds**: minimum balance / spend alert (`FormControl` numeric, major-unit
+  currency values) — feed the 80% top-up forecast and dunning notifications.
 - **Notification preferences**: which billing events email the team
   ([#20](issues/20-notification-suite.md), Central is the sole sender) —
   `Switch` rows per event class (invoices, payment failures, top-up reminders).
@@ -560,7 +561,7 @@ Before a screen ships, confirm:
 - [ ] **List toolbar** — debounced search + filter + status `TabButtons`.
 - [ ] **States present** — skeleton (`LoadingText`) first-load, empty state with
   CTA, inline `ErrorMessage`; never a bare spinner or blank screen.
-- [ ] **Money** — rendered via `money()` from minor units; the UI does no math.
+- [ ] **Money** — rendered via `money()` from the backend's major-unit `Currency` value; the UI does no math.
 - [ ] **Webhook-truth** — Pay/Top-Up show "initiated" and reload on webhook; never
   mark Paid/credited from the synchronous return.
 - [ ] **One solid primary** per page; everything else `subtle`/`ghost`.

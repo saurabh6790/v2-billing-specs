@@ -75,9 +75,10 @@ The end-to-end composable-pricing slice is implemented and green (552 tests):
   Configurator's [ADR 0011](docs/adr/0011-plan-configurator-is-the-single-pricing-authority.md)
   pricing step writes `Currency` rates, not minor-unit integers. **Reconciled 2026-07-01:** ADR 0003
   is marked deprecated-never-implemented and CONTEXT.md's money terms (now *Money representation* /
-  *Rate precision*) + flagged ambiguity describe the float model. **Remaining debt:** `invoicing.md`,
-  `metering.md`, and issues #79/#80 still describe `Long Int` minor/rate units — aspirational, to be
-  swept when next touched.
+  *Rate precision*) + flagged ambiguity describe the float model. **Sweep complete (#90):**
+  `invoicing.md`, `metering.md`, `tax.md`, `credits.md`, `commitment.md`, `payments.md`, `security.md`,
+  `observability.md`, and issues #79/#80 now describe the float model, and the ADR 0003 migration
+  issues #34–#39 are marked OBSOLETE.
 - **A Plan always declares what it bills** — `Plan.includes` should require ≥1 row (the include
   binds the metered resource + allowance, or the bundle composition; empty = a price with no
   subject). Decided in principle; not yet enforced in code.
