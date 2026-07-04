@@ -113,8 +113,12 @@ Nothing here is an open *decision* anymore. Items 1–6 are build work; 7–9 ar
    These run on a cluster but have no customer-owned asset. Resolved as a metered single-resource
    Plan on a synthesized `(team, service-plan, cluster)` subject; rates resolve regional-over-global
    unchanged; allowance pools team-wide for globally-priced families and stays per-cluster for
-   regionally-priced ones (a `Plan Category` property). What remains is implementation, not a
-   decision.
+   regionally-priced ones (a `Plan Category` property). The **API contract** a consumer service
+   transacts through is fixed by [ADR 0015](docs/adr/0015-consumer-service-metering-api-contract.md):
+   pilot-authenticated report/subscribe methods (team from the credential), a per-family
+   **reporting mode** (Authoritative-replace vs Incremental-accumulate with a sequence cursor) and
+   **settlement mode** (Postpaid Overage vs Prepaid Pack), plus a console view of a team's metered
+   footprint. Build in progress on `feat/consumer-service-metering`.
 6. **Per-instance / live-registrar pricing (Domains)** — **[Design resolved —
    [ADR 0014](docs/adr/0014-domains-live-registrar-pricing-threshold-renewals.md); build pending.]**
    A domain is an annual `Subscription` on a single `Domain` Plan; TLD + rate are instance data
