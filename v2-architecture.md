@@ -1,0 +1,249 @@
+# v2 Architecture — the internal shape of `central/billing`
+
+## Purpose and scope
+
+This document is about **how the billing code is organised, and why it is (or is not) readable**.
+
+It is deliberately narrow, because a proliferation of overlapping documents is one of the problems it
+is trying to solve:
+
+| Document | Answers |
+|---|---|
+| [architecture.md](architecture.md) | **System shape.** What Central is, what the cluster manager is, where the seams are, what flows between them. |
+| **v2-architecture.md** (this) | **Code shape.** How `central/billing` is structured internally, who owns state, what a report reads, and where a new engineer looks first. |
+| `central/billing/ARCHITECTURE.md` (in the app) | **Debugging map.** The live symptom → file cheat-sheet. Generated from the code, kept next to it. |
+
+If a fact belongs in two of these, it belongs in exactly one and is linked from the other.
+
+---
+
+## 1. What we already got right — do not redo this
+
+The instinct to rebuild billing "properly" should be resisted where the current design is already
+correct, and it is correct in more places than it feels. Three in particular.
+
+**The gateway seam is right.** Press has `stripe_payment_event`, `razorpay_payment_record`,
+`mpesa_payment_record`, `stripe_micro_charge_record`, `stripe_webhook_log`, `razorpay_webhook_log` —
+the gateway's name is baked into the doctype name, so gateway number four means new tables and new
+code paths through the whole system. Central has **one** `Payment Attempt`, **one** `Webhook Event`,
+and a `GatewayAdapter` protocol with three implementations behind a registry. That is the same shape
+as Hyperswitch's connector trait, and it is the single most valuable structural asset in the module.
+Adding Flutterwave is an adapter, not a migration.
+
+**`Payment Attempt` is already a first-class attempt record.** It carries `idempotency_key`,
+`retry_number`, `gateway_transaction_id`, `failure_code`, `decline_code`, `failure_reason`,
+`gateway_response`, and `resolved_by` (webhook vs reconciliation). Very few billing systems at this
+stage record *why* a charge failed and *which* subsystem resolved it. Keep it.
+
+**The append-only records that carry money are the right ones.** `Subscription Change` is the
+contract-and-price ledger ([ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md)),
+`Credit Ledger Entry` is the wallet's source of truth, `Webhook Event` holds the raw payload for
+dedupe and replay. Each has one job.
+
+What is missing is not doctypes. It is a **spine**.
+
+---
+
+## 2. The spine
+
+Everything in this document follows from one decision, recorded in
+[ADR 0016](docs/adr/0016-billing-event-stream-and-single-transition-authority.md):
+
+> **Every state transition goes through one authority, and every transition appends one immutable
+> `Billing Event`. The event stream is derived — the write path may never read it.**
+
+Today `Invoice.status` is written from two modules that do not know about each other
+(`payments/charges.py` and `revenue/invoicing/lifecycle.py`), roughly nine production modules assign
+a status directly, and no transition table exists anywhere. There is no ordered record of what
+happened, so debugging is a six-way manual join and every one of the sixteen reports re-derives
+revenue from mutable documents.
+
+After the spine:
+
+```
+                 ┌──────────────────────────────────────────┐
+   write path    │  catalog · revenue · payments · gateways │
+                 └────────────────────┬─────────────────────┘
+                                      │  every status change
+                                      ▼
+                          ┌───────────────────────┐
+                          │  billing/states.py    │   the only writer of a status
+                          │  transition(doc, to)  │   validates against the machine
+                          └───────────┬───────────┘
+                                      │ appends exactly one row
+                                      ▼
+                          ┌───────────────────────┐
+                          │     Billing Event     │   append-only · never edited
+                          │  (team, occurred_at,  │   correlation threads the story
+                          │   subject, from→to,   │
+                          │   amount, actor)      │
+                          └───────────┬───────────┘
+                                      │  read-only
+                    ┌─────────────────┼─────────────────┐
+                    ▼                 ▼                 ▼
+               debugging          admin UI           reports
+```
+
+The arrow only ever points down. Nothing under the stream feeds back into the write path — that
+constraint is what keeps Billing Event from becoming the second load-bearing ledger that
+[ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md) deleted. If the table were
+dropped tomorrow, not one invoice total would change.
+
+**Debugging, before and after.**
+
+| | Today | With the spine |
+|---|---|---|
+| "Why wasn't this customer charged?" | Join Invoice, Payment Attempt, Webhook Event, Credit Ledger Entry, Subscription Change and Billing Notification Log by timestamp; hope six status fields agree | `WHERE correlation = 'INV-…' ORDER BY occurred_at` |
+| "Can an invoice go Cancelled → Paid?" | Read nine modules and find out | Read one transition table |
+| "What did we bill in June?" | Sixteen reports, sixteen derivations, two can disagree | `GROUP BY` over one immutable fact table |
+
+---
+
+## 3. Report-first is a write-path property
+
+The reason a system like Hyperswitch can ship analytics generously is not that it has a good
+reporting layer. It is that its writes are boring: an exhaustive status enum, one function that maps
+attempt status onto intent status, and an append-only stream that everything else projects from. The
+reports are cheap because the history is already a fact table.
+
+Ours are expensive because each of the sixteen reconstructs history by querying documents that are
+still being mutated. `report/_revenue.py` and `report/_currency.py` exist to share that reconstruction
+logic, which is the tell — shared helpers for re-deriving a fact you never recorded.
+
+So: **"report-first" is not a reporting decision, it is a write-path decision.** Move the reports onto
+`Billing Event`, and adding the seventeenth costs an afternoon instead of a week. Per-currency
+column-splitting stays exactly as it is today (INR and USD never share a column or a total); the
+change is what the report reads, not how it presents.
+
+---
+
+## 4. The five moves, in payoff order
+
+### Move 1 — one transition authority (`billing/states.py`)
+
+Declares every billing state machine and their legal transitions, and exposes `transition()` as the
+sole writer of any status field. A grep-test fails the build on a direct `\.status =` assignment
+anywhere else in the module — the same guard shape we already use to keep raw SQL out.
+
+Deletes the `_STANDING_RANK` constant that `api/admin/teams.py` had to invent for itself, and gives
+the lone `InvalidTransition` in `catalog/subscriptions.py` a home that covers all six machines.
+
+### Move 2 — the `Billing Event` stream
+
+`transition()` appends one immutable row per transition; money movements that are not status changes
+(credit applied, top-up, clawback) append one too. `correlation` threads an invoice's entire story —
+attempt, webhook, credit draw, dunning step, notification — onto one queryable timeline. Schema in
+[ADR 0016](docs/adr/0016-billing-event-stream-and-single-transition-authority.md).
+
+Moves 1 and 2 ship together; neither is worth much alone.
+
+### Move 3 — reports read the stream
+
+The existing sixteen migrate from document joins to `GROUP BY` over `Billing Event`, joining out to
+catalog and team masters only for attributes. No new reports are needed to prove the point — the
+proof is that the old ones get shorter.
+
+### Move 4 — evict integration state from `Invoice`
+
+`Invoice` carries thirty-two data fields. Five of them are ERPNext retry plumbing
+(`erpnext_invoice`, `erpnext_sync_status`, `erpnext_sync_attempts`, `erpnext_next_retry_at`,
+`erpnext_sync_error`) and two are e-mandate pre-debit scheduling (`predebit_notified_at`,
+`predebit_charge_after`).
+
+Retry state for an outbound integration is not a property of the money document. It goes to its own
+record (`Integration Sync`, keyed by subject, reusable for any future push); the pre-debit schedule
+belongs with the mandate that owns it. `Invoice` drops to roughly twenty-five fields, all of which
+are the invoice: who, what period, what lines, what tax, what's owed, what's paid.
+
+The test of a good money doctype is whether an accountant can read the form. Today they cannot.
+
+### Move 5 — one door per concept
+
+**Pricing.** Eight files in `catalog/` — `pricing.py`, `rate_card.py`, `component_card.py`,
+`composition.py`, `configurator.py`, `plans.py`, `plan_setup.py`, `services.py` — about a thousand
+lines and thirty functions, and their names do not tell you which one answers "what does this cost".
+`rate_card` versus `component_card` versus `pricing` is a coin flip.
+
+One public entry point, `pricing.resolve(subject, region, currency) -> Rate`, with everything else
+demoted to a private helper behind it. The Plan Configurator remains the single pricing *authority*
+([ADR 0011](docs/adr/0011-plan-configurator-is-the-single-pricing-authority.md)) — this is about
+having a single pricing *entry point* in code, which is a different thing and currently absent.
+
+**APIs.** There are three audiences and eighty-seven whitelisted endpoints, and the package names do
+not say which is which. `api/billing_api.py` is not dead code — it is the pilot-token-authenticated
+consumer-service facade from
+[ADR 0015](docs/adr/0015-consumer-service-metering-api-contract.md), correctly IDOR-guarded, taking
+the team from the credential and never from a parameter. But it sits at a path that says nothing
+about its audience while re-exposing payment methods, billing profile, plans and credits, so
+`save_billing_profile` exists in two files with no hint which one you want.
+
+Rename by audience, so the path answers the question:
+
+```
+api/customer/    session user, team-scoped        (was api/dashboard/)
+api/admin/       capability-gated                 (unchanged)
+api/pilot/       X-Pilot-Token, ADR 0015          (was api/billing_api.py)
+```
+
+---
+
+## 5. The rules that keep it readable
+
+These are the invariants. A change that breaks one of them is a change that puts us back where we
+started.
+
+1. **Only `states.py` writes a status.** Enforced by test.
+2. **The write path never reads `Billing Event`.** No pricing, invoicing, settlement, dunning or
+   entitlement code may query it. Enforced by test.
+3. **Gateway names appear only inside `gateways/`.** Nowhere else in the module knows Stripe exists.
+   This is currently true and is the thing that most separates us from press. Enforced by test.
+4. **One public entry point per concept**, everything else private. Pricing is the first to comply.
+5. **Money is float `Currency` in major units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md),
+   deprecated — read the banner). Conversion to minor units happens at the gateway boundary and
+   nowhere else.
+6. **A doctype has one job.** Integration retry state, scheduling state and presentation state do not
+   live on the money document.
+7. **Dashboard mutations declare `methods=["POST"]`.** frappe-ui's `useCall` defaults to GET and
+   Frappe rolls back writes on GET — the toast lies and nothing persists.
+
+---
+
+## 6. Sequence
+
+The moves are ordered so that each one is shippable and none blocks the product roadmap.
+
+1. **`states.py` + `Billing Event`, written but not yet enforced.** New transitions route through the
+   authority; old direct writes still work. Nothing breaks.
+2. **Migrate the nine status-writing modules**, one at a time, each with its tests green:
+   `payments/charges.py` first (it holds the `Invoice.status` split-brain with
+   `revenue/invoicing/lifecycle.py`, so those two go together), then `refunds`, `reconciliation`,
+   `payments`, `mandates`, `dunning`, `subscriptions`, `commitments`.
+3. **Turn on the grep-test.** From here the invariant holds by construction.
+4. **Migrate the reports** onto the stream, starting with the revenue ones that share
+   `report/_revenue.py`, and delete the shared re-derivation helpers as they empty out.
+5. **Split `Invoice`** — `Integration Sync` doctype, pre-debit fields to the mandate, patch to move
+   the data.
+6. **Collapse pricing to one door**, and rename the API packages by audience.
+
+Steps 1–3 are the ones that change how the system feels. Steps 4–6 are tidying that only becomes easy
+once the spine exists — which is why they come after, not before.
+
+---
+
+## 7. What this does not change
+
+- **The catalog model.** Polymorphic categories
+  ([ADR 0007](docs/adr/0007-polymorphic-catalog-category-masters.md)), composed configs
+  ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) and the Plan
+  Configurator as pricing authority ([ADR 0011](docs/adr/0011-plan-configurator-is-the-single-pricing-authority.md))
+  are untouched.
+- **`Subscription Change` as the price spine.**
+  [ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md) stands. Invoicing still
+  computes segments from it and from nothing else.
+- **The agentless model.** [ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)
+  stands; one component provisions, records and prices, which is precisely why a single transition
+  authority is even possible.
+- **Capability IAM.** [ADR 0004](docs/adr/0004-billing-as-central-module-capability-iam.md) stands;
+  `authz.py` keeps delegating to `central.iam`.
+- **The gateway adapters.** They translate and return; they never write a document. That seam is the
+  reference for how every other seam in billing should look.

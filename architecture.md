@@ -4,6 +4,8 @@
 
 Define the system shape for Frappe Cloud v2 billing: a single application (Central) that owns money, intent, and the recorded runtime it bills from, the seam to the cluster manager it provisions and enforces through, the data/control flow, and the cross-cutting decisions every other spec depends on.
 
+> **Scope.** This document is the *system* shape — what Central is, where the seams are, what flows between them. The *code* shape of `central/billing` — who owns state, what a report reads, where a new engineer looks first — lives in [v2-architecture.md](v2-architecture.md). A fact belongs in exactly one of the two.
+
 > **Updated 2026-06-15 ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).** The earlier **two-application** design (Central + a per-cluster **Subscription Agent**) is retired. There is **no Agent**: Central provisions VMs by calling the cluster manager API, records usage events itself, and enforces dunning by calling the cluster manager. All Agent logic moves into `central/billing`. Sections below describe the agentless model; the Agent framing in older specs is superseded.
 
 ## Problem (what v1 got wrong)
