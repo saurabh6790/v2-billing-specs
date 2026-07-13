@@ -44,7 +44,34 @@ What is missing is not doctypes. It is a **spine**.
 
 ---
 
-## 2. The spine
+## 2. The standard: every state is debuggable, reproducible, authentic
+
+Before the moves, the bar they are trying to clear. Every state in billing must satisfy three
+properties, and each one is bought by a different mechanism — which is why neither ADR alone is
+sufficient.
+
+**Debuggable** — you can always ask *what happened, in order*, and get an answer without a six-way
+join. Bought by the correlated `Billing Event` stream
+([ADR 0016](docs/adr/0016-billing-event-stream-and-single-transition-authority.md)).
+
+**Reproducible** — the same inputs yield the same state, every time, no matter how many times you
+re-run. Bought by idempotency: invoice generation is already idempotent per `(team, period)`; the
+payment idempotency key becomes a deterministic function of `(invoice, retry_number)` rather than a
+random docname ([ADR 0017](docs/adr/0017-durable-intent-before-irreversible-side-effects.md)), so a
+retry of the same charge is the *same* charge and the gateway says so.
+
+**Authentic** — a state never asserts a fact about the outside world that we have not verified with
+the outside world. `Captured` may be set from an adapter's return value because that is a claim about
+our own request; `Paid` may be set only from a signed webhook or a read back from the gateway, because
+that is a claim about money. Optimistic settlement is banned. Bought by durable intent
+([ADR 0017](docs/adr/0017-durable-intent-before-irreversible-side-effects.md)): no irreversible act
+without a committed record of the intent to perform it, so there is no path on which money moves and
+the system does not know.
+
+A state that fails any of the three is a defect, even if no customer has noticed yet. Most of the
+"billing is confusing" feeling is the accumulated weight of states that fail one of them silently.
+
+## 3. The spine
 
 Everything in this document follows from one decision, recorded in
 [ADR 0016](docs/adr/0016-billing-event-stream-and-single-transition-authority.md):
@@ -99,7 +126,7 @@ dropped tomorrow, not one invoice total would change.
 
 ---
 
-## 3. Report-first is a write-path property
+## 4. Report-first is a write-path property
 
 The reason a system like Hyperswitch can ship analytics generously is not that it has a good
 reporting layer. It is that its writes are boring: an exhaustive status enum, one function that maps
@@ -117,7 +144,26 @@ change is what the report reads, not how it presents.
 
 ---
 
-## 4. The five moves, in payoff order
+## 5. The moves, in payoff order
+
+Move 0 is a live money bug and jumps every queue. Moves 1–5 are the structural work; they make the
+system readable, but nothing in them is on fire today.
+
+### Move 0 — durable intent on the money path (fix the orphan charge)
+
+`payments/charges.py:90–127` calls the gateway from inside a transaction that has not committed the
+`Payment Attempt`. A worker crash or an unmapped adapter exception rolls the attempt away *after* the
+money moved; the random-docname idempotency key dies with it, so the dunning retry mints a fresh key
+and **charges the card a second time**, while the first webhook is dropped for referencing an attempt
+that no longer exists. Reconciliation cannot see it, because it walks attempts that exist.
+
+Split `pay_invoice` into a committed claim and a charge, and make the idempotency key deterministic
+from `(invoice, retry_number)`. Both halves are required: the commit is only safe because the unique
+deterministic key replaces the `FOR UPDATE` lock that the commit would release. Full reasoning in
+[ADR 0017](docs/adr/0017-durable-intent-before-irreversible-side-effects.md).
+
+The same shape is open on the cluster-manager call in `catalog/subscriptions.py:462–465`, where the
+consequence is an orphan VM nobody is billed for.
 
 ### Move 1 — one transition authority (`billing/states.py`)
 
@@ -187,7 +233,7 @@ api/pilot/       X-Pilot-Token, ADR 0015          (was api/billing_api.py)
 
 ---
 
-## 5. The rules that keep it readable
+## 6. The rules that keep it readable
 
 These are the invariants. A change that breaks one of them is a change that puts us back where we
 started.
@@ -195,23 +241,35 @@ started.
 1. **Only `states.py` writes a status.** Enforced by test.
 2. **The write path never reads `Billing Event`.** No pricing, invoicing, settlement, dunning or
    entitlement code may query it. Enforced by test.
-3. **Gateway names appear only inside `gateways/`.** Nowhere else in the module knows Stripe exists.
+3. **No irreversible external act without a committed record of intent.** The gateway call and the
+   cluster-manager call sit *between* transactions, never inside one
+   ([ADR 0017](docs/adr/0017-durable-intent-before-irreversible-side-effects.md)).
+4. **No state asserts an unverified fact about the outside world.** `Paid` comes from a signed webhook
+   or a read back from the gateway — never from a local return value. Optimistic settlement is banned.
+5. **No intent may remain non-terminal indefinitely.** An `Initiated` attempt past the sweeper's
+   threshold is a defect, not a resting state; reconciliation drives it to terminal and stamps
+   `resolved_by`.
+6. **Gateway names appear only inside `gateways/`.** Nowhere else in the module knows Stripe exists.
    This is currently true and is the thing that most separates us from press. Enforced by test.
-4. **One public entry point per concept**, everything else private. Pricing is the first to comply.
-5. **Money is float `Currency` in major units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md),
+7. **One public entry point per concept**, everything else private. Pricing is the first to comply.
+8. **Money is float `Currency` in major units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md),
    deprecated — read the banner). Conversion to minor units happens at the gateway boundary and
    nowhere else.
-6. **A doctype has one job.** Integration retry state, scheduling state and presentation state do not
+9. **A doctype has one job.** Integration retry state, scheduling state and presentation state do not
    live on the money document.
-7. **Dashboard mutations declare `methods=["POST"]`.** frappe-ui's `useCall` defaults to GET and
-   Frappe rolls back writes on GET — the toast lies and nothing persists.
+10. **Dashboard mutations declare `methods=["POST"]`.** frappe-ui's `useCall` defaults to GET and
+    Frappe rolls back writes on GET — the toast lies and nothing persists.
 
 ---
 
-## 6. Sequence
+## 7. Sequence
 
 The moves are ordered so that each one is shippable and none blocks the product roadmap.
 
+0. **Durable intent on `pay_invoice`**, plus the deterministic idempotency key, plus the sweeper for
+   non-terminal attempts ([ADR 0017](docs/adr/0017-durable-intent-before-irreversible-side-effects.md)).
+   This is a live money bug and does not wait for the spine. The `catalog/subscriptions.py`
+   provisioning call follows.
 1. **`states.py` + `Billing Event`, written but not yet enforced.** New transitions route through the
    authority; old direct writes still work. Nothing breaks.
 2. **Migrate the nine status-writing modules**, one at a time, each with its tests green:
@@ -225,12 +283,12 @@ The moves are ordered so that each one is shippable and none blocks the product 
    the data.
 6. **Collapse pricing to one door**, and rename the API packages by audience.
 
-Steps 1–3 are the ones that change how the system feels. Steps 4–6 are tidying that only becomes easy
-once the spine exists — which is why they come after, not before.
+Step 0 stops the bleeding. Steps 1–3 are the ones that change how the system feels. Steps 4–6 are
+tidying that only becomes easy once the spine exists — which is why they come after, not before.
 
 ---
 
-## 7. What this does not change
+## 8. What this does not change
 
 - **The catalog model.** Polymorphic categories
   ([ADR 0007](docs/adr/0007-polymorphic-catalog-category-masters.md)), composed configs
