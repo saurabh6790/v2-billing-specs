@@ -71,6 +71,19 @@ the system does not know.
 A state that fails any of the three is a defect, even if no customer has noticed yet. Most of the
 "billing is confusing" feeling is the accumulated weight of states that fail one of them silently.
 
+**The ACID lens says the same thing, and names the gap.** Billing is a database problem, so audit it
+like one. **A**tomicity across the gateway is physically impossible — there is no `ROLLBACK` for a
+captured card — so we do not pretend, and
+[ADR 0017](docs/adr/0017-durable-intent-before-irreversible-side-effects.md) makes the partial state
+*recoverable* instead. **I**solation is in decent shape (`FOR UPDATE` on the invoice row, the wallet
+anchor, the usage rollup). **D**urability is what ADR 0017 repairs at the money boundary. That leaves
+**C**onsistency — and across 36 DocTypes there are twelve unique fields and **no other constraint of
+any kind**. Every other invariant is a line of Python in one function, holding only for callers polite
+enough to route through it.
+[ADR 0018](docs/adr/0018-invariants-are-enforced-not-observed.md) closes that letter: every invariant
+is pushed to the lowest rung that can physically hold it, and a detection counter is an admission of
+failure, not a design.
+
 ## 3. The spine
 
 Everything in this document follows from one decision, recorded in
@@ -249,16 +262,24 @@ started.
 5. **No intent may remain non-terminal indefinitely.** An `Initiated` attempt past the sweeper's
    threshold is a defect, not a resting state; reconciliation drives it to terminal and stamps
    `resolved_by`.
-6. **Gateway names appear only inside `gateways/`.** Nowhere else in the module knows Stripe exists.
+6. **Every invariant sits on the lowest rung that can hold it** — DB constraint, then transition
+   guard, then write-path assertion, then continuous audit
+   ([ADR 0018](docs/adr/0018-invariants-are-enforced-not-observed.md)). A drift counter is the last
+   resort, never the first. In particular: **for every `(team, currency)`, the credit balance is
+   never negative**, and that is a `CHECK` constraint, not a Python `if`.
+7. **Money columns are never written by `frappe.db.set_value`** outside their guarded service
+   function — `set_value` skips `validate()` entirely, so any invariant living there is not enforced
+   against our own code.
+8. **Gateway names appear only inside `gateways/`.** Nowhere else in the module knows Stripe exists.
    This is currently true and is the thing that most separates us from press. Enforced by test.
-7. **One public entry point per concept**, everything else private. Pricing is the first to comply.
-8. **Money is float `Currency` in major units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md),
+9. **One public entry point per concept**, everything else private. Pricing is the first to comply.
+10. **Money is float `Currency` in major units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md),
    deprecated — read the banner). Conversion to minor units happens at the gateway boundary and
    nowhere else.
-9. **A doctype has one job.** Integration retry state, scheduling state and presentation state do not
+11. **A doctype has one job.** Integration retry state, scheduling state and presentation state do not
    live on the money document.
-10. **Dashboard mutations declare `methods=["POST"]`.** frappe-ui's `useCall` defaults to GET and
-    Frappe rolls back writes on GET — the toast lies and nothing persists.
+12. **Dashboard mutations declare `methods=["POST"]`.** frappe-ui's `useCall` defaults to GET and
+     Frappe rolls back writes on GET — the toast lies and nothing persists.
 
 ---
 
@@ -277,6 +298,10 @@ The moves are ordered so that each one is shippable and none blocks the product 
    `revenue/invoicing/lifecycle.py`, so those two go together), then `refunds`, `reconciliation`,
    `payments`, `mandates`, `dunning`, `subscriptions`, `commitments`.
 3. **Turn on the grep-test.** From here the invariant holds by construction.
+3b. **Land the constraints** ([ADR 0018](docs/adr/0018-invariants-are-enforced-not-observed.md)):
+   re-key `Credit Wallet` to `(team, currency)` with `CHECK (balance >= 0)`, add `Invoice.period_key`
+   to close the double-billing race, then the rung-4 audit job. Expect the first audit run to fail —
+   its output *is* the backlog.
 4. **Migrate the reports** onto the stream, starting with the revenue ones that share
    `report/_revenue.py`, and delete the shared re-derivation helpers as they empty out.
 5. **Split `Invoice`** — `Integration Sync` doctype, pre-debit fields to the mandate, patch to move
