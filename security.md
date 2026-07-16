@@ -218,8 +218,9 @@ Run this to audit the system. Each item is a control from above; most are greppa
 is a finding with a known fix location.
 
 **Authentication / authorisation**
-- [ ] Every `@frappe.whitelist()` billing method calls a guard (`require_billing_admin` /
-      `require_team_access`) on entry. (Enumerate whitelisted methods; diff against guarded set.)
+- [ ] Every `@frappe.whitelist()` billing method calls a guard on entry, and none exists outside
+      `billing/api/**`. **Automated**: `central/billing/tests/test_whitelist_boundary.py` (2026-07
+      audit — the manual version of this check was never run and the rule was violated for months).
 - [ ] `allow_guest=True` appears **only** on the two webhook routes.
 - [ ] No role check is hand-rolled outside `billing/platform/security.py`.
 - [ ] `get_user_team()` derives team from session/server, not from a request field.
@@ -269,7 +270,8 @@ Before writing code, find your change in this table and meet its obligation.
 
 | You are adding… | Obligation |
 |-----------------|------------|
-| A whitelisted endpoint | First line calls `require_billing_admin()` or `require_team_access(team)`. Never `allow_guest` (except a gateway webhook, which is signature-gated). |
+| A whitelisted endpoint | Lives in `billing/api/**` — nowhere else. First line calls the authz seam (`require_billing_view/manage`, `require_operator`, or a team-resolving helper). Never `allow_guest` (except a gateway webhook, which is signature-gated). Enforced by `tests/test_whitelist_boundary.py`. |
+| `@frappe.whitelist()` on a domain module (revenue/payments/catalog/platform) | Don't add a guard — **move the endpoint to `billing/api/**`**. The endpoint layer and the domain layer are different jobs; the domain stays plain functions. CI fails otherwise. |
 | A new gateway | Implement the adapter contract incl. `verify_webhook_signature`; keys go in `Payment Gateway` config; outbound charge is idempotent; nothing card-shaped reaches the server. |
 | A money calculation | Store as `Currency` (float, major units); round to 2 decimals once at the source, never downstream; mutate balances under `FOR UPDATE`; never settle on an API response. |
 | A token / signed artifact | Sign in Central with the private key; verify with the public key; include expiry; never trust a client-widened cap. |
