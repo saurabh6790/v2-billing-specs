@@ -9,13 +9,56 @@ ships broken can be fixed on Monday. A payment taken twice is an apology, a refu
 customer who from then on reads every invoice twice.
 
 So over a few weeks we tried to break our own billing on paper — not to see what *had*
-gone wrong, but to find the places where it eventually would. We came back with a list.
-This is what was on it and what we did about it.
+gone wrong, but to find the places where it eventually would. We came back with a list of
+ten things. This is what was on it, what we did, and what is still open.
 
 Three words appear throughout. An **invoice** is a customer's bill for the month. A
 **gateway** is the payment company — Stripe, Razorpay, PayPal — that actually moves the
 money. A **webhook** is the message the gateway sends back to say the payment went
 through.
+
+---
+
+## Ten unlocked doors
+
+The first thing we found had nothing to do with money moving incorrectly. It was that
+quite a lot of it could be moved by anyone who asked.
+
+Frappe has a decorator, `@frappe.whitelist()`, that makes a Python function callable over
+HTTP. We had put it on our billing service functions — the ones that mint credits, charge
+a card, delete a payment method, author a catalog plan. The dashboard called those
+functions through wrappers that checked, properly, whether you were allowed to act on the
+team in question.
+
+The trouble is that the decorator is authentication, not authorization. It asks whether
+you are logged in. It does not ask whether this is your team. And because the primitives
+carried the decorator themselves, they were independently reachable at
+`/api/method/...` — going around the wrapper that did the checking. Any logged-in user
+could mint credit balance for any team.
+
+There was a second layer that should have caught this. Billing doctypes are
+System-Manager-only, so ordinary permissions would have refused. Except every one of
+those functions writes with `ignore_permissions=True`, which is correct for a service
+function called internally and disastrous for one exposed to the internet.
+
+Ten findings, and one root cause underneath all of them.
+
+The fix was cheaper than it looked. We traced every flagged function and found that no
+internal caller depended on the decorator — each was called as a plain Python function by
+its own wrapper, by a sibling module, or by a test. So the decorator came off, and the
+rule became: only code under `billing/api/**` may be whitelisted. Everything else is a
+domain primitive and is not reachable over HTTP at all.
+
+Two of the ten needed more than that. The top-up confirmation endpoint is *legitimately*
+reachable, and on its Razorpay path it credited the amount the client sent rather than the
+amount the gateway said it captured. That one is a real second bug and got a real fix:
+ask the gateway. And eleven places switched the session to Administrator without switching
+it back, so anything permission-sensitive later in the same request quietly ran as an
+administrator.
+
+A test now walks the codebase and fails the build if `@frappe.whitelist` appears outside
+the API layer. We wrote the guard before we wrote the fixes, which turned out to be the
+right order — it found two we had missed.
 
 ---
 
@@ -80,15 +123,12 @@ scheduled retry after a real decline — gets the next attempt number, so a new 
 real new charge. One mechanism separates "ask again about the same charge" from "make a
 different one", with nothing ambiguous in between.
 
-One smaller decision came out of this. We release the lock on the invoice at the moment we
-commit the claim, before the slow gateway call, so an incoming confirmation never has to
-queue behind a charge that is still in progress.
-
 We also stopped treating our own call returning as proof of anything. An invoice is marked
 Paid when the gateway's confirmation arrives, or when reconciliation establishes it. An
 uncertain charge is never allowed to look like a successful one.
 
-This is written up as ADR 0017.
+This one is written up as ADR 0017. It is the decision the rest of the work leans on
+hardest.
 
 ---
 
@@ -149,10 +189,6 @@ A team that loses a lock race is now retried rather than dropped until next mont
 database error during the team scan no longer reads as "a run with nothing to bill", which
 is a failure mode that would have been silent and expensive.
 
-On paper the run comes down from over a day to somewhere near an hour and a half at fifty
-thousand teams with twenty workers. We have not run it at that size yet. What we can say
-is that the shape is right and the failure of any one team is contained.
-
 ---
 
 ## We failed to ask, so they aren't late
@@ -190,13 +226,14 @@ hundred thousand, and a direct tax on the fan-out we had just built.
 We replaced the small trips with a few batched ones. A team's subscriptions, their changes,
 their usage rollups and their prices are each fetched in one query, metered pricing is
 resolved once per resource type rather than once per usage row, and the team is read once
-for the whole invoice instead of once per region. The cost is now flat — a handful of
-queries whether a team runs three services or three hundred.
+for the whole invoice instead of once per region.
 
-Alongside that we added the indexes the hot money tables never had. The one that mattered
-most: looking up a payment attempt by its gateway transaction ID had no index, which meant
-every webhook settlement and every reconciliation sweep was a full table scan. That is a
-latency problem today and a correctness problem the day the scan gets slow enough to matter.
+Alongside that we added the indexes the hot money tables never had. Looking up a payment
+attempt by its gateway transaction ID had no index, which meant **every webhook settlement
+and every reconciliation sweep was a full table scan**. Invoices had no index on team, and
+usage rollups none on the team-and-period lookup the run does for everyone. We also dropped
+a duplicate index on the credit ledger that was declared both unique and searchable —
+paying twice to maintain the same thing.
 
 Rewriting how money is computed is exactly the change that introduces a discrepancy nobody
 notices for two months — a line dropped here, a charge attributed to the wrong region
@@ -208,11 +245,9 @@ The speed-up does not move a single paisa, and we can show it.
 
 ## Everyone had a key
 
-The last one is the largest, and it is the one we are least finished with.
-
-Billing has six state machines — an invoice's status, a payment attempt's, a payment
-method's, a refund's, a webhook event's, and a subscription's account standing — and until
-recently nothing owned any of them. Roughly nine different modules assigned a status
+Billing has seven status fields — an invoice's, a payment attempt's, a payment method's, a
+refund's, a webhook event's, a subscription's account standing, and a commitment's — and
+until recently nothing owned any of them. Roughly nine different modules assigned a status
 directly onto a document.
 
 Invoice status alone was written from two places that did not know about each other: the
@@ -242,13 +277,13 @@ flowchart TD
     S --> LOG["Append one Billing Event:<br/>what · from → to · when · who · why"]
 ```
 
-Every status change now goes through one function. It knows the legal moves for each of
-the six machines, refuses the illegal ones, writes the field, and appends one immutable row
-to a Billing Event stream — what changed, from what to what, when, who, and why.
+Every status change now goes through one function. It knows the legal moves for each
+machine, refuses the illegal ones, writes the field, and appends one immutable row to a
+Billing Event stream — what changed, from what to what, when, who, and why.
 
 That stream is deliberately one-way. It is the read model for humans and reports, and the
 billing logic is forbidden from reading it, so it can never quietly become a second source
-of truth that disagrees with the first.
+of truth that disagrees with the first. Drop the table and not one invoice total changes.
 
 Two details were less obvious than they look.
 
@@ -262,12 +297,105 @@ A link was already blocking us from deleting a payment method, and would have bl
 pruning old webhook records. An audit trail has to outlive the things it audits.
 
 Finally, a test walks the billing code and fails the build on any status assignment that
-bypasses the authority. We did this because a rule that lives only in code review is a rule
-that erodes over a year of ordinary changes — the same reason we have a guard keeping
-public endpoints out of the domain layer. Routing the last holdout took a while; the
-boundary is now clean with no exceptions.
+bypasses the authority — the same shape of guard as the whitelist one. We did this because
+a rule that lives only in code review is a rule that erodes over a year of ordinary
+changes. The allowlist of exceptions is empty.
 
-This is ADR 0016. It has landed on a branch and is not yet merged.
+This is ADR 0016.
+
+---
+
+## The sweeps that told nobody
+
+By this point we had three standing controls: a daily reconciliation asking the gateway
+about uncertain charges, a daily invariant audit checking the money adds up two different
+ways, and a webhook processor recording its own failures.
+
+All three worked. None of them told a human anything. They wrote to an error log that
+somebody would have to think to go and read. A control nobody reads is a control you
+have in principle.
+
+So the run now says what it did, and someone gets told when it goes wrong.
+
+Every phase of the monthly run emits its counters — drafted, skipped, failed, settled, and
+how long the page took — as a single parseable line a log scraper can pick up. Each period
+also gets a durable Billing Run row: how many teams, how many drafted, how many still
+owed, how many failures. That row is refreshed from the tables every time rather than
+accumulated, for the same reason the run reads its own progress from the data — a counter
+starts lying the moment a worker dies, and the run you most need to read is the one that
+only half happened.
+
+An hourly job now pages the operators on three things the sweeps can detect but cannot
+fix: an invariant that no longer holds, a webhook that failed to process and has sat there
+for over an hour, and a payment attempt still in flight a day after reconciliation should
+have answered it. It mails a digest rather than one message per row, and an unchanged
+digest goes quiet for six hours — an unfixed problem should not mail you sixty times, and
+alert fatigue is how real alerts get ignored. Fixing the problem re-arms it immediately.
+
+We added four internal views on data we already had: webhook lag from receipt to
+processing, dunning recovery — of the invoices that went overdue, how many we eventually
+collected — involuntary churn, the teams we lost to non-payment rather than to choice, and
+gateway authorisation rate as a trend rather than a single number, because a dip is only
+legible against a line.
+
+The last three of those read off the Billing Event stream, which is the first real use of
+it as a read model. It also means they only see transitions since the stream started. We
+would rather have a report that is honest about its horizon than one that guesses at
+history.
+
+---
+
+## When the price was wrong
+
+Sooner or later a rate is wrong and a month has already been billed on it. We had no
+answer for that beyond editing rows by hand, which is the answer that ends up in a
+post-mortem.
+
+Two things were missing.
+
+The first is a way to correct a metered usage record. Each usage rollup carries the rate
+and allowance that were locked when it was first received — that grandfathering is what
+makes a metered charge auditable months later. Editing those terms in place would destroy
+the very property they exist for. So a correction now writes a *new version* of the row
+with the corrected terms and points the old one at it. The old row is never touched, never
+billed again, and still readable. Later usage reports for that period follow the chain and
+land on the version that is actually live, so reporting keeps working across a correction.
+
+The second is re-issuing. An operator names a resource type and a period, and gets back a
+dry run: every affected invoice, what it says now, what it would say if it were rated
+today, and the difference. Nothing has changed at that point. If the numbers look right,
+applying it cancels and re-issues each invoice through the ordinary correction path — one
+at a time, committed as it goes, so a failure half way through leaves the ones it already
+fixed correct. The whole thing is recorded as a Rerating Run: what was corrected, why, who
+asked, the preview, and what actually happened to each invoice.
+
+Paid invoices are excluded. Money already taken is a refund's problem, not a re-issue's,
+and quietly rewriting a bill somebody has already paid is not a correction.
+
+---
+
+## Measuring instead of guessing
+
+Every throughput number we had been quoting was arithmetic. Two seconds per invoice times
+fifty thousand teams, divided by twenty workers. Reasonable arithmetic, and not the same
+thing as knowing.
+
+So we built a seeded run. It creates N teams with real subscriptions, bills them, and
+asserts three things: that it stayed inside a per-team time budget, that not one money
+invariant broke, and that a run killed half way through and restarted produces exactly one
+invoice per team and no duplicates. N is an environment variable, so the same test is a
+fast guard by default and a real load run before a release.
+
+Then we ran it at a thousand teams and measured: **about 14 milliseconds per team to
+draft**, in a single process on a dev bench. That is a real number, and it is a lot better
+than the two seconds we had been assuming for the drafting half.
+
+The budget in the test is set far above the measurement on purpose. It is not a benchmark
+of the machine — it exists to catch someone reintroducing a per-team query, which is a
+regression that would otherwise show up as a slightly slower month nobody notices until it
+is a very slow month.
+
+We have not run it at fifty thousand teams. We now have the tool to.
 
 ---
 
@@ -275,26 +403,40 @@ This is ADR 0016. It has landed on a branch and is not yet merged.
 
 Being honest about the remaining list is most of the value of having made one.
 
-The transition work has two pieces left. An invoice's amounts can still be edited after it
-is finished, and they shouldn't be — the field-level lock is not written yet. And our
-retention split (gateway logs for ninety days, invoices and the ledger forever, ERPNext as
-the statutory record) is how the system already behaves, but exists nowhere as a written
-decision.
+**The test suite is not green, and this work did not make it green.** It stands at 28
+failures and 5 errors out of 943 tests — exactly where it stood before, since everything
+here added tests that pass and broke nothing that passed. Most of the failures are fixture
+pollution between test classes rather than product bugs: metered plan fixtures get cleaned
+up by one test and are then missing for the next, so the failure travels with the ordering.
+That is fixable and it is a day's work on its own, not a line item in someone else's
+ticket. Until it is done, "the suite is green" cannot be a merge gate, and we should stop
+pretending otherwise.
 
-Money arithmetic is still floating-point in places it shouldn't be. We know the fix — one
-module doing decimal arithmetic with a single rounding policy, applied at line level — and
-we haven't written it.
+One of those failures is not pollution. A subscription that has been disabled — paused, or
+belonging to a terminated machine — still counts toward the team's committed run rate, and
+so still consumes the headroom that decides whether they may launch something new. We
+tried the obvious fix, excluding disabled subscriptions, and it breaks something real:
+subscriptions are created disabled and only enabled once the machine is running, so
+filtering them out means a team provisioning several machines at once could sail past
+their spend cap. Getting this right is a product decision about whether a pending machine
+should consume headroom, and we would rather leave the test red and the question open than
+paper over it.
 
-The durable-intent pattern is applied to card charges. It is not yet applied to payment
-orders, top-up captures, or the provisioning call to the cluster manager, all of which
-still hand-roll their own commit and rollback for the same underlying reason.
+**Money arithmetic is still floating point** where it should not be. We know the fix — one
+module doing decimal arithmetic with a single rounding policy, applied at line level, with
+an assertion that an invoice's subtotal equals the sum of its lines. We have not written
+it, and it is the largest correctness item still outstanding.
 
-The daily sweeps run, but they don't page anyone. An invariant violation, a webhook stuck
-in Failed for an hour, an attempt sitting past its reconciliation window — all of these are
-detected and none of them wake anybody up.
+**Durable intent is only applied to card charges.** Payment orders, top-up captures and the
+provisioning call to the cluster manager still hand-roll their own commit and rollback for
+exactly the same underlying reason. The pattern is proven now; it just has not been carried
+across.
 
-And the throughput numbers in this document are arithmetic, not measurements. We have not
-yet run a fifty-thousand-team month.
+**An invoice's amounts can still be edited after it is finished.** The field-level lock
+that would make cancel-and-reissue the only correction path is designed and unwritten. And
+our retention split — gateway logs for ninety days, invoices and the ledger forever,
+ERPNext as the statutory record — is how the system already behaves but exists nowhere as a
+written decision.
 
 ---
 
@@ -306,15 +448,15 @@ Three things, mostly about when to do this kind of work rather than how.
 of these changes was easy to make this month and would have been an incident to make later.
 None of them were urgent. That is the only reason they went well.
 
-**A property that isn't enforced by a machine is a property you are slowly losing.** The
-single-owner rule for status has a build-breaking guard. The uncertain-charge rule has a
-daily reconciliation sweep. The rewritten rating path has an equivalence test. Not because
-we distrust each other, but because none of us will remember this in eighteen months.
+**A property that isn't enforced by a machine is a property you are slowly losing.** Two
+build-breaking guards, two daily sweeps, an hourly page, and an equivalence test on the
+rewritten rating path. Not because we distrust each other, but because none of us will
+remember any of this in eighteen months.
 
-**Write down the reasoning, not the conclusion.** The decisions here are recorded as ADRs —
-0016 for the transition authority, 0017 for durable intent — and the thing worth keeping in
-them is the failure each one was designed against. A future engineer can always read the
-code to learn what it does. What they cannot recover is what we were afraid of.
+**Write down the reasoning, not the conclusion.** The load-bearing decisions are recorded
+as ADRs, and the thing worth keeping in them is the failure each one was designed against.
+A future engineer can always read the code to learn what it does. What they cannot recover
+is what we were afraid of.
 
 None of this adds anything a customer can see, and that is the point. The best outcome for
 every change described here is that nobody ever has a reason to notice it.
