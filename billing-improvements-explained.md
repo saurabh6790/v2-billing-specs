@@ -7,6 +7,12 @@ already moved.
 We came back with a list of ten things. Nine are done. This is what they were.
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart LR
     subgraph SAFE["Money is safe"]
         A["No unguarded<br/>door into billing"]
@@ -43,6 +49,12 @@ primitives carried the decorator themselves, so they were reachable directly, go
 the wrapper that did the checking.
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart LR
     U["Any logged-in user"] -->|"/api/method/…"| P["credits.purchase<br/>charges.pay_invoice<br/>methods.delete"]
     U --> W["dashboard wrapper<br/>checks your team"] --> P
@@ -80,6 +92,12 @@ Worse, the idempotency key that stops double charges was the attempt row's own r
 Roll back the row, lose the key.
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart TD
     A["Charge inside a transaction"] --> B["Gateway takes the money"]
     B --> C["Worker dies before commit"]
@@ -99,6 +117,12 @@ shape of the failure.
 The gateway call moved *out* of the transaction, and now sits between two of them.
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart TD
     A["Time to charge"] --> B["Write an 'Initiated' attempt<br/>key = this invoice + this attempt number"]
     B --> C["Commit — before any money moves"]
@@ -131,6 +155,12 @@ it.
 We rebuilt it while it was still comfortably fast, which is the only sensible time to.
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart TD
     O["Monthly dispatcher"] --> Q["Billing queue"]
     Q --> K1["Worker · page of teams"]
@@ -166,6 +196,12 @@ until the reason we didn't collect is *us*: the gateway rate-limited us, the run
 a worker died mid-charge.
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart LR
     D["Due date"] -->|"we tried, we failed"| X["Our outage"]
     X --> N["Clock restarts:<br/>full grace period from<br/>when we actually asked"]
@@ -184,6 +220,12 @@ customer owed and when is an accounting fact.
 Fanning work out only helps if one bill is cheap. Ours wasn't.
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart LR
     subgraph BEFORE["Before"]
         R1["Build one bill"] --> A1["query per service"] --> B1["query per usage row"] --> C1["re-read the whole account<br/>once per region"]
@@ -216,6 +258,12 @@ happened in order, so "why wasn't this customer charged?" meant joining six tabl
 timestamp and hoping they agreed.
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart TD
     A["Lifecycle"] --> G["transition()"]
     B["Payments"] --> G
@@ -249,6 +297,12 @@ recording. All three worked. None told a human anything; they wrote to a log som
 would have to think to go and read.
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart LR
     S1["Reconciliation"] --> C["Detected"]
     S2["Invariant audit"] --> C
@@ -286,6 +340,12 @@ grandfathering is what makes a metered charge auditable months later. Editing it
 destroys the property it exists for. So a correction writes a new version:
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart LR
     V1["Rollup v1<br/>rate 0.50 · never edited"] -->|"superseded_by"| V2["Rollup v2<br/>rate 0.25 · billed"]
     B["Billing"] --> V2
@@ -297,6 +357,12 @@ flowchart LR
 Re-issuing works the same way — nothing is edited, everything is recorded:
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  theme: neutral
+  handDrawnSeed: 1
+---
 flowchart TD
     O["Operator: resource type + period"] --> PV["Dry run: every affected invoice,<br/>now vs rated today, difference"]
     PV --> Q{"Numbers look right?"}
