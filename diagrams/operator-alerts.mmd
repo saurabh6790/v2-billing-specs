@@ -1,0 +1,8 @@
+flowchart LR
+    S1["Reconciliation"] --> C["Detected"]
+    S2["Invariant audit"] --> C
+    S3["Webhook failures"] --> C
+    C -->|"before"| L["error log<br/>nobody reads"]
+    C -->|"now"| P["Hourly digest to operators<br/>quiet for 6h if unchanged<br/>re-arms when fixed"]
+    style L fill:#fee,stroke:#c00
+    style P fill:#efe,stroke:#0a0

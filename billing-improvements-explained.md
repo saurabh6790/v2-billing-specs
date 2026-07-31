@@ -6,13 +6,12 @@ already moved.
 
 We came back with a list of ten things. Nine are done. This is what they were.
 
+![The ten pieces of work, grouped](diagrams/overview.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart LR
     subgraph SAFE["Money is safe"]
         A["No unguarded<br/>door into billing"]
@@ -31,6 +30,8 @@ flowchart LR
     SAFE --> SCALE --> TRUST
 ```
 
+</details>
+
 An **invoice** is a customer's bill for the month. A **gateway** is Stripe, Razorpay or
 PayPal — whoever actually moves the money. A **webhook** is the gateway telling us the
 payment went through.
@@ -48,19 +49,20 @@ and the guarded dashboard wrappers around them checked the caller's team properl
 primitives carried the decorator themselves, so they were reachable directly, going around
 the wrapper that did the checking.
 
+![Billing primitives reachable without an authorization check](diagrams/unguarded-doors.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart LR
     U["Any logged-in user"] -->|"/api/method/…"| P["credits.purchase<br/>charges.pay_invoice<br/>methods.delete"]
     U --> W["dashboard wrapper<br/>checks your team"] --> P
     P --> DB[("writes with<br/>ignore_permissions=True")]
     style P fill:#fee,stroke:#c00
 ```
+
+</details>
 
 The permission layer that should have caught it was disabled by design: every primitive
 writes with `ignore_permissions=True`, which is right for internal code and disastrous for
@@ -91,13 +93,12 @@ the Payment Attempt row ceased to exist — while the gateway had still taken th
 Worse, the idempotency key that stops double charges was the attempt row's own random ID.
 Roll back the row, lose the key.
 
+![How a crash mid-charge became a double charge](diagrams/double-charge.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart TD
     A["Charge inside a transaction"] --> B["Gateway takes the money"]
     B --> C["Worker dies before commit"]
@@ -110,19 +111,20 @@ flowchart TD
     style H fill:#fee,stroke:#c00
 ```
 
+</details>
+
 And it was undetectable: reconciliation finds stranded charges by walking the attempt rows
 that exist. A rolled-back row is invisible to it. Our safety net had a hole in exactly the
 shape of the failure.
 
 The gateway call moved *out* of the transaction, and now sits between two of them.
 
+![Claim first, commit, then charge](diagrams/durable-intent.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart TD
     A["Time to charge"] --> B["Write an 'Initiated' attempt<br/>key = this invoice + this attempt number"]
     B --> C["Commit — before any money moves"]
@@ -131,6 +133,8 @@ flowchart TD
     E -->|"No"| F["Charges, once"]
     E -->|"Yes"| G["Replays the first result.<br/>Does not charge again"]
 ```
+
+</details>
 
 The key is derived from two facts that cannot change — which invoice, which attempt number.
 Never random, which is the whole point. After a crash the Initiated row survives, so we know
@@ -154,13 +158,12 @@ it.
 
 We rebuilt it while it was still comfortably fast, which is the only sensible time to.
 
+![The monthly run as a dispatcher over a worker pool](diagrams/fan-out-run.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart TD
     O["Monthly dispatcher"] --> Q["Billing queue"]
     Q --> K1["Worker · page of teams"]
@@ -171,6 +174,8 @@ flowchart TD
     K3 --> P
     P --> DS["Daily sweep — re-runs<br/>until nothing is owed"]
 ```
+
+</details>
 
 Progress is read from the tables, not a counter in memory: a counter starts lying the
 moment a worker dies. So a half-finished run is visible and simply resumes — safely,
@@ -195,19 +200,20 @@ The dunning ladder — retries, overdue notice, suspension — counted from the 
 until the reason we didn't collect is *us*: the gateway rate-limited us, the run backed up,
 a worker died mid-charge.
 
+![The dunning clock restarts when we are the ones who failed](diagrams/dunning-clock.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart LR
     D["Due date"] -->|"we tried, we failed"| X["Our outage"]
     X --> N["Clock restarts:<br/>full grace period from<br/>when we actually asked"]
     D -.->|"unchanged"| A["Due date stays put —<br/>AR aging must stay honest"]
     style N fill:#efe,stroke:#0a0
 ```
+
+</details>
 
 The clock only moves forward, and a successful attempt stops pushing it, so a permanently
 broken gateway defers *escalation*, not collection. The due date is untouched: what a
@@ -219,13 +225,12 @@ customer owed and when is an accounting fact.
 
 Fanning work out only helps if one bill is cheap. Ours wasn't.
 
+![Building one bill, before and after](diagrams/batched-queries.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart LR
     subgraph BEFORE["Before"]
         R1["Build one bill"] --> A1["query per service"] --> B1["query per usage row"] --> C1["re-read the whole account<br/>once per region"]
@@ -234,6 +239,8 @@ flowchart LR
         R2["Build one bill"] --> B2["a few batched queries<br/>account read once"]
     end
 ```
+
+</details>
 
 Metered pricing is resolved once per resource type instead of once per usage row. And we
 added the indexes the hot money tables never had — looking up a payment attempt by gateway
@@ -257,13 +264,12 @@ prevented paying a cancelled invoice or reopening a paid one. And nothing record
 happened in order, so "why wasn't this customer charged?" meant joining six tables by
 timestamp and hoping they agreed.
 
+![One guarded door for every billing status](diagrams/transition-authority.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart TD
     A["Lifecycle"] --> G["transition()"]
     B["Payments"] --> G
@@ -276,6 +282,8 @@ flowchart TD
     S --> LOG["Append one Billing Event:<br/>what · from → to · when · who · why"]
     LOG -.->|"read model only —<br/>the write path may never read it"| RPT["Humans & reports"]
 ```
+
+</details>
 
 The stream is one-way on purpose: drop the table and not one invoice total changes, so it
 can never become a second source of truth that disagrees with the first.
@@ -296,13 +304,12 @@ We had three standing controls — reconciliation, the invariant audit, webhook 
 recording. All three worked. None told a human anything; they wrote to a log somebody
 would have to think to go and read.
 
+![The sweeps now page a human](diagrams/operator-alerts.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart LR
     S1["Reconciliation"] --> C["Detected"]
     S2["Invariant audit"] --> C
@@ -312,6 +319,8 @@ flowchart LR
     style L fill:#fee,stroke:#c00
     style P fill:#efe,stroke:#0a0
 ```
+
+</details>
 
 Each run phase now emits its counters — drafted, skipped, failed, settled, duration — as
 one parseable line, and each period gets a durable Billing Run row. That row is re-derived
@@ -339,13 +348,12 @@ Each usage rollup carries the rate and allowance locked when it was first receiv
 grandfathering is what makes a metered charge auditable months later. Editing it in place
 destroys the property it exists for. So a correction writes a new version:
 
+![Correcting locked terms by versioning the row](diagrams/rollup-versioning.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart LR
     V1["Rollup v1<br/>rate 0.50 · never edited"] -->|"superseded_by"| V2["Rollup v2<br/>rate 0.25 · billed"]
     B["Billing"] --> V2
@@ -354,15 +362,16 @@ flowchart LR
     style V1 fill:#eee,stroke:#999
 ```
 
+</details>
+
 Re-issuing works the same way — nothing is edited, everything is recorded:
 
+![Preview, decide, then re-issue](diagrams/rerating-flow.svg)
+
+<details>
+<summary>diagram source</summary>
+
 ```mermaid
----
-config:
-  look: handDrawn
-  theme: neutral
-  handDrawnSeed: 1
----
 flowchart TD
     O["Operator: resource type + period"] --> PV["Dry run: every affected invoice,<br/>now vs rated today, difference"]
     PV --> Q{"Numbers look right?"}
@@ -370,6 +379,8 @@ flowchart TD
     Q -->|"Yes"| AP["Cancel + reissue, one at a time,<br/>committed as it goes"]
     AP --> R["Rerating Run: what, why, who,<br/>the preview, and what happened"]
 ```
+
+</details>
 
 Paid invoices are excluded. Money already taken is a refund's problem, and rewriting a bill
 somebody has paid isn't a correction.

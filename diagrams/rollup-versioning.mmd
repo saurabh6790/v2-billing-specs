@@ -1,0 +1,6 @@
+flowchart LR
+    V1["Rollup v1<br/>rate 0.50 · never edited"] -->|"superseded_by"| V2["Rollup v2<br/>rate 0.25 · billed"]
+    B["Billing"] --> V2
+    U["Later usage report"] -->|"follows the chain"| V2
+    B -.->|"never"| V1
+    style V1 fill:#eee,stroke:#999

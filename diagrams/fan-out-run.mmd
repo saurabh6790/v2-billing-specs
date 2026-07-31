@@ -1,0 +1,9 @@
+flowchart TD
+    O["Monthly dispatcher"] --> Q["Billing queue"]
+    Q --> K1["Worker · page of teams"]
+    Q --> K2["Worker · page of teams"]
+    Q --> K3["Worker · …in parallel"]
+    K1 --> P["One team = one job = one commit<br/>failure is contained, not contagious"]
+    K2 --> P
+    K3 --> P
+    P --> DS["Daily sweep — re-runs<br/>until nothing is owed"]

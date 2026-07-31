@@ -1,0 +1,10 @@
+flowchart TD
+    A["Charge inside a transaction"] --> B["Gateway takes the money"]
+    B --> C["Worker dies before commit"]
+    C --> D["Attempt row rolls back<br/>random key dies with it"]
+    D --> E["Retry mints a NEW key"]
+    E --> F["Gateway has nothing to match<br/>→ charges the card again"]
+    D --> G["First webhook points at a row<br/>that no longer exists → dropped"]
+    F --> H["Charged twice, settled once,<br/>one payment stranded"]
+    G --> H
+    style H fill:#fee,stroke:#c00
