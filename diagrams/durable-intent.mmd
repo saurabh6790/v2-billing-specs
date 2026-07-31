@@ -1,14 +1,17 @@
-flowchart TD
-    A["Time to charge"] --> B["`Write an 'Initiated'
-attempt
-key = this invoice + this
-attempt number`"]
-    B --> C["`Commit — before any money
-moves`"]
-    C --> D["`Call the gateway, hand
-over the key`"]
-    D --> E{"`Seen this key
-before?`"}
-    E -->|"No"| F["Charges, once"]
-    E -->|"Yes"| G["`Replays the first result.
-Does not charge again`"]
+flowchart LR
+    B["`Write an
+'Initiated' attempt
+and commit it —
+key = invoice +
+attempt number`"] --> D["`Only then
+call the gateway,
+handing over
+the key`"]
+    D --> E{"`Seen this
+key before?`"}
+    E -->|"No"| F["`Charges,
+once`"]
+    E -->|"Yes"| G["`Replays the
+first result.
+Does not
+charge again`"]

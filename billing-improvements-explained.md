@@ -107,23 +107,26 @@ Roll back the row, lose the key.
 <summary>diagram source</summary>
 
 ```mermaid
-flowchart TD
-    A["`Charge inside a
-transaction`"] --> B["Gateway takes the money"]
-    B --> C["Worker dies before commit"]
-    C --> D["`Attempt row rolls back
-random key dies with it`"]
-    D --> E["Retry mints a NEW key"]
-    E --> F["`Gateway has nothing to
-match
-→ charges the card again`"]
-    D --> G["`First webhook points at a
-row
-that no longer exists →
-dropped`"]
-    F --> H["`Charged twice, settled
-once,
-one payment stranded`"]
+flowchart LR
+    B["`Charge runs
+inside a transaction
+— the gateway
+takes the money`"] --> C["`Worker dies before
+commit: the attempt
+row rolls back, and
+the key dies with it`"]
+    C -->|"retry"| E["`New key — gateway
+has nothing to
+match, charges
+the card again`"]
+    C -->|"meanwhile"| G["`First webhook
+points at a row
+that is gone,
+and is dropped`"]
+    E --> H["`Charged twice,
+settled once,
+one payment
+stranded`"]
     G --> H
     style H fill:#fee,stroke:#c00
 ```
@@ -142,20 +145,23 @@ The gateway call moved *out* of the transaction, and now sits between two of the
 <summary>diagram source</summary>
 
 ```mermaid
-flowchart TD
-    A["Time to charge"] --> B["`Write an 'Initiated'
-attempt
-key = this invoice + this
-attempt number`"]
-    B --> C["`Commit — before any money
-moves`"]
-    C --> D["`Call the gateway, hand
-over the key`"]
-    D --> E{"`Seen this key
-before?`"}
-    E -->|"No"| F["Charges, once"]
-    E -->|"Yes"| G["`Replays the first result.
-Does not charge again`"]
+flowchart LR
+    B["`Write an
+'Initiated' attempt
+and commit it —
+key = invoice +
+attempt number`"] --> D["`Only then
+call the gateway,
+handing over
+the key`"]
+    D --> E{"`Seen this
+key before?`"}
+    E -->|"No"| F["`Charges,
+once`"]
+    E -->|"Yes"| G["`Replays the
+first result.
+Does not
+charge again`"]
 ```
 
 </details>
@@ -413,21 +419,20 @@ Re-issuing works the same way — nothing is edited, everything is recorded:
 <summary>diagram source</summary>
 
 ```mermaid
-flowchart TD
-    O["`Operator: resource type +
-period`"] --> PV["`Dry run: every affected
-invoice,
-now vs rated today,
-difference`"]
-    PV --> Q{"Numbers look right?"}
-    Q -->|"No"| STOP["Nothing has changed"]
-    Q -->|"Yes"| AP["`Cancel + reissue, one at a
-time,
-committed as it goes`"]
-    AP --> R["`Rerating Run: what, why,
-who,
-the preview, and what
-happened`"]
+flowchart LR
+    O["`Operator:
+resource type
++ period`"] --> PV["`Dry run: every
+affected invoice,
+now vs rated today`"]
+    PV --> Q{"`Numbers
+look right?`"}
+    Q -->|"No"| STOP["`Nothing has
+changed`"]
+    Q -->|"Yes"| AP["`Cancel + reissue,
+one at a time.
+Recorded as a Rerating
+Run: what, why, who`"]
 ```
 
 </details>

@@ -45,8 +45,32 @@ second line`"]
 Continuation lines must start at column 0. Indent them and the leading spaces become part
 of the label.
 
-**Keep label lines to 26 characters.** Mermaid sizes the box using its own font metrics,
-then Excalifont renders wider, so anything longer spills past the border.
+**Keep label lines short.** Mermaid sizes the box using its own font metrics, then
+Excalifont renders wider, so anything longer spills past the border. 26 characters is the
+ceiling for `TD`; for `LR` use 16–20, because there every extra character of label width
+is added to the width of the whole diagram.
+
+## Layout
+
+Prefer `flowchart LR` for a sequence that ends in a branch: the run of steps reads left to
+right, and the outcomes stack vertically where it forks. `TD` puts the whole thing in one
+tall column that shrinks to unreadable in a blog column.
+
+Mermaid has one direction per flowchart — you cannot go `LR` and then switch to `TD`
+partway. The usual workaround is a `subgraph` with its own `direction`, which is exactly
+what this converter cannot do, so the perpendicular spread at a branch is as close as it
+gets.
+
+Width grows with the number of ranks, so **keep an `LR` diagram to four**, merging steps
+that belong together rather than chaining five boxes. Aim for 3:1 or squarer; check with:
+
+```
+grep -o 'width="[0-9.]*" height="[0-9.]*"' *.svg | head
+```
+
+**A fork is not a decision.** Two arrows leaving a plain rectangle read as a choice. If
+both things actually happen, say so on the edges (`-->|"retry"|`, `-->|"meanwhile"|`);
+if it *is* a choice, it belongs in a diamond.
 
 ## The eleven
 
