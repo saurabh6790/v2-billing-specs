@@ -1,7 +1,0 @@
-flowchart TD
-    B0["BEFORE — build one bill"] --> B1["a query per service"]
-    B1 --> B2["a query per usage row"]
-    B2 --> B3["`re-read the whole account
-once per region`"]
-    A0["AFTER — build one bill"] --> A1["`a few batched queries
-account read once`"]

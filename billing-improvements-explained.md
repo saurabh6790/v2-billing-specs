@@ -262,19 +262,35 @@ customer owed and when is an accounting fact.
 
 Fanning work out only helps if one bill is cheap. Ours wasn't.
 
-![Building one bill, before and after](diagrams/batched-queries.svg)
+**Before** — one bill meant a query per service, another per usage row, and the whole
+account re-read once for every region the team runs in.
+
+![Building one bill before: a query per service, per usage row, and per region](diagrams/batched-queries-before.svg)
 
 <details>
 <summary>diagram source</summary>
 
 ```mermaid
 flowchart TD
-    B0["BEFORE — build one bill"] --> B1["a query per service"]
-    B1 --> B2["a query per usage row"]
-    B2 --> B3["`re-read the whole account
+    R["Build one bill"] --> A["a query per service"]
+    A --> B["a query per usage row"]
+    B --> C["`re-read the whole account,
 once per region`"]
-    A0["AFTER — build one bill"] --> A1["`a few batched queries
-account read once`"]
+```
+
+</details>
+
+**After** — the same bill, in a handful of batched queries.
+
+![Building one bill after: a few batched queries, the account read once](diagrams/batched-queries-after.svg)
+
+<details>
+<summary>diagram source</summary>
+
+```mermaid
+flowchart TD
+    R["Build one bill"] --> A["`a few batched queries,
+the account read once`"]
 ```
 
 </details>

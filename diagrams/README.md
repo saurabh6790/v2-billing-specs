@@ -68,6 +68,10 @@ that belong together rather than chaining five boxes. Aim for 3:1 or squarer; ch
 grep -o 'width="[0-9.]*" height="[0-9.]*"' *.svg | head
 ```
 
+**A before/after comparison is two diagrams, not one.** Two disconnected chains in a
+single flowchart get laid out side by side with mismatched heights, which reads as broken
+rather than as a comparison. Split them and let the prose pair them.
+
 **A fork is not a decision.** Two arrows leaving a plain rectangle read as a choice. If
 both things actually happen, say so on the edges (`-->|"retry"|`, `-->|"meanwhile"|`);
 if it *is* a choice, it belongs in a diamond.
@@ -82,7 +86,8 @@ if it *is* a choice, it belongs in a diamond.
 | `durable-intent.mmd` | Claim first, commit, then charge |
 | `fan-out-run.mmd` | The monthly run as a dispatcher over a worker pool |
 | `dunning-clock.mmd` | The dunning clock restarts when we are the ones who failed |
-| `batched-queries.mmd` | Building one bill, before and after |
+| `batched-queries-before.mmd` | Building one bill: a query per service, per usage row, per region |
+| `batched-queries-after.mmd` | Building one bill: a few batched queries |
 | `transition-authority.mmd` | One guarded door for every billing status |
 | `operator-alerts.mmd` | The sweeps now page a human |
 | `rollup-versioning.mmd` | Correcting locked terms by versioning the row |
