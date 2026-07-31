@@ -18,7 +18,7 @@ npm run render
 ```
 
 That bundles Excalidraw for the browser, drives headless Chromium over every `.mmd`, and
-writes `<slug>.svg` next to it. Roughly a minute for all eleven.
+writes `<slug>.svg` next to it. Roughly a minute for all twelve.
 
 Fonts are the reason this needs a real browser: the layout is measured against Excalifont,
 and headless DOM shims mis-measure every label.
@@ -76,7 +76,7 @@ rather than as a comparison. Split them and let the prose pair them.
 both things actually happen, say so on the edges (`-->|"retry"|`, `-->|"meanwhile"|`);
 if it *is* a choice, it belongs in a diamond.
 
-## The eleven
+## The twelve
 
 | File | Diagram |
 |---|---|
