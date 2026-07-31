@@ -1,5 +1,9 @@
 flowchart LR
-    U["Any logged-in user"] -->|"/api/method/…"| P["credits.purchase<br/>charges.pay_invoice<br/>methods.delete"]
-    U --> W["dashboard wrapper<br/>checks your team"] --> P
-    P --> DB[("writes with<br/>ignore_permissions=True")]
+    U["Any logged-in user"] -->|"/api/method/…"| P["`credits.purchase
+charges.pay_invoice
+methods.delete`"]
+    U --> W["`dashboard wrapper
+checks your team`"] --> P
+    P --> DB[("`writes with
+ignore_permissions=True`")]
     style P fill:#fee,stroke:#c00

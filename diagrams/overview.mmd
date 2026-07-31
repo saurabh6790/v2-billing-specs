@@ -1,16 +1,20 @@
 flowchart LR
-    subgraph SAFE["Money is safe"]
-        A["No unguarded<br/>door into billing"]
-        B["No charge without<br/>a durable claim"]
-    end
-    subgraph SCALE["It holds at scale"]
-        C["One bill is cheap"]
-        D["The run fans out"]
-    end
-    subgraph TRUST["We can prove it"]
-        E["One owner per status,<br/>full history"]
-        F["Sweeps that page<br/>a human"]
-        G["Correct a price<br/>after the fact"]
-        H["Measure, don't<br/>extrapolate"]
-    end
-    SAFE --> SCALE --> TRUST
+    S["`MONEY IS SAFE
+
+No unguarded door into
+billing
+No charge without a
+durable claim`"]
+    C["`IT HOLDS AT SCALE
+
+One bill is cheap
+The run fans out`"]
+    T["`WE CAN PROVE IT
+
+One owner per status, full
+history
+Sweeps that page a human
+Correct a price after the
+fact
+Measure, don't extrapolate`"]
+    S --> C --> T

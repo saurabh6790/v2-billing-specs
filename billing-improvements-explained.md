@@ -13,21 +13,25 @@ We came back with a list of ten things. Nine are done. This is what they were.
 
 ```mermaid
 flowchart LR
-    subgraph SAFE["Money is safe"]
-        A["No unguarded<br/>door into billing"]
-        B["No charge without<br/>a durable claim"]
-    end
-    subgraph SCALE["It holds at scale"]
-        C["One bill is cheap"]
-        D["The run fans out"]
-    end
-    subgraph TRUST["We can prove it"]
-        E["One owner per status,<br/>full history"]
-        F["Sweeps that page<br/>a human"]
-        G["Correct a price<br/>after the fact"]
-        H["Measure, don't<br/>extrapolate"]
-    end
-    SAFE --> SCALE --> TRUST
+    S["`MONEY IS SAFE
+
+No unguarded door into
+billing
+No charge without a
+durable claim`"]
+    C["`IT HOLDS AT SCALE
+
+One bill is cheap
+The run fans out`"]
+    T["`WE CAN PROVE IT
+
+One owner per status, full
+history
+Sweeps that page a human
+Correct a price after the
+fact
+Measure, don't extrapolate`"]
+    S --> C --> T
 ```
 
 </details>
@@ -56,9 +60,13 @@ the wrapper that did the checking.
 
 ```mermaid
 flowchart LR
-    U["Any logged-in user"] -->|"/api/method/…"| P["credits.purchase<br/>charges.pay_invoice<br/>methods.delete"]
-    U --> W["dashboard wrapper<br/>checks your team"] --> P
-    P --> DB[("writes with<br/>ignore_permissions=True")]
+    U["Any logged-in user"] -->|"/api/method/…"| P["`credits.purchase
+charges.pay_invoice
+methods.delete`"]
+    U --> W["`dashboard wrapper
+checks your team`"] --> P
+    P --> DB[("`writes with
+ignore_permissions=True`")]
     style P fill:#fee,stroke:#c00
 ```
 
@@ -100,13 +108,22 @@ Roll back the row, lose the key.
 
 ```mermaid
 flowchart TD
-    A["Charge inside a transaction"] --> B["Gateway takes the money"]
+    A["`Charge inside a
+transaction`"] --> B["Gateway takes the money"]
     B --> C["Worker dies before commit"]
-    C --> D["Attempt row rolls back<br/>random key dies with it"]
+    C --> D["`Attempt row rolls back
+random key dies with it`"]
     D --> E["Retry mints a NEW key"]
-    E --> F["Gateway has nothing to match<br/>→ charges the card again"]
-    D --> G["First webhook points at a row<br/>that no longer exists → dropped"]
-    F --> H["Charged twice, settled once,<br/>one payment stranded"]
+    E --> F["`Gateway has nothing to
+match
+→ charges the card again`"]
+    D --> G["`First webhook points at a
+row
+that no longer exists →
+dropped`"]
+    F --> H["`Charged twice, settled
+once,
+one payment stranded`"]
     G --> H
     style H fill:#fee,stroke:#c00
 ```
@@ -126,12 +143,19 @@ The gateway call moved *out* of the transaction, and now sits between two of the
 
 ```mermaid
 flowchart TD
-    A["Time to charge"] --> B["Write an 'Initiated' attempt<br/>key = this invoice + this attempt number"]
-    B --> C["Commit — before any money moves"]
-    C --> D["Call the gateway, hand over the key"]
-    D --> E{"Seen this key<br/>before?"}
+    A["Time to charge"] --> B["`Write an 'Initiated'
+attempt
+key = this invoice + this
+attempt number`"]
+    B --> C["`Commit — before any money
+moves`"]
+    C --> D["`Call the gateway, hand
+over the key`"]
+    D --> E{"`Seen this key
+before?`"}
     E -->|"No"| F["Charges, once"]
-    E -->|"Yes"| G["Replays the first result.<br/>Does not charge again"]
+    E -->|"Yes"| G["`Replays the first result.
+Does not charge again`"]
 ```
 
 </details>
@@ -169,10 +193,14 @@ flowchart TD
     Q --> K1["Worker · page of teams"]
     Q --> K2["Worker · page of teams"]
     Q --> K3["Worker · …in parallel"]
-    K1 --> P["One team = one job = one commit<br/>failure is contained, not contagious"]
+    K1 --> P["`One team = one job = one
+commit
+failure is contained, not
+contagious`"]
     K2 --> P
     K3 --> P
-    P --> DS["Daily sweep — re-runs<br/>until nothing is owed"]
+    P --> DS["`Daily sweep — re-runs
+until nothing is owed`"]
 ```
 
 </details>
@@ -208,8 +236,11 @@ a worker died mid-charge.
 ```mermaid
 flowchart LR
     D["Due date"] -->|"we tried, we failed"| X["Our outage"]
-    X --> N["Clock restarts:<br/>full grace period from<br/>when we actually asked"]
-    D -.->|"unchanged"| A["Due date stays put —<br/>AR aging must stay honest"]
+    X --> N["`Clock restarts:
+full grace period from
+when we actually asked`"]
+    D -.->|"unchanged"| A["`Due date stays put —
+AR aging must stay honest`"]
     style N fill:#efe,stroke:#0a0
 ```
 
@@ -231,13 +262,13 @@ Fanning work out only helps if one bill is cheap. Ours wasn't.
 <summary>diagram source</summary>
 
 ```mermaid
-flowchart LR
-    subgraph BEFORE["Before"]
-        R1["Build one bill"] --> A1["query per service"] --> B1["query per usage row"] --> C1["re-read the whole account<br/>once per region"]
-    end
-    subgraph AFTER["After"]
-        R2["Build one bill"] --> B2["a few batched queries<br/>account read once"]
-    end
+flowchart TD
+    B0["BEFORE — build one bill"] --> B1["a query per service"]
+    B1 --> B2["a query per usage row"]
+    B2 --> B3["`re-read the whole account
+once per region`"]
+    A0["AFTER — build one bill"] --> A1["`a few batched queries
+account read once`"]
 ```
 
 </details>
@@ -276,11 +307,16 @@ flowchart TD
     C["Dunning"] --> G
     D["Refunds"] --> G
     E["…five more"] --> G
-    G --> CHK{"Legal move<br/>for this document?"}
+    G --> CHK{"`Legal move
+for this document?`"}
     CHK -->|"No"| X["Refused"]
     CHK -->|"Yes"| S["Write the field"]
-    S --> LOG["Append one Billing Event:<br/>what · from → to · when · who · why"]
-    LOG -.->|"read model only —<br/>the write path may never read it"| RPT["Humans & reports"]
+    S --> LOG["`Append one Billing Event:
+what · from → to · when ·
+who · why`"]
+    LOG -.->|"`read model only —
+the write path may never
+read it`"| RPT["Humans & reports"]
 ```
 
 </details>
@@ -314,8 +350,11 @@ flowchart LR
     S1["Reconciliation"] --> C["Detected"]
     S2["Invariant audit"] --> C
     S3["Webhook failures"] --> C
-    C -->|"before"| L["error log<br/>nobody reads"]
-    C -->|"now"| P["Hourly digest to operators<br/>quiet for 6h if unchanged<br/>re-arms when fixed"]
+    C -->|"before"| L["`error log
+nobody reads`"]
+    C -->|"now"| P["`Hourly digest to operators
+quiet for 6h if unchanged
+re-arms when fixed`"]
     style L fill:#fee,stroke:#c00
     style P fill:#efe,stroke:#0a0
 ```
@@ -355,7 +394,9 @@ destroys the property it exists for. So a correction writes a new version:
 
 ```mermaid
 flowchart LR
-    V1["Rollup v1<br/>rate 0.50 · never edited"] -->|"superseded_by"| V2["Rollup v2<br/>rate 0.25 · billed"]
+    V1["`Rollup v1
+rate 0.50 · never edited`"] -->|"superseded_by"| V2["`Rollup v2
+rate 0.25 · billed`"]
     B["Billing"] --> V2
     U["Later usage report"] -->|"follows the chain"| V2
     B -.->|"never"| V1
@@ -373,11 +414,20 @@ Re-issuing works the same way — nothing is edited, everything is recorded:
 
 ```mermaid
 flowchart TD
-    O["Operator: resource type + period"] --> PV["Dry run: every affected invoice,<br/>now vs rated today, difference"]
+    O["`Operator: resource type +
+period`"] --> PV["`Dry run: every affected
+invoice,
+now vs rated today,
+difference`"]
     PV --> Q{"Numbers look right?"}
     Q -->|"No"| STOP["Nothing has changed"]
-    Q -->|"Yes"| AP["Cancel + reissue, one at a time,<br/>committed as it goes"]
-    AP --> R["Rerating Run: what, why, who,<br/>the preview, and what happened"]
+    Q -->|"Yes"| AP["`Cancel + reissue, one at a
+time,
+committed as it goes`"]
+    AP --> R["`Rerating Run: what, why,
+who,
+the preview, and what
+happened`"]
 ```
 
 </details>

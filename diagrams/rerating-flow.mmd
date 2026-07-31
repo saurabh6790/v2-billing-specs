@@ -1,6 +1,15 @@
 flowchart TD
-    O["Operator: resource type + period"] --> PV["Dry run: every affected invoice,<br/>now vs rated today, difference"]
+    O["`Operator: resource type +
+period`"] --> PV["`Dry run: every affected
+invoice,
+now vs rated today,
+difference`"]
     PV --> Q{"Numbers look right?"}
     Q -->|"No"| STOP["Nothing has changed"]
-    Q -->|"Yes"| AP["Cancel + reissue, one at a time,<br/>committed as it goes"]
-    AP --> R["Rerating Run: what, why, who,<br/>the preview, and what happened"]
+    Q -->|"Yes"| AP["`Cancel + reissue, one at a
+time,
+committed as it goes`"]
+    AP --> R["`Rerating Run: what, why,
+who,
+the preview, and what
+happened`"]
