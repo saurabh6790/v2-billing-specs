@@ -171,6 +171,41 @@ VM), so it survives the VM's termination, now owned by the team and billed at th
 snapshot rate.
 _Avoid_: Deleted, cancelled, off.
 
+### Projecting forward
+
+**Projection**:
+What billing *will* do — the same rating, settlement and dunning rules applied to a future calendar
+instead of today's. A projection changes nothing: it is the billing engine asked a question rather
+than told to act ([ADR 0020](docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)). It
+spans one team or a filtered cohort, one period or many, and carries the **scenario** it was computed
+under.
+_Avoid_: **Run** (a run *bills people* — see below), forecast (reserved, see below), estimate,
+what-if (that is the scenario, not the output), dry run.
+
+**Scenario**:
+The named bundle of *inputs* a projection is computed under — which configuration to use (live, or
+with named overrides), which hypothetical events to inject (a resize, a decline, a top-up), and how
+to treat unknown payment outcomes. Varying the scenario and holding the team fixed is how the
+question "what would this change do?" gets asked.
+_Avoid_: simulation (that is the activity), case, variant, test.
+
+**Forecast**:
+The **customer-facing** projection: this team, this month, live configuration, everything settles.
+One fixed scenario out of many, shown in the customer dashboard. Reserved for that meaning —
+an operator projecting six months under an overridden price list is *not* forecasting.
+_Avoid_: using "forecast" for the operator-facing tool. (That is the **Simulator**, showing a
+**projection**.)
+
+**Simulator**:
+The operator's surface onto projections — where a scenario is composed and its projection read. A
+tool, never a computation: nothing is ever "simulated" into the database.
+_Avoid_: naming any stored document or code path "simulation run".
+
+**Run**:
+**Always** the monthly billing run — the scheduled job that rates the closed month and collects it.
+The word carries a promise of side effects: a run moves money. Nothing read-only is ever a run.
+_Avoid_: "simulation run", "projection run", "dry run".
+
 ## Flagged ambiguities
 
 - **"stopped"** has two readings that were reconciled: it is an *operational* state (the VM is

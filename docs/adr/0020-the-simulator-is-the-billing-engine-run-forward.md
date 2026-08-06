@@ -49,7 +49,7 @@ the 400 teams actually in the book.
 
 **A parallel model.** The obvious build is a spreadsheet in Python: reimplement day-weighting, churn,
 allowance-and-overage, commitment clawback, GST additive, TDS withholding, and the dunning ladder, in
-a fresh `simulation/` package. It would work on the day it shipped and be subtly wrong within a
+a fresh `projection/` package. It would work on the day it shipped and be subtly wrong within a
 sprint, because two implementations of one rule always diverge and only one of them gets the bug fix.
 A simulator that disagrees with the run is **worse than no simulator**, because it will be believed.
 This is the failure mode to design against, and everything below follows from refusing it.
@@ -79,6 +79,16 @@ The test of the whole design is one sentence: *if the simulator needs a function
 does not call, that function is a bug.* Fidelity is not achieved by careful mirroring; it is achieved
 by there being nothing to mirror.
 
+**The vocabulary is fixed, because one of the obvious words is already taken.** A **projection** is
+the output — what the engine says will happen. A **scenario** is the input bundle it was computed
+under: which configuration, which injected events, which treatment of unknown payment outcomes. The
+**Simulator** is the operator's surface onto both. And **run** keeps its existing meaning and only
+that one — *the monthly billing run*, the job that moves money. Nothing read-only is ever called a
+run, which rules out the otherwise-natural "Simulation Run" sitting in the DocType list beside
+`Rerating Run`, which is a real run and really writes. `get_forecast` keeps *forecast* as the
+customer-facing name for one fixed scenario (this team, this month, live config, everything settles),
+so forecast ⊂ projection. These are recorded in [CONTEXT.md](../../CONTEXT.md).
+
 ### 1. Every billing act splits into a decision and an effect (this buys *fidelity*)
 
 The engine is already almost pure — the impurity is welded on at the end of each act. Break the weld,
@@ -101,21 +111,86 @@ This is the same move [ADR 0017](0017-durable-intent-before-irreversible-side-ef
 money boundary — decide, record, then act — applied one layer up. The simulator is simply a caller
 that stops after "decide".
 
-### 2. Purity is structural, not a promise (this buys *production safety*)
+### 2. Freedom from writes is not enough — a decision must also be free of the present tense
 
-The simulator reads the database **once**, at t₀, to seed its state. After that it touches nothing.
-No writes, no gateway calls, no notifications, no realtime publishes, no token issuance.
+A function can contain no writes and still be un-projectable, because it reads *now*:
 
-That guarantee is not a code-review convention. It is enforced the way this codebase already enforces
-its other bans — `states.py`'s prohibition on direct status assignment and the raw-SQL ban are both
-held by a test that greps the module. The `simulation/` package gets the same treatment: a test
-asserts the package contains no `.insert(`, `.save(`, `db.set_value`, `db.commit`, `notify(`,
-`publish_realtime`, or gateway adapter import.
+| Decision function | Reads live, mid-projection |
+|---|---|
+| `revenue/tax.py::resolve_tax` | `frappe.get_doc("Tax Profile", team)` |
+| `catalog/commitments.py::resolve_commitment` | Commitment terms and consumed months |
+| `revenue/credits.py::get_balance` | `db.get_value("Credit Wallet", …, "balance")` |
+| `invoicing/lines.py::team_line_items` | Subscription + Subscription Change rows |
 
-A grep is a crude guard. It is also the one that will still be working in a year, which is the only
-property that matters for a tool whose entire licence to run on production is that it cannot write.
+The third row is fatal. `settlement.effective_spend_cap` and the credits waterfall both call
+`get_balance`, which returns **today's** wallet — so a month-4 projection would draw against the
+balance the team holds right now rather than the one the projection has spent down over three months.
+The roll-forward would be silently broken, and broken *optimistically*: the wallet refills every
+month and nobody is ever short.
 
-### 3. Time is an input, and state rolls forward (this buys *reach*)
+But the four rows are not equally wrong, and the difference is the design:
+
+> **The projection virtualises state. It does not virtualise reference data.**
+
+**Reference data** — tax profile, commitment terms, catalog rates, plan definitions, the tier ladder —
+is read live and unchanged, because projecting forward does not change it. **Evolving state** — the
+wallet, invoice statuses, `account_standing`, trust tier, payment methods, the change stream — must
+come from the projection, because changing it is what the projection *does*.
+
+Only the evolving-state readers get a seam, and it is an optional parameter that defaults to the
+database, so production behaviour is untouched:
+
+```python
+cap = settlement.effective_spend_cap(team)               # production — reads the DB
+cap = settlement.effective_spend_cap(team, source=state) # projection — reads the roll-forward
+```
+
+`resolve_tax`, `resolve_commitment` and rate resolution are not touched at all. Reference data
+becomes variable only through the explicit override path (§4), which is opt-in and visible in the
+scenario.
+
+The test for which side a datum falls on is one question: *does my projection change this?* If yes,
+it comes from state.
+
+### 3. Inability to write is a database guarantee, not a code-review convention (this buys *production safety*)
+
+Every projection executes inside a **read-only transaction**:
+
+```python
+frappe.flags.read_only = True
+frappe.db.begin(read_only=True)      # → START TRANSACTION READ ONLY
+```
+
+Any `INSERT`/`UPDATE`/`DELETE` at any call depth then fails in MariaDB with error 1792, which Frappe
+already recognises (`is_read_only_mode_error`). Where `read_from_replica` is configured, the
+projection also routes to the replica — which additionally keeps a whole-book cohort projection off
+the primary.
+
+This is rung 1 of [ADR 0018](0018-invariants-are-enforced-not-observed.md)'s ladder — *the write
+cannot happen, from any caller* — and taking it is not optional under that ADR, which permits a lower
+rung only when no higher rung can physically hold the invariant. A test that greps the projection
+package would be **below** rung 3: it does not run at write time, and it is not transitive. The
+projection's entire design is to call into `revenue/`, `catalog/` and `payments/`, so a grep of one
+package proves nothing about what runs three frames down. The concrete hazard is not hypothetical:
+`generate_team_invoice` calls `commitments.resolve_commitment` (pure) *and* `commitments.mark_breached`
+(writes). Extract the rating half carelessly and a projection permanently marks real commitments
+breached, with CI green.
+
+The transaction, however, only sees MariaDB. These bypass it and still reach the customer, so they
+keep a grep test — retargeted at what a grep can actually hold:
+
+- `frappe.publish_realtime` → redis (`settlement._notify_top_up` does exactly this)
+- `frappe.enqueue` → redis, and **the job runs later on a fresh, writable connection**
+- `frappe.sendmail` → queued
+- gateway adapter calls → Stripe does not participate in our transaction
+
+The division of labour is clean: **the transaction stops writes, the grep stops side effects the
+database cannot see.** The grep covers the projection package *and* the extracted decision functions.
+
+When 1792 does fire, it is surfaced as a named error — a projection that attempted a write is a bug
+in the extraction, and must read as one rather than as a 500.
+
+### 4. Time is an input, and state rolls forward (this buys *reach*)
 
 Projecting six months is not six independent projections. Month 2 is downstream of month 1: the wallet
 was drawn, an invoice went Overdue, the standing moved to `past_due`, a suspension stopped accrual
@@ -137,7 +212,7 @@ The loop is `for each day: maybe draft → maybe settle → advance dunning → 
 database read, then arithmetic — which is what makes it cheap enough to run across a cohort rather
 than one team at a time.
 
-### 4. Configuration is an input too — and the price what-if is not a multiplication (this buys *what-if*)
+### 5. Configuration is an input too — and the price what-if is not a multiplication (this buys *what-if*)
 
 Every knob already reads through a named accessor in `settings.py` rather than off the document, which
 makes the override seam a context variable those accessors consult. Nothing downstream —
@@ -153,7 +228,7 @@ Results therefore split into **grandfathered** and **repriced**, and a "+20% on 
 stable book will correctly report a near-zero month-1 impact that grows over quarters. Getting this
 wrong in the simulator would encode the exact misconception the simulator exists to dispel.
 
-### 5. Payment outcomes are declared or derived — never guessed
+### 6. Payment outcomes are declared or derived — never guessed
 
 Whether a card will succeed is unknowable, so the simulator never pretends. Three modes, explicit in
 the output:
@@ -180,7 +255,7 @@ fidelity including the effects, and it is where a genuinely risky change should 
 cannot be the daily instrument: the data is stale from the moment it is restored, and standing one up
 is not something the accounts team does before answering a support ticket.
 
-**A parallel model in `simulation/`, reimplementing the rules.** Rejected on the argument above. This
+**A parallel model in `projection/`, reimplementing the rules.** Rejected on the argument above. This
 is the option that would have been chosen by default, and refusing it is the point of writing this
 down.
 
@@ -195,11 +270,13 @@ grace window.
 
 ## Consequences
 
-- **Five extractions land in production code**, and each is an improvement on its own merits: pure
-  rating in `invoicing/generate.py`, a pure ladder in `revenue/dunning.py`, an injectable change stream
-  in `invoicing/lines.py`, an override context in `settings.py`, and effect-free `credit_forecast` in
-  `payments/settlement.py`. Every one separates a decision from its effect, which is the direction
-  ADR 0017 already set.
+- **Extractions land in production code**, and each is an improvement on its own merits: pure rating in
+  `invoicing/generate.py`, a pure ladder in `revenue/dunning.py`, an injectable change stream in
+  `invoicing/lines.py`, an override context in `settings.py`, effect-free `credit_forecast` in
+  `payments/settlement.py`, and an optional state source on the evolving-state readers in
+  `revenue/credits.py` and `payments/settlement.py`. Every one separates a decision from its effect or
+  from its tense, which is the direction ADR 0017 already set. None changes production behaviour: every
+  new parameter defaults to what the code does today.
 
 - **The engine's decision signatures become a contract.** They now have two callers, one of which is a
   UI. `rate_team_period` returning a payload dict, not an inserted document, is a shape we are choosing
@@ -212,17 +289,18 @@ grace window.
   the 1st rather than after. This is a stronger guarantee than the unit suite can offer, because it
   runs against the actual shape of the book — and it is nearly free once the engine exists.
 
-- **The operator surface is three layers**, each independently useful: a cohort **report** (one row per
-  team, filtered by currency, country, cluster, tier, collection mode; per-currency columns via
-  `report/_currency.py` — an INR and a USD projection are never summed), a per-team **Desk page** (the
-  projected invoice, a swimlane calendar of subscriptions/invoice/payments/dunning/entitlement, and a
-  derivation drill showing which segments and which `locked_rate` produced each line), and a **diff
-  mode** overlaying live config against overridden. `rerating.preview()` is the existing precedent for
-  the diff shape: *what this would change, without changing anything.*
+- **The operator surface is three layers**, each independently useful: the **Billing Projection**
+  report (one row per team, filtered by currency, country, cluster, tier, collection mode;
+  per-currency columns via `report/_currency.py` — an INR and a USD projection are never summed), the
+  **Billing Simulator** page (the projected invoice, a swimlane calendar of
+  subscriptions/invoice/payments/dunning/entitlement, and a derivation drill showing which segments and
+  which `locked_rate` produced each line), and a **diff mode** overlaying two scenarios.
+  `rerating.preview()` is the existing precedent for the diff shape: *what this would change, without
+  changing anything.* A saved **Billing Scenario** holds the inputs and its last result.
 
-- **Cohort runs need the run's own paging idiom.** A synchronous projection across the whole book will
-  time out; `run.py::team_pages` already solves this and the simulator reuses it rather than inventing
-  a second answer.
+- **Cohort projections need the run's own paging idiom.** A synchronous projection across the whole
+  book will time out; `run.py::team_pages` already solves this and the projection engine reuses it
+  rather than inventing a second answer.
 
 - **[ADR 0019](0019-erpnext-is-the-invoice-authority.md) moves the finish line, and the seam must
   anticipate it.** Once ERPNext issues the invoice, *"what will the invoice look like"* means
