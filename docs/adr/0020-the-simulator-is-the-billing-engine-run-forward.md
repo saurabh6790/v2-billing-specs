@@ -190,6 +190,23 @@ database cannot see.** The grep covers the projection package *and* the extracte
 When 1792 does fire, it is surfaced as a named error — a projection that attempted a write is a bug
 in the extraction, and must read as one rather than as a 500.
 
+**The guarantee is scoped to the engine, not to the request** — and saying where it stops is part of
+the guarantee, because "the simulator writes sometimes" is the crack the whole safety argument leaks
+out of. A saved `Billing Scenario`, a stored result, a cohort job persisting its output: all of those
+are writes. So the engine runs read-only and returns a **plain data structure**; persistence happens
+afterwards, in an ordinary transaction, and may touch the projection DocTypes and nothing else. That
+last restriction carries its own test — it is the only thing between "saves a scenario" and "saves an
+invoice".
+
+**And the transaction is per page, not per book.** InnoDB holds a read-only transaction's consistent
+snapshot open for its lifetime, pinning the undo log; a twenty-minute whole-book cohort projection
+inside one `START TRANSACTION READ ONLY` bloats the history list and drags on every other query on the
+box — an expensive way to discover the safety mechanism became the outage. Cohort projections page
+through `run.py::team_pages` as background jobs, and **each page opens its own read-only
+transaction**. A read-only commit costs essentially nothing, so the only thing surrendered is
+cross-page snapshot consistency, which is meaningless for an output that is stamped as-of a moment
+anyway.
+
 ### 4. Time is an input, and state rolls forward (this buys *reach*)
 
 Projecting six months is not six independent projections. Month 2 is downstream of month 1: the wallet
@@ -212,7 +229,35 @@ The loop is `for each day: maybe draft → maybe settle → advance dunning → 
 database read, then arithmetic — which is what makes it cheap enough to run across a cohort rather
 than one team at a time.
 
-### 5. Configuration is an input too — and the price what-if is not a multiplication (this buys *what-if*)
+### 5. A projected line declares its basis — and metered usage is never measured in advance
+
+Fixed charges project into a future month for free. `_subscription_lines` clamps the last open segment
+to the period end, the held duration exceeds the churn window, and the result is a clean full month at
+the locked rate. Nothing has to be invented, because the rate is locked and the days are arithmetic.
+
+Metered charges do not. `metering._metered_lines` selects `Usage Rollup` rows *within the period*, and
+a future month has none — so it returns `[]`. **Zero metered charges, silently.** That asymmetry is
+worse than a missing feature. It fails in the direction that reassures (the projection *understates*,
+so the operator concludes the wallet covers next month and the team is suspended anyway); it is
+invisible on screen, because a fixed-only invoice looks exactly like a complete one; and the exposure
+grows every quarter, since [ADR 0013](0013-team-level-metered-services-synthesized-subject.md)–[0015](0015-consumer-service-metering-api-contract.md)
+push team-level metered services where metering *is* the bill.
+
+So the engine estimates metered quantities — trailing per-`(resource_type, cluster)` history for future
+months, month-to-date run-rate for the current one, overridable in the scenario — and, more
+importantly, **every projected line carries the provenance of its quantity**:
+
+| Basis | Means | Example |
+|---|---|---|
+| **Measured** | Already a fact | A locked rate over elapsed days; a rollup that has landed |
+| **Estimated** | Inferred from history, because the period has not happened | Trailing-average transfer overage |
+| **Assumed** | A human asserted it in the scenario | "assume 2.4M tokens" |
+
+A projected total is **never rendered without its measured/estimated split**. A bill that is half
+guesswork must not read like a bill — and an operator who quotes an estimated figure to a customer as
+a commitment is the failure this labelling exists to prevent.
+
+### 6. Configuration is an input too — and the price what-if is not a multiplication (this buys *what-if*)
 
 Every knob already reads through a named accessor in `settings.py` rather than off the document, which
 makes the override seam a context variable those accessors consult. Nothing downstream —
@@ -228,7 +273,7 @@ Results therefore split into **grandfathered** and **repriced**, and a "+20% on 
 stable book will correctly report a near-zero month-1 impact that grows over quarters. Getting this
 wrong in the simulator would encode the exact misconception the simulator exists to dispel.
 
-### 6. Payment outcomes are declared or derived — never guessed
+### 7. Payment outcomes are declared or derived — never guessed
 
 Whether a card will succeed is unknowable, so the simulator never pretends. Three modes, explicit in
 the output:
@@ -284,10 +329,23 @@ grace window.
 
 - **`get_forecast` is reimplemented on the engine** and stops being a second rating path.
 
-- **Golden-master regression on real data becomes available.** Snapshot the projection for the book,
-  deploy, re-run, diff. Any team whose number moved without an intended reason is a bug found before
-  the 1st rather than after. This is a stronger guarantee than the unit suite can offer, because it
-  runs against the actual shape of the book — and it is nearly free once the engine exists.
+- **Golden-master regression becomes available, but only via record-and-replay.** The obvious version —
+  snapshot the book, deploy, re-run, diff — is unsound: the two runs happen at different times and the
+  data moved in between. Teams resize, top up, get invoiced and pay, and every one of those legitimately
+  changes the projection, so the diff is dominated by deltas nobody can attribute to the deploy. An
+  unattributable diff is ignored within a fortnight.
+
+  The sound version stops diffing across *time* and diffs across *code with inputs held fixed*: a thin
+  recording layer beneath the read seam captures every `(query → result)` the engine consumed, the
+  cassette is stored with the snapshot, and the new code is replayed **against the cassette** rather
+  than the live database. Inputs are then bit-identical by construction and every surviving delta is
+  attributable. A read the new code makes that is *absent* from the cassette is itself a signal worth
+  reporting — the rating path now consults something it did not before.
+
+  Because the seam sits at the database layer it lives *underneath* the state/reference split in §2 and
+  requires no context threading through `resolve_tax` and its neighbours. **v1 owes this only a hook**:
+  the engine accepts an optional recorder and an optional replay source. The cassette format, storage
+  and diff are later work.
 
 - **The operator surface is three layers**, each independently useful: the **Billing Projection**
   report (one row per team, filtered by currency, country, cluster, tier, collection mode;

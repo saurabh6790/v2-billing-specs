@@ -196,6 +196,16 @@ an operator projecting six months under an overridden price list is *not* foreca
 _Avoid_: using "forecast" for the operator-facing tool. (That is the **Simulator**, showing a
 **projection**.)
 
+**Basis** (of a projected line):
+Where a projected line item's *quantity* came from, and therefore how much to trust it.
+**Measured** — it is already a fact (a locked rate over elapsed days, a rollup that has landed).
+**Estimated** — the engine inferred it from history because the period has not happened yet
+(trailing-average metered usage). **Assumed** — a human asserted it in the scenario. Fixed bundle
+charges project as measured even for future months, because the rate is locked and the days are
+arithmetic; metered usage never can. A projected total is never shown without its measured/estimated
+split — a bill that is half guesswork must not read like a bill.
+_Avoid_: confidence, accuracy, forecast quality. (Basis is *provenance*, not a probability.)
+
 **Simulator**:
 The operator's surface onto projections — where a scenario is composed and its projection read. A
 tool, never a computation: nothing is ever "simulated" into the database.
