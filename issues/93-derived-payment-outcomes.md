@@ -15,6 +15,13 @@ Add the three outcome modes, explicit in the output:
   never pays.
 - **Derived** — the engine asserts failure only where state entails it, and is silent otherwise.
 
+**Paid and unpaid are shown together, not toggled between.** For a single invoice the branch point is
+one event — the charge succeeds or it does not — so the projection renders **both tracks on the same
+timeline**: settles-on-time above, never-settles below, each with its own dates. An operator asking
+"what happens to this team" wants the fork, not one arm of it, and making them switch modes to see the
+other half hides exactly the comparison they came for. Derived mode does not replace this; it marks
+which arm the state already entails, where it entails one.
+
 Derived mode is the valuable one. Every conclusion it reaches is a fact, not a forecast:
 
 | Condition | Projected outcome |
@@ -40,6 +47,10 @@ and the collector agree because they are the same code.
       by reimplementing their conditions.
 - [ ] Assumed mode accepts a per-invoice declared outcome and drives the dunning calendar from it.
 - [ ] The Desk page shows the projected outcome and its reason alongside the collection calendar.
+- [ ] The timeline renders the settles-on-time and never-settles tracks together, each dated, without
+      the operator switching modes to see the second one.
+- [ ] Where derived mode entails one arm, that arm is marked as entailed and the reason is shown; where
+      the outcome is genuinely unknown, both arms are presented as open.
 - [ ] A team with an active card and sufficient balance yields no derived failure.
 
 ## Blocked by
