@@ -356,9 +356,21 @@ grace window.
   `rerating.preview()` is the existing precedent for the diff shape: *what this would change, without
   changing anything.* A saved **Billing Scenario** holds the inputs and its last result.
 
-- **Cohort projections need the run's own paging idiom.** A synchronous projection across the whole
-  book will time out; `run.py::team_pages` already solves this and the projection engine reuses it
-  rather than inventing a second answer.
+- **Cohort projections are bounded by construction, and the two cohort questions have different
+  costs.** *Who gets suspended, and when* requires no rating at all — it is the dunning ladder applied
+  to invoices that already exist — so it scales with **delinquency** rather than with the book and can
+  run over everything, on demand, indefinitely. *What will these teams be billed* requires rating each
+  team, and at a few lakh teams a six-month projection is on the order of **days** of compute, on a
+  system concurrently provisioning new signups and their billing artefacts. Queueing that does not
+  solve it; it converts a long wait into a multi-day load.
+
+  So the expensive path sizes and cost-estimates its cohort before doing any work, and **refuses**
+  anything over budget rather than accepting it — a warning that can be clicked through is not a
+  bound. Book-wide questions are answered by **stratified sample and extrapolation**, with the sample
+  size stated wherever a total appears, which is both faster and more honest than grinding to a figure
+  whose uncertainty is merely hidden. Projections run on their own queue, never the one the monthly
+  run uses, and will not start while that run is drafting or collecting. `run.py::team_pages` supplies
+  the paging within those bounds rather than being the answer to scale on its own.
 
 - **[ADR 0019](0019-erpnext-is-the-invoice-authority.md) moves the finish line, and the seam must
   anticipate it.** Once ERPNext issues the invoice, *"what will the invoice look like"* means

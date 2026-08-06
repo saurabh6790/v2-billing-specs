@@ -32,7 +32,10 @@ Cohort aggregate: the summary an operator can take into a decision. Per currency
 - [ ] The diff states what it held constant — same t₀, same data, differing only in scenario.
 - [ ] Estimated lines are marked in the diff, and a delta driven entirely by estimates is labelled as
       such rather than reported as a revenue change.
-- [ ] Runs within the paging and read-only transaction discipline established for cohort projection.
+- [ ] Runs within the paging, bounding and read-only transaction discipline established for cohort
+      projection — including the refusal of an over-budget cohort and the stratified-sample
+      alternative, since a book-wide blast radius is exactly the request that will exceed it.
+- [ ] Where the aggregate is extrapolated from a sample, the output says so wherever a total appears.
 
 ## Blocked by
 

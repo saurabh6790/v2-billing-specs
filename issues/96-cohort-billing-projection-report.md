@@ -17,12 +17,42 @@ next charge date, the derived outcome from #93, and the suspension date where on
 splits into **per-currency columns** using the existing report currency helper — an INR and a USD
 projection are never summed into one figure.
 
-**Scale is the real work, and it decides the shape.** A Frappe Query Report executes inside the web
-request. Every other billing report gets away with that because it aggregates rows that already exist;
-this one *computes* per team. At a few thousand teams that is tens of minutes inside a request with a
-two-minute timeout — it does not degrade, it dies.
+This slice covers the **expensive** cohort question — what teams will be *billed*, which requires
+rating each one. The cheap question ("who gets suspended, and when") scales with delinquency rather
+than with the book and is [#104](104-collection-outlook-sweep.md); it is not subject to any of the
+bounds below.
 
-So the report does not compute. **Materialise the summary; compute the detail on demand.**
+**Scale decides the shape, twice over.**
+
+First, a Frappe Query Report executes inside the web request. Every other billing report gets away
+with that because it aggregates rows that already exist; this one *computes* per team. At a few
+thousand teams that is tens of minutes inside a request with a two-minute timeout — it does not
+degrade, it dies. So the report does not compute: **materialise the summary; compute the detail on
+demand.**
+
+Second, and more importantly: **an unbounded cohort projection is not slow, it is impossible.** At a
+few lakh teams a six-month projection is on the order of days of compute, on a system concurrently
+provisioning new signups and their billing artefacts. Queueing it does not help — it converts a long
+wait into a multi-day load. So scope is bounded **by construction**:
+
+- **The projection estimates itself before it runs.** Count the cohort with a cheap indexed query,
+  multiply by a measured per-team-month cost, and compare against a configured wall-clock budget.
+- **Over budget is refused, not queued.** The refusal states the cohort size, the estimate and which
+  filters would bring it in range. A warning that can be clicked through is not a bound.
+- **Book-wide questions are answered by sampling, not by grinding.** A stratified sample across
+  currency, trust tier and plan mix, extrapolated, with the sample size and strata stated on the
+  output. Minutes, and the uncertainty is visible rather than implied.
+
+**Load discipline is a separate constraint from duration.** Even a bounded batch competes with
+production traffic:
+
+- Projections get **their own queue** — never the `billing` queue. A projection starving the monthly
+  run of workers on the 1st is exactly backwards.
+- A cohort projection **refuses to start while the run is drafting or collecting**; `billing_run_status()`
+  already reports that.
+- Route to the replica where `read_from_replica` is configured.
+- Cap concurrent batches globally, and give each a wall-clock budget that aborts with partial results
+  rather than running unattended for hours.
 
 - A background batch projects the cohort page by page — the monthly run's own keyset paging — and
   writes **one scalar summary row per team**: projected total per currency, measured/estimated split,
@@ -52,6 +82,16 @@ grouped query per page**, not one per team. Written naively it is thousands of e
 
 ## Acceptance criteria
 
+- [ ] A cohort is sized and cost-estimated before any projection work begins, and an over-budget
+      request is **refused** with the count, the estimate and the filters that would narrow it.
+- [ ] There is no code path that projects an unbounded cohort — a test asserts the ceiling cannot be
+      bypassed by an empty filter set.
+- [ ] Stratified sampling is offered as the alternative to a refused cohort, and its output states the
+      sample size and strata; an extrapolated figure is never presented as a measured one.
+- [ ] Projections execute on their own queue, not the queue the monthly run uses.
+- [ ] A cohort projection refuses to start while the monthly run is drafting or collecting.
+- [ ] Concurrent batches are capped, and each aborts on a wall-clock budget with partial results
+      retained and clearly marked partial.
 - [ ] A background batch projects a cohort page by page, using the run's keyset paging, and persists
       one summary row per team.
 - [ ] Report `Billing Projection` reads persisted rows and performs no projection of its own;
