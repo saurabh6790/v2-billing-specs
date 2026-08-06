@@ -32,10 +32,19 @@ cannot see: no `publish_realtime`, `enqueue`, `sendmail`, or gateway adapter imp
 package or the extracted decision functions. (`enqueue` matters most — the job would run later on a
 writable connection.)
 
-**The surface** is a Desk page, `Billing Simulator` — the first Desk page in the app, so there is no
-house pattern to copy. Team + period picker, the projected invoice rendered as an invoice, and a
-horizontal swimlane calendar with a lane each for subscriptions, invoice, payments, dunning and
-entitlement. Custom SVG; Frappe Gantt is a poor fit for point events.
+**The surface** is a Desk page at `/desk/billing-simulator` — admin and ops work in Desk; the
+frappe-ui SPA at `/dashboard` is customer-only. It is the first Desk page in this app, so model the
+file layout on `frappe/core/page/dashboard_view/`: `page/billing_simulator/{__init__.py,
+billing_simulator.js, billing_simulator.json}`. Team + period picker, the projected invoice rendered
+as an invoice, and a horizontal swimlane calendar with a lane each for subscriptions, invoice,
+payments, dunning and entitlement. Custom SVG; Frappe Gantt is a poor fit for point events.
+
+> **Do not reach for `frappe-ui` here.** It is a Vue 3 library and a Desk page is vanilla JS and
+> jQuery — the import will not work. Style against Desk's own CSS custom properties (`--fg-color`,
+> `--bg-color`, `--border-color`, `--subtle-fg`, `--text-color`), not `bg-surface-*` / `text-ink-*`
+> tokens. Mounting a Vue island inside the page is possible but would add a build step to `central`
+> for a surface that is a table, an SVG and a sidebar — not worth it. The one frappe-ui convention
+> that does carry over is **sentence case: never uppercase a header, column label or section title.**
 
 The engine accepts an optional read recorder and an optional replay source. Both are unused here and
 exist so #103 does not require reworking the engine.
@@ -56,8 +65,10 @@ exist so #103 does not require reworking the engine.
       is estimated.
 - [ ] The dunning calendar is produced by `dunning_schedule` and reflects the live Billing Settings
       ladder, counted from `dunning_starts_on` when present.
-- [ ] Desk page renders the invoice, the calendar and the swimlane for a chosen team and period; it is
-      reachable from the Billing workspace.
+- [ ] A Desk page at `/desk/billing-simulator` renders the invoice, the calendar and the swimlane for
+      a chosen team and period; it is reachable from the Billing workspace.
+- [ ] The page imports nothing from `frappe-ui` and styles against Desk CSS custom properties.
+- [ ] No header, column label or section title is uppercased.
 - [ ] Access is gated on the Billing-Admin capability via `authz.py`, and each projection records who
       ran it over which team.
 - [ ] `project` accepts `recorder=` and `source=` parameters, both optional and unused.

@@ -39,6 +39,12 @@ wait into a multi-day load. So scope is bounded **by construction**:
   multiply by a measured per-team-month cost, and compare against a configured wall-clock budget.
 - **Over budget is refused, not queued.** The refusal states the cohort size, the estimate and which
   filters would bring it in range. A warning that can be clicked through is not a bound.
+
+  Ship the refusal as a **designed panel, not a `frappe.throw` modal**: a query report's `execute()`
+  returns `(columns, result, message, chart, report_summary, skip_total_row)`, and the `message` slot
+  renders HTML above the table. Return zero rows plus the panel as `message` — count, estimate, the
+  budget it exceeded, and the ways forward including the sample. A dead end with no next step is how
+  a bound becomes something people route around.
 - **Book-wide questions are answered by sampling, not by grinding.** A stratified sample across
   currency, trust tier and plan mix, extrapolated, with the sample size and strata stated on the
   output. Minutes, and the uncertainty is visible rather than implied.
@@ -84,6 +90,10 @@ grouped query per page**, not one per team. Written naively it is thousands of e
 
 - [ ] A cohort is sized and cost-estimated before any projection work begins, and an over-budget
       request is **refused** with the count, the estimate and the filters that would narrow it.
+- [ ] The refusal renders through the query report's `message` slot as a panel with next steps —
+      not as a thrown error — and nothing is queued when it fires.
+- [ ] Report lives at `/desk/query-report/Billing Projection`; no header or column label is
+      uppercased.
 - [ ] There is no code path that projects an unbounded cohort — a test asserts the ceiling cannot be
       bypassed by an empty filter set.
 - [ ] Stratified sampling is offered as the alternative to a refused cohort, and its output states the
