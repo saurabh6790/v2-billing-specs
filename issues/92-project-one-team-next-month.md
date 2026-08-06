@@ -50,6 +50,8 @@ exist so #103 does not require reworking the engine.
       projection package and the extracted decision functions.
 - [ ] Fixed lines project as `measured` for a future month; metered lines project as `estimated` from
       trailing history; a team with no history projects no metered line rather than a zero one.
+- [ ] The trailing-history lookup is expressed so it can be issued once for a batch of teams rather
+      than once per team — the cohort path in #96 depends on it not being an N+1.
 - [ ] Totals are split measured vs estimated, and no view shows a bare projected total when any line
       is estimated.
 - [ ] The dunning calendar is produced by `dunning_schedule` and reflects the live Billing Settings

@@ -97,7 +97,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [93](93-derived-payment-outcomes.md) | Derived payment outcomes — the engine asserts *why* collection will fail | AFK | 92 | **SIM** |
 | [94](94-multi-month-roll-forward.md) | Multi-month roll-forward + the state seam (wallet, standing, tier, suspension halts accrual) | AFK | 92 | **SIM** |
 | [95](95-line-derivation-drill.md) | Line derivation drill — which segments, daily vs hourly churn, allowance vs overage | AFK | 92 | **SIM** |
-| [96](96-cohort-billing-projection-report.md) | Cohort projection — `Billing Projection` report, keyset paging, per-page read-only transaction | AFK | 92, 93 | **SIM** |
+| [96](96-cohort-billing-projection-report.md) | Cohort projection — materialised `Billing Projection` summary + on-demand detail, keyset paging, per-page read-only transaction | AFK | 92, 93 | **SIM** |
 | [97](97-billing-scenario-and-overrides.md) | Scenario as input — `Billing Scenario` DocType + Billing Settings overrides | AFK | 92 | **SIM** |
 | [98](98-price-change-what-if.md) | Price-change what-if — new segments from date *D*; grandfathered vs repriced split | AFK | 97 | **SIM** |
 | [99](99-injected-events.md) | Injected events — hypothetical resize / provision / cancel / top-up / decline | AFK | 94, 97 | **SIM** |
@@ -195,6 +195,7 @@ Billing asked what it *will* do, rather than run and observed afterwards — [AD
 - **#91** is the enabling refactor and is deliberately behaviour-free: it splits each billing act's decision from its effect. Kept separate from #92 so the riskiest diff in the milestone — the invoice generator and the dunning ladder — is reviewed on its own rather than alongside a new Desk page.
 - **#92** is the tracer bullet: one team, one future month, live config, end to end.
 - **#93/#94** deepen it — *why* collection fails, and what happens over six months as the wallet drains and standing advances.
+- **#96 is where scale bites**, and not in the engine: none of the monthly run's bottlenecks apply to a projection (nothing is inserted, so no `tabSeries` lock; no gateway call, so no concurrency cap; no wallet lock), and per-team work is independent, so the engine is linear in teams and scales with workers. What breaks is the *surface* — a Query Report executes inside the web request, and at a few thousand teams that exceeds the request timeout outright. So the cohort view materialises a scalar summary row per team from a background batch and computes per-team detail only on drill-in.
 - **#97–#100** make configuration an input: overrides, price-change what-ifs, injected events, and the cohort blast radius.
 - **#101** points the customer forecast at the same engine, so the number a customer sees and the number an operator simulates cannot drift.
 - **#103** is the regression harness. Diffing projections across a deploy is confounded by data drift, so it records the reads and replays against them; #92 only owes it a hook.
