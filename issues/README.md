@@ -4,7 +4,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 **Targets:** Demo 30 Jun 2026 · Feature-complete 31 Jul 2026.
 
-**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **post** = post-launch.
+**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **post** = post-launch.
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
@@ -92,6 +92,19 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [82](82-resize-composed-config-changed-event.md) | Resize a composed config — `changed`-event re-lock at current rates + preset↔composed switch | AFK | 80, 81, 54 | **CC** |
 | [83](83-eligibility-rate-card-bounds-headroom.md) | `get_eligible_plans` returns rate card + profile bounds + headroom; provision re-validates server-side | AFK | 79, 81, 07 | **CC** |
 | [84](84-customer-config-slider-ui.md) | Customer slider UI — design-your-own config + resize (console, Frappe-UI) | AFK | 83, 82, 66 | **CC** |
+| [91](91-split-decision-from-effect-rating-dunning.md) | Split decision from effect in the rating and dunning paths (`rate_team_period`, `dunning_schedule`) — no behaviour change | AFK | — | **SIM** |
+| [92](92-project-one-team-next-month.md) | Project one team's next month — engine + read-only transaction + line `basis` + Simulator Desk page | AFK | 91 | **SIM** |
+| [93](93-derived-payment-outcomes.md) | Derived payment outcomes — the engine asserts *why* collection will fail | AFK | 92 | **SIM** |
+| [94](94-multi-month-roll-forward.md) | Multi-month roll-forward + the state seam (wallet, standing, tier, suspension halts accrual) | AFK | 92 | **SIM** |
+| [95](95-line-derivation-drill.md) | Line derivation drill — which segments, daily vs hourly churn, allowance vs overage | AFK | 92 | **SIM** |
+| [96](96-cohort-billing-projection-report.md) | Cohort projection — `Billing Projection` report, keyset paging, per-page read-only transaction | AFK | 92, 93 | **SIM** |
+| [97](97-billing-scenario-and-overrides.md) | Scenario as input — `Billing Scenario` DocType + Billing Settings overrides | AFK | 92 | **SIM** |
+| [98](98-price-change-what-if.md) | Price-change what-if — new segments from date *D*; grandfathered vs repriced split | AFK | 97 | **SIM** |
+| [99](99-injected-events.md) | Injected events — hypothetical resize / provision / cancel / top-up / decline | AFK | 94, 97 | **SIM** |
+| [100](100-diff-mode-blast-radius.md) | Diff mode + blast radius (cohort aggregate) | **HITL** | 96, 97 | **SIM** |
+| [101](101-get-forecast-on-projection-engine.md) | Reimplement `get_forecast` on the projection engine — one rating path, not two | AFK | 92 | **SIM** |
+| [102](102-scenario-library.md) | Scenario library — the canned failure catalogue | AFK | 99 | **SIM** |
+| [103](103-cassette-record-replay-regression.md) | Cassette record/replay — golden-master regression on real shapes | AFK | 92 | **SIM** |
 
 ## Atlas Integration milestone (AT)
 
@@ -174,6 +187,17 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 - **#46** — multi-currency gateway config: replaces the single `currency` field with a `Payment Gateway Currency` child table (`currency`, `is_default`) and introduces `resolve_gateway_for_currency()` as the canonical resolver.
 - **#08** — Razorpay + UPI Autopay mandate; the adapter is foundation, the mandate-ceiling-=-tier wiring completes alongside **#07** (its blocker).
 - **#25** — PayPal *(to-follow; post-launch, per spec)*.
+
+## Billing Simulator milestone (SIM)
+
+Billing asked what it *will* do, rather than run and observed afterwards — [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md). The engine does not model billing; it **is** the billing engine called with a virtual clock on a code path that cannot write (`START TRANSACTION READ ONLY`, so a stray write fails at the database rather than in review). Vocabulary is fixed: a **scenario** is the input, a **projection** is the output, the **Simulator** is the Desk surface — and **run** keeps meaning the monthly billing run, so nothing read-only borrows it.
+
+- **#91** is the enabling refactor and is deliberately behaviour-free: it splits each billing act's decision from its effect. Kept separate from #92 so the riskiest diff in the milestone — the invoice generator and the dunning ladder — is reviewed on its own rather than alongside a new Desk page.
+- **#92** is the tracer bullet: one team, one future month, live config, end to end.
+- **#93/#94** deepen it — *why* collection fails, and what happens over six months as the wallet drains and standing advances.
+- **#97–#100** make configuration an input: overrides, price-change what-ifs, injected events, and the cohort blast radius.
+- **#101** points the customer forecast at the same engine, so the number a customer sees and the number an operator simulates cannot drift.
+- **#103** is the regression harness. Diffing projections across a deploy is confounded by data drift, so it records the reads and replays against them; #92 only owes it a hook.
 
 ## Notes
 
