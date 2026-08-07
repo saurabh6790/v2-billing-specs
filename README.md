@@ -15,6 +15,7 @@ Spec for the **Billing** layer of Central — the sole system of record for mone
 | File | Domain |
 |------|--------|
 | [architecture.md](architecture.md) | Problem statement, single-app shape, cluster-manager seam, source-of-truth, data/control flow, cross-cutting decisions |
+| [billing-simulator-explained.md](billing-simulator-explained.md) | Plain-language write-up of the Billing Simulator: what it shows, why it calls the real billing code instead of a copy, and why it cannot write ([ADR 0020](docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) |
 | [v2-architecture.md](v2-architecture.md) | Code shape of `central/billing`: the debuggable/reproducible/authentic standard and the ACID audit, the transition authority + Billing Event spine ([ADR 0016](docs/adr/0016-billing-event-stream-and-single-transition-authority.md)), durable intent on the money path ([ADR 0017](docs/adr/0017-durable-intent-before-irreversible-side-effects.md)), enforced invariants ([ADR 0018](docs/adr/0018-invariants-are-enforced-not-observed.md)), and the moves that make it readable |
 | [plans-and-pricing.md](plans-and-pricing.md) | Plans, resources, grandfathering (price-lock), plan distribution & price display |
 | [bundle-and-resource-picker.md](bundle-and-resource-picker.md) | Plain-language architecture tour: curated bundles vs the design-your-own resource picker, the per-resource rate card, and how a config reaches the bill ([ADR 0009](docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) |
