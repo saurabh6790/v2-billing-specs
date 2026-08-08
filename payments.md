@@ -45,13 +45,12 @@ Implemented: Stripe (USD/EUR, Payment Intents, SetupIntent, micro-charge — the
 
 ## Payment Gateway (config)
 
-One row per configured gateway. Credentials and webhook secrets are stored encrypted; the adapter for a charge/refund/webhook is resolved by `adapter_key`.
+**Exactly one row per provider, named after its adapter** — `Stripe`, `Razorpay`, `Paypal` ([ADR 0021](docs/adr/0021-one-payment-gateway-record-per-provider.md)). The rows are seeded on install/migrate; an admin fills in keys and flips `is_enabled`, and never creates or deletes one. A second row for the same provider would be unaddressable — there is one webhook callback URL per adapter, and nothing on the row carries a team/region/entity to route on. Credentials and webhook secrets are stored encrypted; the adapter for a charge/refund/webhook is resolved by `adapter_key`.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| name | Data | e.g. GW-Stripe, GW-Razorpay |
-| title | Data | Display name |
-| adapter_key | Select | stripe / razorpay / paypal — selects the `GatewayAdapter` impl |
+| name | Data | = `adapter_key` (`autoname: field:adapter_key`); renaming is off |
+| adapter_key | Select | Stripe / Razorpay / Paypal — selects the `GatewayAdapter` impl. `set_only_once`: it names the row, so it cannot be repointed at another provider |
 | currencies | Table → Payment Gateway Currency | Currencies this gateway can settle; one row per currency |
 | api_key | Password | Encrypted |
 | api_secret | Password | Encrypted |
@@ -70,7 +69,9 @@ One row per configured gateway. Credentials and webhook secrets are stored encry
 
 A gateway handles as many currencies as it has rows in this child table (e.g. Stripe can carry USD, EUR, GBP; Razorpay carries INR). The `is_default` check is how the resolver picks the gateway when a team's billing currency matches multiple configured gateways. Marking a different gateway's row `is_default` for a currency is all that is needed to switch routing — no other field changes.
 
-**Gateway resolver** (`gateways.resolve_gateway_for_currency(currency)`): queries `Payment Gateway Currency` for rows where `currency = <team currency>`, `is_default = True`, and the parent gateway `is_enabled = True`. Returns the matching gateway; raises `GatewayNotFound` if none configured.
+**Gateway resolver** (`gateways.resolve_gateway_for_currency(currency)`): queries `Payment Gateway Currency` for rows where `currency = <team currency>` and `is_default = True`, and returns the first whose parent gateway `is_enabled = True`; raises `GatewayNotFound` if none configured. Every default row is considered, not just one — the uniqueness rule only clears the flag on *enabled* gateways, so a gateway that was switched off keeps its default flag and must not shadow the live one.
+
+**Resolving a specific rail** (a PayPal top-up, or the Razorpay a Via-Razorpay PayPal row delegates to) is a primary-key read: the row named after the adapter, checked for `is_enabled` and for a currency row. The same is true of the webhook spine — `webhooks._resolve_gateway(adapter_key)` loads the row by name, so there is no ambiguity about which `webhook_secret` verifies a signature.
 
 Managed only via the admin **Gateway Config** panel (see [dashboard.md](dashboard.md)). Secrets are never returned by any customer-facing API.
 
