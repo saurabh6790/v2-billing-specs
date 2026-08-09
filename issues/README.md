@@ -4,7 +4,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 **Targets:** Demo 30 Jun 2026 · Feature-complete 31 Jul 2026.
 
-**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **post** = post-launch.
+**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **SP** = Stripe Primary (Stripe carries every card, Razorpay carries what Stripe India cannot; [ADR 0022](../docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md)) · **post** = post-launch.
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
@@ -107,6 +107,10 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [101](101-get-forecast-on-projection-engine.md) | Reimplement `get_forecast` on the projection engine — one rating path, not two | AFK | 92 | **SIM** |
 | [102](102-scenario-library.md) | Scenario library — the canned failure catalogue | AFK | 99 | **SIM** |
 | [103](103-cassette-record-replay-regression.md) | Cassette record/replay — golden-master regression on real shapes | AFK | 92 | **SIM** |
+| [106](106-gateway-currency-capabilities-collection-mode-rename.md) | Silent-debit capability onto `Payment Gateway Currency`; `stripe_auto`/`emandate` → `auto_charge` (+ patch) | AFK | 46, 60 | **SP** |
+| [107](107-stripe-india-card-mandate.md) | Stripe India card e-mandate — register, debit off-session ≤ ₹15k, pre-debit notice; Razorpay mandates grandfathered | AFK | 106 | **SP** |
+| [108](108-instrument-picker-add-method.md) | Add-method instrument picker (UPI · Card · RuPay card · Netbanking); gateway fixed per method | AFK | 107 | **SP** |
+| [109](109-gateway-fallback-routing-config.md) | Terminal-decline fallback to the other rail + routing config in Billing Settings + success rate by gateway × network × currency | AFK | 108 | **SP** |
 
 ## Atlas Integration milestone (AT)
 
@@ -189,6 +193,41 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 - **#46** — multi-currency gateway config: replaces the single `currency` field with a `Payment Gateway Currency` child table (`currency`, `is_default`) and introduces `resolve_gateway_for_currency()` as the canonical resolver.
 - **#08** — Razorpay + UPI Autopay mandate; the adapter is foundation, the mandate-ceiling-=-tier wiring completes alongside **#07** (its blocker).
 - **#25** — PayPal *(to-follow; post-launch, per spec)*.
+
+## Stripe Primary milestone (SP)
+
+[ADR 0022](../docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md) rebalances the two gateways.
+Stripe was chosen when it had no UPI, so "Indian customer" and "Razorpay customer" were the same
+sentence; that stopped being true, and two gateways carrying comparable responsibility means two
+saved-method models, two mandate implementations, two dunning behaviours, and every billing feature
+built twice. We become a **Stripe India merchant** so INR settles domestically, Stripe takes all cards
+including Indian card mandates, and **Razorpay narrows to what Stripe India cannot carry** — RuPay,
+UPI Autopay, netbanking.
+
+**The ₹15,000 silent-debit ceiling does not move with the rail.** It is an RBI rule that binds Stripe
+India identically, so [payments-inr.md](../payments-inr.md)'s threshold, states and case matrix all
+survive intact. Anyone reading this milestone as "the cap goes away with Razorpay" has misread it, and
+that misreading is the expensive one.
+
+- **#106 first, and deliberately behaviour-free.** It moves the silent-debit capability onto the
+  *(gateway, currency)* row (Stripe is ceilingless in USD and capped in INR, which a per-adapter
+  scalar cannot say) and collapses `stripe_auto`/`emandate` into `auto_charge`. Renaming a Select with
+  live rows in it only gets more expensive once the picker ships.
+- **#107** is the rail itself: an INR card mandate registered on Stripe India, debited off-session
+  under the same ceiling and the same pre-debit notice. Existing Razorpay card mandates are
+  **grandfathered, not migrated** — re-registration is a fresh AFA, which is a churn event with no
+  benefit to the customer — so both mandate implementations live in the tree through the transition.
+- **#108** is what the customer actually sees: four tiles, and the tile picks the gateway. We never
+  detect the card network, because Stripe Elements iframes the PAN and the customer already knows
+  which card they hold. Gateway is fixed when the method is created; a charge never shops between
+  gateways.
+- **#109** is the safety net plus the evidence: fallback only on a *terminal* decline (an ambiguous
+  timeout that falls back double-charges someone), routing knobs in Billing Settings so the bet is
+  reversible without a deploy, and success rate by gateway × network × currency so the bet can be
+  settled with a number.
+- **One open question blocks the UPI tile's target, not the tile:** whether one-time UPI settles on
+  Stripe or Razorpay. Autopay is Razorpay's either way, so splitting UPI makes one instrument
+  reconcile in two places and refund from two ledgers. Resolve against real Stripe India UPI pricing.
 
 ## Billing Simulator milestone (SIM)
 
