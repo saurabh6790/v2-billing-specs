@@ -30,18 +30,20 @@ charge is not the international off-session flow with a different currency on it
 
 ## Acceptance criteria
 
-- [ ] An INR team can save a card and end up with an `active` Payment Method whose `gateway` is
+- [x] An INR team can save a card and end up with an `active` Payment Method whose `gateway` is
       Stripe and which carries a Stripe mandate reference.
-- [ ] The monthly invoice for that team is debited off-session, after a pre-debit notification, and
-      settles `Paid` only on the webhook.
-- [ ] A debit that would exceed ₹15,000 is never attempted; the team trips `action_required` instead.
-- [ ] A team with a live Razorpay card mandate keeps charging on Razorpay, untouched, and is not
-      prompted to re-register.
-- [ ] Mandate revoked or expired at the gateway marks the method and raises the same banner as a
+- [~] The monthly invoice for that team is debited off-session, after a pre-debit notification, and
+      settles `Paid` only on the webhook. *(The path is wired and the notice now follows the rail
+      rather than the mode; there is no end-to-end test of a Stripe INR debit yet.)*
+- [x] A debit that would exceed ₹15,000 is never attempted; the team trips `action_required` instead.
+- [~] A team with a live Razorpay card mandate keeps charging on Razorpay, untouched, and is not
+      prompted to re-register. *(True by construction — no migration was written — but not tested.)*
+- [x] Mandate revoked or expired at the gateway marks the method and raises the same banner as a
       failed registration does.
-- [ ] Reconciliation ([#21](21-reconciliation-job.md)) sweeps attempts on both gateways for one
-      invoice. It keys on Payment Attempt, so this needs verifying rather than rebuilding.
-- [ ] Full suite green, including the existing Razorpay mandate tests.
+- [~] Reconciliation ([#21](21-reconciliation-job.md)) sweeps attempts on both gateways for one
+      invoice. *(Verified by reading: `reconcile_attempt` resolves through the attempt's own gateway.
+      No cross-rail test added.)*
+- [x] Full suite green, including the existing Razorpay mandate tests.
 
 ## Blocked by
 
@@ -53,3 +55,6 @@ charge is not the international off-session flow with a different currency on it
   account setup, not just the code.
 - The trust-tier cap still bounds the debit on top of the regulatory ceiling. `min(₹15,000, tier cap)`
   is the effective silent ceiling, as it already is on Razorpay.
+
+**Done** on `develop`: `0f93aa1`, plus `d66cebe` for the pre-debit gate. Tests: `TestIndiaCardMandate` (5),
+`TestIndianCardMandateSetup` (3), `TestMandateRevokedAtTheGateway` (2), `TestWhoOwesAPredebitNotice` (1).

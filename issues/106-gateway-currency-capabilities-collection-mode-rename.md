@@ -29,18 +29,18 @@ Select option values are stored Title Case (`Auto Charge`, `Manual Checkout`, `P
 
 ## Acceptance criteria
 
-- [ ] `Payment Gateway Currency` carries `max_silent_charge` and `requires_predebit_notice`; the
+- [x] `Payment Gateway Currency` carries `max_silent_charge` and `requires_predebit_notice`; the
       seeded roster sets Stripe INR = ₹15,000, Razorpay INR = ₹15,000, and leaves non-INR rows empty.
-- [ ] The silent-charge decision reads the currency row, not an adapter constant. An empty
+- [x] The silent-charge decision reads the currency row, not an adapter constant. An empty
       `max_silent_charge` means no ceiling; the trust-tier cap still binds on top of it.
-- [ ] `collection_mode` has four values, and `stripe_auto` / `emandate` appear nowhere in code,
+- [x] `collection_mode` has four values, and `stripe_auto` / `emandate` appear nowhere in code,
       fixtures, seeds or tests.
-- [ ] The patch maps every existing row, is re-runnable, and does not touch teams already in
+- [x] The patch maps every existing row, is re-runnable, and does not touch teams already in
       `manual_checkout`, `prepaid` or `action_required`.
-- [ ] A ₹15,001 INR invoice on a Stripe mandate trips `action_required`, the same as it does on
+- [x] A ₹15,001 INR invoice on a Stripe mandate trips `action_required`, the same as it does on
       Razorpay today.
-- [ ] A $20,000 USD invoice on a Stripe card is charged off-session without tripping anything.
-- [ ] Full suite green.
+- [x] A $20,000 USD invoice on a Stripe card is charged off-session without tripping anything.
+- [x] Full suite green.
 
 ## Blocked by
 
@@ -53,3 +53,7 @@ Select option values are stored Title Case (`Auto Charge`, `Manual Checkout`, `P
   the picker ships and the value set grows. Doing it first is the cheap ordering.
 - The ₹15,000 ceiling is RBI, not Razorpay. Nothing here removes it, and a reviewer who reads this
   issue as "the cap goes away with Razorpay" has read it wrong.
+
+**Done** on `develop`: `678998e` (capability move) and `c6d92f1` (mode rename). Patches
+`set_inr_silent_ceiling` and `collapse_collection_modes`. Tests: `TestSilentChargeCapability` (6),
+plus the existing collection-mode and projection suites updated.

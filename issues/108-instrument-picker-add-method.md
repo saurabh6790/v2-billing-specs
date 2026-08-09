@@ -29,17 +29,17 @@ Razorpay one.
 
 ## Acceptance criteria
 
-- [ ] An INR team sees the four tiles; a USD/EUR team sees a card form and no picker.
-- [ ] Each tile registers on the gateway the ADR assigns it, and the resulting Payment Method stores
+- [x] An INR team sees the four tiles; a USD/EUR team sees a card form and no picker.
+- [x] Each tile registers on the gateway the ADR assigns it, and the resulting Payment Method stores
       that gateway.
-- [ ] Netbanking cannot be saved for auto-pay, and the UI says so before the customer taps it.
-- [ ] No BIN lookup, brand sniffing or "unknown brand means RuPay" heuristic exists in the codebase.
-- [ ] `fallback_reason` is set correctly for each of the three cases and empty for a default-rail
-      method.
-- [ ] The Razorpay hosted sheet is not trapped behind the dialog overlay (close before handoff,
+- [x] Netbanking cannot be saved for auto-pay, and the UI says so before the customer taps it.
+- [x] No BIN lookup, brand sniffing or "unknown brand means RuPay" heuristic exists in the codebase.
+- [~] `fallback_reason` is set for the RuPay case and empty for a default-rail method.
+      `stripe_decline` is not stamped yet — see [#109](109-gateway-fallback-routing-config.md).
+- [x] The Razorpay hosted sheet is not trapped behind the dialog overlay (close before handoff,
       reopen on cancel).
-- [ ] No customer-facing string names a gateway.
-- [ ] Full suite green; [#29](29-razorpay-card-or-upi-gateway-aware-add.md)'s tests are updated rather
+- [x] No customer-facing string names a gateway.
+- [x] Full suite green; [#29](29-razorpay-card-or-upi-gateway-aware-add.md)'s tests are updated rather
       than deleted.
 
 ## Blocked by
@@ -53,3 +53,5 @@ Razorpay one.
   UPI to Stripe eliminates no gateway and makes one instrument reconcile in two places, with refunds
   coming from two ledgers. Routing all UPI to Razorpay gives a cleaner invariant. Settle it against
   real Stripe India UPI pricing; the tile is the same either way, only its target moves.
+
+**Done** on `develop`: `91bcc72`. Tests: four in `TestPaymentMethodOptions`.
