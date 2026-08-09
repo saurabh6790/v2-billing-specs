@@ -1,5 +1,11 @@
 # 29 — Add payment method: card-or-UPI choice, UPI ₹1L gate, currency-correct gateway
 
+> **Superseded for the add-method dialog by [#108](108-instrument-picker-add-method.md)
+> ([ADR 0022](../docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md)).** The card-or-UPI choice
+> here assumed every INR method was a Razorpay one. INR teams now pick from four tiles —
+> UPI · Card · RuPay card · Netbanking — and the card goes to Stripe India. The UPI ₹1,00,000 recurring
+> gate and the bugs fixed below still hold.
+
 **Type:** AFK · **Milestone:** Phase 3 · **Spec:** [payments.md](../payments.md) (Settlement & mandates)
 
 ## What to build
