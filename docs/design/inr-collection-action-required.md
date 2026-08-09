@@ -1,7 +1,7 @@
 # Design brief — INR collection & the "Action Required" moment
 
 **Audience:** product design (UX/UI). **Status:** requirements for build/refactor.
-**Behaviour spec:** [payments-inr.md](../../payments-inr.md) · **Decision:** [ADR 0005](../adr/0005-inr-collection-emandate-threshold-prepaid.md).
+**Behaviour spec:** [payments-inr.md](../../payments-inr.md) · **Decisions:** [ADR 0005](../adr/0005-inr-collection-emandate-threshold-prepaid.md) (the threshold), [ADR 0022](../adr/0022-stripe-primary-razorpay-carries-the-rest.md) (the instrument picker).
 
 This brief describes *what the customer must be able to do and understand*. It
 does not prescribe final visuals — that's your call. It does fix the states,
@@ -35,7 +35,7 @@ The UI must represent each clearly (a small status indicator in the billing area
 
 | State | Plain meaning | Tone |
 |-------|---------------|------|
-| **Auto-pay (e-mandate)** | "We charge your card/UPI automatically." | Calm / invisible |
+| **Auto-pay** (`auto_charge`) | "We charge your card/UPI automatically." | Calm / invisible |
 | **Action required** | "Your bill is growing — choose how to keep paying." | Attention, not alarm |
 | **Pay per invoice** | "You pay each bill yourself." | Neutral |
 | **Prepaid wallet** | "You pay from your credit balance." | Neutral, shows balance |
@@ -43,6 +43,28 @@ The UI must represent each clearly (a small status indicator in the billing area
 ---
 
 ## 3. Screens & surfaces to design
+
+### 3.0 Adding a payment method — the instrument picker
+
+The first screen in the story, and the one that decides everything after it. An
+Indian customer sees four tiles: **UPI · Card · RuPay card · Netbanking**. That is
+what an Indian checkout looks like, and it is also how we learn which rail to
+register the method on, since we never inspect the card number.
+
+Requirements:
+- **"RuPay card" is spelled out**, never softened to "Other cards". A customer
+  holding an unusual Visa would read "Other" as *their* card and land on a rail
+  that cannot take it.
+- **Netbanking is one-time only** and must read that way, so nobody expects it to
+  auto-pay next month.
+- **UPI can be either** a one-time payment or a saved mandate; the tile should not
+  force the customer to know which one they are setting up before they tap it.
+- **Never name the gateway.** The customer chose an instrument, not a provider,
+  and the provider may differ between two of these tiles.
+- Non-INR customers see a card form, no picker.
+- **If a card fails**, offer the alternative rail once, with the amount already
+  filled in. Never an empty second card form, and never a retry loop that looks
+  like the first attempt did not happen.
 
 ### 3.1 The "Action Required" banner (the centrepiece)
 
@@ -142,6 +164,8 @@ The same moments arrive as in-app + email notifications ([#20](../../issues/20-n
 
 - **Numbers, not jargon.** Say "₹15,000 limit for automatic payments," never
   "RBI AFA e-mandate cap."
+- **No gateway names anywhere in customer copy.** "Stripe" and "Razorpay" are our
+  plumbing; the customer has a card, a UPI ID or a bank account.
 - **Reassure before instruct.** Lead with "services keep running," then the ask.
 - **Name the benefit of each option**, not just the mechanic.
 - **Never imply blame** ("you exceeded…"). Frame as growth ("your usage is
