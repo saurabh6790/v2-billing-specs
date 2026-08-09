@@ -52,7 +52,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [47](47-invoice-currency-lock.md) | Invoice `currency` lock | AFK | 09, 46 | P3 |
 | [48](48-currency-aware-credit-ledger.md) | Currency-aware credit ledger | AFK | 06 | P2 |
 | [49](49-gateway-config-ui-multi-currency.md) | Admin Gateway Config UI: currency grouping + `is_default` toggles | AFK | 46, 26 | P4 |
-| [60](60-inr-collection-mode-threshold-action-required.md) | INR collection mode + ₹15k threshold + "Action Required" choice (Stripe-only methods; e-mandate ≤₹15k; manual/prepaid) | AFK | 10, 11, 14, 18 | P3 |
+| [60](60-inr-collection-mode-threshold-action-required.md) | INR collection mode + ₹15k threshold + "Action Required" choice (auto-charge ≤₹15k; manual/prepaid above it) | AFK | 10, 11, 14, 18 | P3 |
 | [61](61-invoice-line-item-line-type.md) | `Invoice Line Item.line_type` — classify `fixed_bundle / metered / clawback` + `commitment` link | AFK | 09 (soft) | P3 |
 | [62](62-commitment-rollup-doctypes.md) | Commitment + Team Fixed-Bundle Spend Rollup DocTypes + `evaluate_commitment()` skeleton | AFK | 61, 09 (soft) | P3 |
 | [63](63-commitment-discount-application.md) | Commitment discount application — floor-met path, rollup stamping, `completed` status | AFK | 62 | P3 |
