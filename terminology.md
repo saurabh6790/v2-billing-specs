@@ -33,7 +33,7 @@ up engineers and non-billing readers.
 | **Dunning** | The automated process of chasing a customer for an unpaid invoice: retry on Day 1, Day 3, Day 7, then escalate to suspension |
 | **Settlement** | Actually collecting the money — applying credits, charging the card, and marking the invoice paid |
 | **Settlement waterfall** | The order in which payment sources are tried: credits first, then card. If credits cover it fully, the card is never touched |
-| **e-mandate** | A standing permission you register once with your bank or UPI, allowing Frappe to automatically debit your account each month without you logging in |
+| **e-mandate** | A standing permission you register once with your bank or UPI, allowing Frappe to automatically debit your account each month without you logging in. Card mandates run on Stripe, UPI Autopay on Razorpay |
 | **Off-session charge** | Charging your card automatically in the background without you being present — like a streaming service charging you on the 1st without you doing anything |
 | **On-session** | Paying while you're actively logged in — you enter OTP yourself, no automatic debit |
 | **AFA (Additional Factor Authentication)** | The OTP or biometric step your bank requires for large payments. RBI mandates this for any silent debit above ₹15,000 |
@@ -46,7 +46,7 @@ up engineers and non-billing readers.
 | **Gateway adapter** | A translation layer so billing code speaks one internal language and the adapter converts it for each payment provider. Swap the adapter, not the billing engine |
 | **Trust tier** | A spending limit based on your payment history. New customers get a small cap; after several paid invoices it automatically increases. The customer-facing console labels this **Spending Limits** (nav: **Limit Tiers**) and shows rungs as **Base / Tier 1–3**; the backend stays Trust Tier (`Trust Tier Level`, `get_trust_tier`) |
 | **Chargeback** | When a customer disputes a charge with their bank and the bank forcibly reverses it — not a refund you initiate, but a reversal the bank imposes |
-| **Collection mode** | Which payment method a customer uses to settle their bill: auto-charge via card (`stripe_auto`), e-mandate (`emandate`), paying each invoice manually (`manual_checkout`), or maintaining a prepaid wallet (`prepaid`) |
+| **Collection mode** | How a customer settles their bill: we charge the saved method automatically (`auto_charge`), they pay each invoice themselves (`manual_checkout`), or they keep a prepaid wallet topped up (`prepaid`). It names what the customer experiences, not which gateway we call |
 | **action_required** | A temporary state when an Indian customer's bill crosses ₹15,000 and silent auto-charge can no longer proceed. The account keeps running, but the customer must choose a new payment approach |
 | **Fallback / settlement fallback** | If the primary payment method fails, the system automatically tries the next one in order — without re-running the whole invoice flow |
 
