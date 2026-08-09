@@ -2,6 +2,19 @@
 
 Date: 2026-06-15
 
+> **Partly superseded (2026-08-08) by [ADR 0022](0022-stripe-primary-razorpay-carries-the-rest.md).**
+> Decisions **1–3** (which gateway carries which rail) and **6** (capabilities declared per adapter)
+> no longer hold: we are a Stripe India merchant, Stripe takes all cards including Indian card
+> e-mandates, and Razorpay narrows to RuPay, UPI Autopay and netbanking. The silent-debit
+> capabilities move onto `Payment Gateway Currency`, because Stripe is ceilingless for USD and capped
+> at ₹15,000 for INR. Decision 5's mode names change with it (`stripe_auto` and `emandate` collapse
+> into `auto_charge`).
+>
+> **Decisions 4 and 5's behaviour stand.** The ₹15,000 ceiling is an RBI rule that applies to every
+> India gateway including Stripe, so the threshold trip, the `action_required` state, the
+> manual-checkout/prepaid choice and the hysteresis are all unchanged. The reasoning below is still
+> the reasoning; only the gateway names in it have moved.
+
 The v2 billing engine is **usage-based and variable** (DigitalOcean/AWS/OCI-style):
 a team's monthly bill floats with what it ran — 10 VMs at ₹1,000 one month, more
 or less the next. There is no fixed subscription amount. The collection layer has
