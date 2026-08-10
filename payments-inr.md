@@ -1,8 +1,9 @@
 # INR Payments — how collection works for Indian customers
 
 > Decision record: [ADR 0005](docs/adr/0005-inr-collection-emandate-threshold-prepaid.md) (the threshold
-> behaviour), revised by [ADR 0022](docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md) (which
-> gateway runs the mandate, and the mode names).
+> behaviour), revised by [ADR 0022](docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md) (the mode
+> names) and [ADR 0023](docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md) (which gateway
+> runs which rail, and the two payment surfaces).
 > Build: [#60](issues/60-inr-collection-mode-threshold-action-required.md).
 > Cross-refs: [payments.md](payments.md) (gateway seam, charge flow), [credits.md](credits.md) (wallet waterfall), [dashboard.md](dashboard.md) (surfaces), [issues/14](issues/14-retry-dunning-suspension.md) (dunning).
 
@@ -24,13 +25,21 @@ already support.
 
 ## Which gateway runs the rail
 
-Under [ADR 0022](docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md) the
-customer picks the instrument up front (**UPI · Card · RuPay card · Netbanking**)
-and the instrument picks the gateway: **Stripe** registers and debits the card
-mandate, **Razorpay** carries UPI Autopay, RuPay and netbanking. None of that
-changes what follows. The ceiling is regulatory, so it lands on whichever rail the
-customer chose, and everything in this document is written against the mode rather
-than the provider.
+The customer picks the instrument up front and the instrument picks the gateway,
+with **Stripe taking everything a Stripe India account can carry** and Razorpay
+covering only the rest ([ADR 0023](docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)).
+For an auto-pay mandate that means a **Visa or Mastercard mandate on Stripe**, and
+**UPI Autopay, RuPay, Amex and Diners on Razorpay**. Wallet top-ups are a separate
+surface with its own list (card on Stripe; UPI, netbanking and RuPay on Razorpay).
+
+None of that changes what follows. The ceiling is regulatory, so it lands on
+whichever rail the customer chose, and everything in this document is written
+against the mode rather than the provider.
+
+One operational difference between the rails: **Stripe issues the pre-debit notice
+itself** and holds the intent in `processing` for 26 hours after we confirm it,
+while on Razorpay we send the notice and hold the debit for 24 hours ourselves.
+The customer experience is the same; the timer belongs to different code.
 
 ## The four collection modes
 
@@ -38,7 +47,7 @@ Every team carries a `collection_mode`. For INR teams it is one of:
 
 | Mode | What happens each cycle | Customer effort |
 |------|--------------------------|-----------------|
-| `auto_charge` | The saved mandate (Stripe card, or Razorpay UPI Autopay / RuPay) debits the invoice **off-session**, after a pre-debit notification. **Only valid while the debit ≤ ₹15,000.** | None (a pre-debit SMS) |
+| `auto_charge` | The saved mandate (a Visa/Mastercard mandate on Stripe, or UPI Autopay / RuPay / Amex on Razorpay) debits the invoice **off-session**, after a pre-debit notification. **Only valid while the debit ≤ ₹15,000.** | None (a pre-debit SMS) |
 | `manual_checkout` | Invoice opens; customer pays it **on-session** at a hosted checkout (OTP). Any amount. | Pay each invoice |
 | `prepaid` | Customer funds a **wallet** via top-ups; usage draws down credits (credits-then-… waterfall). | Keep wallet funded |
 | `action_required` | **Transient.** An `auto_charge` customer's bill crossed ₹15,000. Auto-charge is paused; the account keeps running; the customer must pick `manual_checkout` or `prepaid`. | Choose once |
@@ -105,7 +114,8 @@ behaviours and has collapsed into `auto_charge` — see [payments.md](payments.m
 - **No standalone PayPal gateway.** PayPal is a one-time Razorpay checkout method.
 - **No card-network detection.** We never read a BIN table or sniff a brand signal
   to decide that a card is RuPay. The customer's own choice of tile is the signal,
-  and it is free and exact (ADR 0022).
+  and it is free and exact (ADR 0022, ADR 0023). Where the choice matters, the
+  surface says which networks the rail accepts rather than guessing.
 - **No migration of live Razorpay card mandates to Stripe.** Re-registering means a
   fresh AFA, which is a churn event with nothing in it for the customer. Existing
   mandates run until they lapse; only new registrations follow the new routing.
