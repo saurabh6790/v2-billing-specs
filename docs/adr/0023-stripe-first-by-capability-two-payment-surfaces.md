@@ -52,8 +52,15 @@ The rule is mechanical, so a Stripe product change moves a rail without re-openi
 | Instrument | Gateway | Why |
 |---|---|---|
 | Card — Visa / Mastercard | **Stripe** | Stripe registers India e-mandates for these two networks |
-| Card — RuPay, Amex, Diners | **Razorpay** | Stripe will not register a mandate on them |
+| Card — RuPay | **Razorpay** | Stripe will not register a mandate on RuPay |
+| Card — Amex / Diners | **nobody** | Neither rail registers a mandate on them, so these cards cannot auto-pay at all |
 | UPI Autopay | **Razorpay** | Stripe India cannot accept UPI |
+
+**Amex and Diners can pay, but cannot be saved.** Razorpay's standing instructions cover Visa,
+Mastercard and RuPay; Stripe covers Visa and Mastercard. Between them, an Amex or Diners card can top
+up a wallet and pay an invoice on-session, and nothing can auto-charge it. That is a real gap and the
+surface has to say so, because the alternative is a customer authorising a mandate that fails at
+registration and landing in dunning without knowing why. Prepaid is the answer we offer them.
 
 Netbanking never appears on the mandate surface. It is a one-time rail and offering it there is a
 promise we cannot keep.
@@ -105,6 +112,10 @@ open question). It was never available.
 - The shipped picker offers netbanking and marks it unsaveable; that tile moves to recharge.
 - Recharge currently resolves its gateway from the currency default, which sends every INR top-up to
   one provider. It has to resolve from the instrument instead, exactly as the mandate surface does.
-- An Amex or Diners **mandate** now falls to Razorpay. Whether Razorpay will register one on those
-  networks is unconfirmed; if it will not, those customers hold a card that can top up a wallet but
-  cannot auto-pay, and prepaid is their path.
+- **Amex and Diners hold no mandate anywhere** (checked: [Razorpay subscriptions](https://razorpay.com/docs/payments/subscriptions/supported-payment-methods/)
+  supports standing instructions on Visa, Mastercard and RuPay). Those customers top up a wallet or
+  pay each invoice; the auto-pay surface says so rather than offering a tile that fails at
+  registration.
+- **Razorpay's eNACH** (bank mandate over netbanking, debit card or Aadhaar) is a rail we do not use.
+  It would give a card-less or Amex-only customer a way to auto-pay, and it is worth its own decision
+  rather than being smuggled in here.

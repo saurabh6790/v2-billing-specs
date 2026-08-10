@@ -118,8 +118,13 @@ There are **two surfaces**, and they carry different instruments. Wallet recharg
 | Tile | Gateway |
 |------|---------|
 | Card — Visa / Mastercard | **Stripe** (India e-mandate; ₹15k ceiling off-session) |
-| Card — RuPay / Amex / Diners | **Razorpay** — Stripe registers India mandates on Visa and Mastercard only |
+| Card — RuPay | **Razorpay** — Stripe registers India mandates on Visa and Mastercard only |
 | UPI Autopay | **Razorpay** |
+
+**An Amex or Diners card cannot auto-pay at all.** Stripe registers India mandates on Visa and
+Mastercard; Razorpay's standing instructions cover Visa, Mastercard and RuPay. Between the two rails
+there is nowhere to put one, so the surface says so and points at prepaid rather than offering a tile
+that fails at registration.
 
 Netbanking never appears on the mandate surface: it pays once and saves nothing, so offering it there is a promise we cannot keep.
 
