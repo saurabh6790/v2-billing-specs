@@ -44,27 +44,37 @@ The UI must represent each clearly (a small status indicator in the billing area
 
 ## 3. Screens & surfaces to design
 
-### 3.0 Adding a payment method — the instrument picker
+### 3.0 The two payment surfaces
 
-The first screen in the story, and the one that decides everything after it. An
-Indian customer sees four tiles: **UPI · Card · RuPay card · Netbanking**. That is
-what an Indian checkout looks like, and it is also how we learn which rail to
-register the method on, since we never inspect the card number.
+There are two, they are not the same screen, and conflating them is the mistake to
+avoid. **Wallet recharge** pays once with the customer present. **Auto-pay setup**
+saves a mandate that debits later with nobody present. Different instruments are
+available on each, because different instruments can be saved
+([ADR 0023](../adr/0023-stripe-first-by-capability-two-payment-surfaces.md)).
 
-Requirements:
+**Wallet recharge** offers: Card · RuPay card · UPI · Netbanking.
+
+**Auto-pay setup** offers: Card (Visa or Mastercard) · RuPay card · UPI.
+Netbanking is absent, because it cannot be saved.
+
+Requirements for both:
 - **"RuPay card" is spelled out**, never softened to "Other cards". A customer
   holding an unusual Visa would read "Other" as *their* card and land on a rail
   that cannot take it.
-- **Netbanking is one-time only** and must read that way, so nobody expects it to
-  auto-pay next month.
-- **UPI can be either** a one-time payment or a saved mandate; the tile should not
-  force the customer to know which one they are setting up before they tap it.
+- **Auto-pay's card tile says which networks it takes.** Our card rail registers
+  mandates on Visa and Mastercard only; anything else has to go the other way. Say
+  that in the tile ("Visa and Mastercard") rather than letting the customer find
+  out at authorisation. The RuPay tile beside it is where they land instead.
 - **Never name the gateway.** The customer chose an instrument, not a provider,
-  and the provider may differ between two of these tiles.
+  and two tiles on one screen may sit on different providers.
 - Non-INR customers see a card form, no picker.
 - **If a card fails**, offer the alternative rail once, with the amount already
   filled in. Never an empty second card form, and never a retry loop that looks
   like the first attempt did not happen.
+- **Auto-pay warns about the timing on the card rail.** A mandate debit is
+  announced to the customer and then held for a day before it is taken. That is a
+  bank requirement, not a delay we invented, and it is worth one line so an
+  invoice that says "paid tomorrow" doesn't read as broken.
 
 ### 3.1 The "Action Required" banner (the centrepiece)
 
