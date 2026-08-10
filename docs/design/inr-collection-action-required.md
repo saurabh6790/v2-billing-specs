@@ -1,7 +1,7 @@
 # Design brief — INR collection & the "Action Required" moment
 
 **Audience:** product design (UX/UI). **Status:** requirements for build/refactor.
-**Behaviour spec:** [payments-inr.md](../../payments-inr.md) · **Decisions:** [ADR 0005](../adr/0005-inr-collection-emandate-threshold-prepaid.md) (the threshold), [ADR 0022](../adr/0022-stripe-primary-razorpay-carries-the-rest.md) (the instrument picker).
+**Behaviour spec:** [payments-inr.md](../../payments-inr.md) · **Decisions:** [ADR 0005](../adr/0005-inr-collection-emandate-threshold-prepaid.md) (the threshold), [ADR 0022](../adr/0022-stripe-primary-razorpay-carries-the-rest.md) and [ADR 0023](../adr/0023-stripe-first-by-capability-two-payment-surfaces.md) (the two payment surfaces).
 
 This brief describes *what the customer must be able to do and understand*. It
 does not prescribe final visuals — that's your call. It does fix the states,
@@ -136,7 +136,7 @@ Requirements:
 
 For `manual_checkout` customers and any open balance.
 - Invoice list shows status + a **Pay now** button on open invoices.
-- "Pay now" opens the Razorpay checkout (hosted); on return, reflect
+- "Pay now" opens the hosted checkout of whichever rail the instrument sits on; on return, reflect
   **pending → paid** (settlement is webhook-confirmed; show an interim "confirming
   payment…" state, never a premature "Paid").
 - Handle: success, cancelled, failed, and "still confirming" (webhook lag).
@@ -147,7 +147,7 @@ For `prepaid` customers.
 - Wallet balance shown prominently; **Add credits** primary action.
 - Amount entry with sensible suggestions (e.g. cover open balance; 1×/2×/3×
   recent monthly spend).
-- Razorpay checkout; same pending → confirmed handling as §3.3.
+- Hosted checkout on the instrument's own rail; same pending → confirmed handling as §3.3.
 - **Low-balance state**: when the wallet won't cover the forecast, show a calm
   "Top up to avoid interruption" prompt with the shortfall amount — not alarm,
   until it's actually overdue.
