@@ -4,7 +4,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 **Targets:** Demo 30 Jun 2026 · Feature-complete 31 Jul 2026.
 
-**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **SP** = Stripe Primary (Stripe carries every card, Razorpay carries what Stripe India cannot; [ADR 0022](../docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md)) · **post** = post-launch.
+**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **SP** = Stripe Primary (Stripe takes every instrument a Stripe India account can carry, Razorpay takes the rest; [ADR 0022](../docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md), corrected by [ADR 0023](../docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)) · **post** = post-launch.
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
@@ -202,9 +202,11 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 Stripe was chosen when it had no UPI, so "Indian customer" and "Razorpay customer" were the same
 sentence; that stopped being true, and two gateways carrying comparable responsibility means two
 saved-method models, two mandate implementations, two dunning behaviours, and every billing feature
-built twice. We become a **Stripe India merchant** so INR settles domestically, Stripe takes all cards
-including Indian card mandates, and **Razorpay narrows to what Stripe India cannot carry** — RuPay,
-UPI Autopay, netbanking.
+built twice. We become a **Stripe India merchant** so INR settles domestically, Stripe takes every instrument that
+account can carry, and **Razorpay narrows to what it cannot** — RuPay, UPI (one-time and Autopay),
+netbanking, and card mandates on networks Stripe will not register. Being an Indian Stripe merchant is
+what *costs* us UPI rather than what grants it ([ADR 0023](../docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)),
+and that is the trade being made deliberately.
 
 **The ₹15,000 silent-debit ceiling does not move with the rail.** It is an RBI rule that binds Stripe
 India identically, so [payments-inr.md](../payments-inr.md)'s threshold, states and case matrix all
