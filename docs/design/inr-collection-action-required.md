@@ -54,8 +54,10 @@ available on each, because different instruments can be saved
 
 **Wallet recharge** offers: Card · RuPay card · UPI · Netbanking.
 
-**Auto-pay setup** offers: Card (Visa or Mastercard) · RuPay card · UPI.
-Netbanking is absent, because it cannot be saved.
+**Auto-pay setup** offers: Card (Visa or Mastercard) · RuPay, Amex or Diners card ·
+UPI. Netbanking is absent, because it cannot be saved. The second card tile names
+all three networks rather than saying "RuPay": Amex and Diners cannot hold a
+mandate on our card rail either, and an Amex holder needs somewhere to go.
 
 Requirements for both:
 - **"RuPay card" is spelled out**, never softened to "Other cards". A customer

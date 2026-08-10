@@ -30,14 +30,14 @@ Razorpay takes only what it cannot.**
 
 ## Acceptance criteria
 
-- [ ] Recharge and mandate surfaces return different instrument lists; netbanking appears only on
+- [x] Recharge and mandate surfaces return different instrument lists; netbanking appears only on
       recharge.
-- [ ] UPI, in both forms, resolves to Razorpay. No code path offers UPI on Stripe.
-- [ ] A card top-up resolves to Stripe even though Razorpay holds the INR default.
-- [ ] An Amex or Diners **mandate** resolves to Razorpay; the same card **tops up** on Stripe.
-- [ ] The auto-pay card tile names the networks it accepts.
-- [ ] No customer-facing string names a gateway, on either surface.
-- [ ] Full suite green; [#108](108-instrument-picker-add-method.md)'s tests are corrected rather than
+- [x] UPI, in both forms, resolves to Razorpay. No code path offers UPI on Stripe.
+- [x] A card top-up resolves to Stripe even though Razorpay holds the INR default.
+- [x] An Amex or Diners **mandate** resolves to Razorpay; the same card **tops up** on Stripe.
+- [x] The auto-pay card tile names the networks it accepts.
+- [x] No customer-facing string names a gateway, on either surface.
+- [x] Full suite green; [#108](108-instrument-picker-add-method.md)'s tests are corrected rather than
       deleted.
 
 ## Blocked by
@@ -49,3 +49,6 @@ Razorpay takes only what it cannot.**
 - **Unconfirmed:** whether Razorpay will register a recurring mandate on Amex or Diners. If it will
   not, those customers can top up but cannot auto-pay, and prepaid is the honest answer to offer them.
   Worth checking before the tile promises anything.
+
+**Done** on `feat/stripe-primary-gateway`: `126cce5`. Tests: six in `TestPaymentMethodOptions`
+covering both surfaces, the rails, the tile labels and the Razorpay-registered card.

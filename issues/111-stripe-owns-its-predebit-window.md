@@ -28,14 +28,14 @@ is told twice.
 
 ## Acceptance criteria
 
-- [ ] A Stripe INR mandate debit is confirmed straight away, with no 24h window armed by us and one
+- [x] A Stripe INR mandate debit is confirmed straight away, with no 24h window armed by us and one
       notification, not two.
-- [ ] A Razorpay mandate debit still gets our notice and our 24h hold, unchanged.
-- [ ] An attempt held in `processing` is not escalated by reconciliation before the gateway's own
+- [x] A Razorpay mandate debit still gets our notice and our 24h hold, unchanged.
+- [x] An attempt held in `processing` is not escalated by reconciliation before the gateway's own
       completion time.
-- [ ] The three mandate failure codes retire the method and raise re-authorisation, and are not
+- [x] The three mandate failure codes retire the method and raise re-authorisation, and are not
       treated as card declines.
-- [ ] Full suite green.
+- [x] Full suite green.
 
 ## Blocked by
 
@@ -45,3 +45,6 @@ is told twice.
 
 - Stripe's 26 hours is its own buffer over the RBI's 24. It is not configurable, so any deadline we
   present to a customer has to be derived from the intent rather than from our own clock.
+
+**Done** on `feat/stripe-primary-gateway`: `91ed2a9`, patch `stripe_owns_its_predebit_notice`.
+Tests: `TestMandateFailuresAreNotCardDeclines` (2), `TestTheGatewaysOwnHold` (2).
