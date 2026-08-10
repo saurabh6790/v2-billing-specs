@@ -111,6 +111,8 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [107](107-stripe-india-card-mandate.md) | Stripe India card e-mandate — register, debit off-session ≤ ₹15k, pre-debit notice; Razorpay mandates grandfathered | AFK | 106 | **SP** |
 | [108](108-instrument-picker-add-method.md) | Add-method instrument picker (UPI · Card · RuPay card · Netbanking); gateway fixed per method | AFK | 107 | **SP** |
 | [109](109-gateway-fallback-routing-config.md) | Terminal-decline fallback to the other rail + routing config in Billing Settings + success rate by gateway × network × currency | AFK | 108 | **SP** |
+| [110](110-two-payment-surfaces-capability-routing.md) | Split recharge from auto-pay; route each instrument by what Stripe India can actually carry ([ADR 0023](../docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)) | AFK | 108 | **SP** |
+| [111](111-stripe-owns-its-predebit-window.md) | Stripe runs its own pre-debit window (26h `processing`); map its mandate failure codes | AFK | 107 | **SP** |
 
 ## Atlas Integration milestone (AT)
 
@@ -225,9 +227,13 @@ that misreading is the expensive one.
   timeout that falls back double-charges someone), routing knobs in Billing Settings so the bet is
   reversible without a deploy, and success rate by gateway × network × currency so the bet can be
   settled with a number.
-- **One open question blocks the UPI tile's target, not the tile:** whether one-time UPI settles on
-  Stripe or Razorpay. Autopay is Razorpay's either way, so splitting UPI makes one instrument
-  reconcile in two places and refund from two ledgers. Resolve against real Stripe India UPI pricing.
+- **#110 and #111 correct the milestone against Stripe's documentation** ([ADR 0023](../docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)).
+  Three of ADR 0022's premises were wrong: Stripe does offer UPI and UPI Autopay but **not to
+  India-based accounts**, netbanking is not a Stripe product at all, and India card mandates are
+  **Visa and Mastercard only**. The routing survives and its reasoning inverts — being an Indian
+  Stripe merchant is what costs us UPI, not what grants it. That closes the open question (all UPI is
+  Razorpay's, so no instrument spans two gateways) and splits the one picker into the two surfaces
+  billing actually has: wallet recharge and auto-pay setup.
 
 ## Billing Simulator milestone (SIM)
 
