@@ -31,25 +31,24 @@ gateway.
 
 ## Acceptance criteria
 
-- [~] A terminal decline on Stripe offers the Razorpay rail once, with the amount prefilled
-      (`get_fallback_offer`). The resulting method does **not** yet carry
-      `fallback_reason = stripe_decline` — the offer hands off to the ordinary add-method flow,
-      which stamps by instrument.
+- [x] A terminal decline on Stripe offers the Razorpay rail once, with the amount prefilled
+      (`get_fallback_offer`), and the resulting method carries `fallback_reason = stripe_decline` —
+      verified server-side against a real terminal attempt rather than taken from the client.
 - [x] A timeout, a `processing` status and an abandoned 3DS each leave the attempt alone and produce
       no second charge; reconciliation resolves them.
-- [~] No second attempt is created while the first is non-terminal — the collector now stops on an
-      ambiguous failure instead of rotating. The existing in-flight/lock concurrency test covers
-      double-charging; no new concurrent-entry test for this path.
-- [ ] An off-session failure creates no interactive prompt (true — the offer is a read endpoint the
-      dashboard calls) but the **add-a-method notification is not built**. Today the existing
-      `Payment Failure` notification fires without naming the alternative.
+- [x] No second attempt is created while the first is non-terminal — the collector stops on an
+      ambiguous failure instead of rotating, covered end to end by
+      `TestOneInvoiceIsNeverChargedTwiceAcrossRails`.
+- [x] An off-session failure creates no interactive prompt and escalates to dunning with the
+      add-a-method notification (`add_payment_method`), raised only once something has actually been
+      tried and refused.
 - [~] Billing Settings exposes `enable_gateway_fallback`. The **per-currency primary gateway was
       deliberately not duplicated there** — it is already the `is_default` flag on `Payment Gateway
       Currency`, and two places to set one routing rule is a bug waiting to happen.
 - [x] A report splits attempt success rate by gateway, card network and currency, with money split
       per currency.
-- [~] Full suite green (one pre-existing capacity-filter failure, unrelated). No dedicated
-      never-charged-twice-across-rails test yet; the ambiguity rule is unit-tested instead.
+- [x] Full suite green (one pre-existing capacity-filter failure, unrelated), including a test that
+      the same invoice is never charged twice across rails.
 
 ## Blocked by
 
@@ -60,5 +59,5 @@ gateway.
 - Card network is known for a Stripe method (the brand comes back on the PaymentMethod object) and
   known by construction for a RuPay one. No BIN table is needed for the report either.
 
-**Mostly done** on `develop`: `7b4672a`. Tests: `test_gateway_fallback` (6). Open: the add-a-method
-notification, the `stripe_decline` stamp, and a cross-rail double-charge test.
+**Done.** `8cd2d38` on `feat/stripe-primary-gateway`; the three loose ends closed on
+`feat/fallback-loose-ends` (`ca55a41`, `f672437`). Tests: `test_gateway_fallback` (18).

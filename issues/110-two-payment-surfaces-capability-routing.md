@@ -46,9 +46,9 @@ Razorpay takes only what it cannot.**
 
 ## Notes
 
-- **Unconfirmed:** whether Razorpay will register a recurring mandate on Amex or Diners. If it will
-  not, those customers can top up but cannot auto-pay, and prepaid is the honest answer to offer them.
-  Worth checking before the tile promises anything.
+- **Answered (2026-08-10):** Razorpay's standing instructions cover Visa, Mastercard and RuPay only,
+  so **no rail we use will hold an Amex or Diners mandate**. The tile is RuPay-only and the surface
+  says what those cards cannot do; they still top up. Fixed in `99fcc90`.
 
 **Done** on `feat/stripe-primary-gateway`: `126cce5`. Tests: six in `TestPaymentMethodOptions`
 covering both surfaces, the rails, the tile labels and the Razorpay-registered card.
