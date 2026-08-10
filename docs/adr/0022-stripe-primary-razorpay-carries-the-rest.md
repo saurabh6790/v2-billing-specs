@@ -2,6 +2,14 @@
 
 Date: 2026-08-08
 
+> **Partly superseded (2026-08-10) by [ADR 0023](0023-stripe-first-by-capability-two-payment-surfaces.md).**
+> The routing below is broadly right and its stated reasons are not. Stripe *does* offer UPI and UPI
+> AutoPay, but not to India-based accounts; netbanking is not a Stripe product anywhere; and Stripe
+> registers India card mandates on **Visa and Mastercard only**. So decision 2's instrument table and
+> decision 3's single picker are replaced — recharge and mandate are separate surfaces with different
+> instrument sets — and the open question about one-time UPI is closed (Razorpay's, because Stripe
+> India cannot take UPI at all). Decisions 4–8 stand.
+
 [ADR 0005](0005-inr-collection-emandate-threshold-prepaid.md) split the gateways by currency: Stripe
 for international, Razorpay for everything INR. It was written when Stripe did not offer UPI, so
 "Indian customer" and "Razorpay customer" were the same sentence.
