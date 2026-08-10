@@ -58,11 +58,17 @@ available on each, because different instruments can be saved
 is absent, because it cannot be saved.
 
 **Amex and Diners belong nowhere on this screen**, and that has to be said out loud
-rather than left as an absence. Neither of our rails will register a mandate on
-them, so a customer holding one can top up a wallet or pay each invoice but cannot
-auto-pay. The screen owes them one line saying that and a route to prepaid —
-otherwise they tap the nearest card tile, fail at authorisation, and learn it from
-a dunning email.
+rather than left as an absence. No rail in India registers a mandate on those
+networks, so a customer holding one cannot auto-pay at all and the prepaid wallet
+is their path.
+
+Say it in two places, both before a mandate is attempted:
+- **On the choice of how to pay** (§3.2), so it informs the decision rather than
+  arriving after it.
+- **On the auto-pay screen itself**, with a control that switches them to prepaid
+  on the spot. Telling someone to go and find the wallet is how they instead tap
+  the nearest card tile, fail at authorisation, and learn this from a dunning
+  email.
 
 Requirements for both:
 - **"RuPay card" is spelled out**, never softened to "Other cards". A customer
