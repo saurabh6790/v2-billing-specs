@@ -62,13 +62,19 @@ rather than left as an absence. No rail in India registers a mandate on those
 networks, so a customer holding one cannot auto-pay at all and the prepaid wallet
 is their path.
 
-Say it in two places, both before a mandate is attempted:
-- **On the choice of how to pay** (§3.2), so it informs the decision rather than
-  arriving after it.
-- **On the auto-pay screen itself**, with a control that switches them to prepaid
-  on the spot. Telling someone to go and find the wallet is how they instead tap
-  the nearest card tile, fail at authorisation, and learn this from a dunning
-  email.
+Say it in one line, and make that line the way out:
+
+> Amex or Diners can't auto-pay — top up a wallet →
+
+It sits under the tiles on the auto-pay screen and opens the top-up directly. No
+panel, no second button, and nothing to read for the customer holding a Visa. The
+same line appears on the choice of how to pay (§3.2), where it informs the
+decision rather than arriving after it.
+
+The earlier draft explained which bank rails register mandates, which is a
+question nobody asked, and then made the customer press a button to get where the
+sentence had already pointed them. Prototype and rationale:
+[four flows](https://claude.ai/code/artifact/1392aec4-8068-446a-92f2-1e36c1db3f6f).
 
 Requirements for both:
 - **"RuPay card" is spelled out**, never softened to "Other cards". A customer
