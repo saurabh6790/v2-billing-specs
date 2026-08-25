@@ -91,6 +91,17 @@ up engineers and non-billing readers.
 
 ---
 
+## Partner Billing
+
+| Term | Plain English |
+|------|---------------|
+| **Partner** | A company that resells Frappe Cloud: their customer pays them, and they pay us. They are an ordinary team with a wallet and a card, who happen to settle other teams' bills as well as their own |
+| **Billed through a partner** | Your servers are yours, your invoices are yours, but your partner's card pays them. You never enter payment details |
+| **Budget allocation** | The amount your partner will let you spend this month — what you have already paid them for. It resets each month and does not roll over |
+| **Remaining budget** | What is left of it. You cannot create or resize a server past this amount; everything already running keeps running regardless |
+
+---
+
 ## Subscriptions & Account States
 
 | Term | Plain English |
