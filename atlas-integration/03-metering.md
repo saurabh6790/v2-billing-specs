@@ -30,7 +30,8 @@ just answers reads. The sampling lives in Central's Atlas client
 - **Snapshot is live-priced** ([ADR 0002](../docs/adr/0002-live-priced-storage-add-ons.md)):
   Central applies the current catalog rate at invoice time; the meter holds
   quantities only. Quantities stay `Float` — only the product with a rate rounds
-  to minor units, once ([ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)).
+  to the currency's 2 decimals, once ([ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)'s
+  integer minor-units model deprecated; money is float `Currency`, major units).
 - **Gauge sampling is day-grained at launch.** A snapshot created and deleted
   between two daily samples contributes zero; one deleted an hour after a sample
   contributes a full day. Acceptable error for storage pricing; tightening means

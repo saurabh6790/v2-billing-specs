@@ -4,7 +4,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 **Targets:** Demo 30 Jun 2026 · Feature-complete 31 Jul 2026.
 
-**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **post** = post-launch.
+**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **post** = post-launch.
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
@@ -42,12 +42,12 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [31](31-commitment-clawback.md) | Commitment — clawback on breach | AFK | 30 | P3 |
 | [32](32-live-priced-snapshot-add-on.md) | Live-priced snapshot add-on (`pricing_mode`, own `resource_id`, no allowance) | AFK | 12, 27 | P3 |
 | [33](33-plan-configurator-authoring-ui.md) | Plan Configurator authoring UI (millicore + memory-ratio pre-fill) | AFK | 01, 27 | P4 |
-| [34](34-money-module-minor-units.md) | `money` module: integer minor units + ISO-4217 exponent table | AFK | — | P1 |
-| [35](35-rates-to-rate-units.md) | Rates → rate units (`minor×10⁶`): Catalog Rate / lock / shown_rate + proration engine | AFK | 34 | P1 |
-| [36](36-invoice-tax-amounts-minor-units.md) | Invoice + tax amounts → minor units; migrate (convert stored, never recompute) | AFK | 34, 35 | P1 |
-| [37](37-credit-ledger-minor-units.md) | Credit ledger → minor units (kills v1 float-drift balance) | AFK | 34 | P1 |
-| [38](38-payments-boundary-minor-units.md) | Payments boundary → minor units; gateway adapters pass-through | AFK | 34, 36 | P3 |
-| [39](39-erpnext-push-minor-units-boundary.md) | ERPNext push: minor→major decimal at boundary, round-off disabled | AFK | 36 | P3 |
+| [34](34-money-module-minor-units.md) | ~~`money` module: integer minor units + ISO-4217 exponent table~~ **OBSOLETE** (ADR 0003 deprecated) | — | — | — |
+| [35](35-rates-to-rate-units.md) | ~~Rates → rate units (`minor×10⁶`)~~ **OBSOLETE** (ADR 0003 deprecated) | — | — | — |
+| [36](36-invoice-tax-amounts-minor-units.md) | ~~Invoice + tax amounts → minor units~~ **OBSOLETE** (ADR 0003 deprecated) | — | — | — |
+| [37](37-credit-ledger-minor-units.md) | ~~Credit ledger → minor units~~ **OBSOLETE** (ADR 0003 deprecated) | — | — | — |
+| [38](38-payments-boundary-minor-units.md) | ~~Payments boundary → minor units~~ **OBSOLETE** (ADR 0003 deprecated) | — | — | — |
+| [39](39-erpnext-push-minor-units-boundary.md) | ~~ERPNext push: minor→major decimal at boundary~~ **OBSOLETE** (ADR 0003 deprecated) | — | — | — |
 | [46](46-multi-currency-gateway-config.md) | Multi-currency gateway config: `Payment Gateway Currency` child table + resolver | AFK | 02 | **GW** |
 | [47](47-invoice-currency-lock.md) | Invoice `currency` lock | AFK | 09, 46 | P3 |
 | [48](48-currency-aware-credit-ledger.md) | Currency-aware credit ledger | AFK | 06 | P2 |
@@ -92,6 +92,21 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [82](82-resize-composed-config-changed-event.md) | Resize a composed config — `changed`-event re-lock at current rates + preset↔composed switch | AFK | 80, 81, 54 | **CC** |
 | [83](83-eligibility-rate-card-bounds-headroom.md) | `get_eligible_plans` returns rate card + profile bounds + headroom; provision re-validates server-side | AFK | 79, 81, 07 | **CC** |
 | [84](84-customer-config-slider-ui.md) | Customer slider UI — design-your-own config + resize (console, Frappe-UI) | AFK | 83, 82, 66 | **CC** |
+| [91](91-split-decision-from-effect-rating-dunning.md) | Split decision from effect in the rating and dunning paths (`rate_team_period`, `dunning_schedule`) — no behaviour change | AFK | — | **SIM** |
+| [92](92-project-one-team-next-month.md) | Project one team's next month — engine + read-only transaction + line `basis` + Simulator Desk page | AFK | 91 | **SIM** |
+| [93](93-derived-payment-outcomes.md) | Derived payment outcomes — the engine asserts *why* collection will fail | AFK | 92 | **SIM** |
+| [94](94-multi-month-roll-forward.md) | Multi-month roll-forward + the state seam (wallet, standing, tier, suspension halts accrual) | AFK | 92 | **SIM** |
+| [95](95-line-derivation-drill.md) | Line derivation drill — which segments, daily vs hourly churn, allowance vs overage | AFK | 92 | **SIM** |
+| [104](104-collection-outlook-sweep.md) | Collection outlook — unbounded cheap sweep over existing unpaid invoices (who suspends, when) | AFK | 91 | **SIM** |
+| [105](105-team-payment-behaviour.md) | Payment behaviour — retrospective: how reliably a team has actually paid (context for every projection) | AFK | — | **SIM** |
+| [96](96-cohort-billing-projection-report.md) | Cohort **revenue** projection — bounded by construction, materialised summary + on-demand detail, stratified sampling | AFK | 92, 93 | **SIM** |
+| [97](97-billing-scenario-and-overrides.md) | Scenario as input — `Billing Scenario` DocType + Billing Settings overrides | AFK | 92 | **SIM** |
+| [98](98-price-change-what-if.md) | Price-change what-if — new segments from date *D*; grandfathered vs repriced split | AFK | 97 | **SIM** |
+| [99](99-injected-events.md) | Injected events — hypothetical resize / provision / cancel / top-up / decline | AFK | 94, 97 | **SIM** |
+| [100](100-diff-mode-blast-radius.md) | Diff mode + blast radius (cohort aggregate) | **HITL** | 96, 97 | **SIM** |
+| [101](101-get-forecast-on-projection-engine.md) | Reimplement `get_forecast` on the projection engine — one rating path, not two | AFK | 92 | **SIM** |
+| [102](102-scenario-library.md) | Scenario library — the canned failure catalogue | AFK | 99 | **SIM** |
+| [103](103-cassette-record-replay-regression.md) | Cassette record/replay — golden-master regression on real shapes | AFK | 92 | **SIM** |
 
 ## Atlas Integration milestone (AT)
 
@@ -175,6 +190,24 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 - **#08** — Razorpay + UPI Autopay mandate; the adapter is foundation, the mandate-ceiling-=-tier wiring completes alongside **#07** (its blocker).
 - **#25** — PayPal *(to-follow; post-launch, per spec)*.
 
+## Billing Simulator milestone (SIM)
+
+Billing asked what it *will* do, rather than run and observed afterwards — [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md). The engine does not model billing; it **is** the billing engine called with a virtual clock on a code path that cannot write (`START TRANSACTION READ ONLY`, so a stray write fails at the database rather than in review). Vocabulary is fixed: a **scenario** is the input, a **projection** is the output, the **Simulator** is the Desk surface — and **run** keeps meaning the monthly billing run, so nothing read-only borrows it.
+
+**Everything in SIM is a Desk surface, at `/desk/...`.** Admin and ops work in Desk; the frappe-ui SPA at `/dashboard` is customer-only. That means `frappe-ui` components are **not available** — a Desk page is vanilla JS and jQuery, styled against Desk's own CSS custom properties (`--fg-color`, `--border-color`, `--subtle-fg`, …), not `bg-surface-*` / `text-ink-*`. The one convention that carries over from the frappe-ui standard is sentence case: never uppercase a header, column label or section title. Note the route prefix is `/desk` on Frappe 17-dev — `/app/*` redirects to it, not the reverse.
+
+**One engine, two callers — not one engine, two modes.** The billing engine already exists and rates real invoices today; nothing here rewrites it. #91 splits each act's *decision* from its *effect*, after which the scheduled run calls the decision and then acts on it, while the simulator calls the same decision and displays it. The engine carries no `simulate` flag, because a flag would scatter `if not simulating:` across every effect site and make the safety property "we remembered the branch everywhere" — which is precisely what the read-only transaction replaces. Actual billing stays on its existing schedule (cron drafts on the 1st, daily sweep collects); projections are on demand, with an optional nightly cohort batch.
+
+- **#91** is the enabling refactor and is deliberately behaviour-free: it splits each billing act's decision from its effect. Kept separate from #92 so the riskiest diff in the milestone — the invoice generator and the dunning ladder — is reviewed on its own rather than alongside a new Desk page.
+- **#92** is the tracer bullet: one team, one future month, live config, end to end.
+- **#93/#94** deepen it — *why* collection fails, and what happens over six months as the wallet drains and standing advances.
+- **#105 is the backward-looking half.** A projection alone does not tell an operator whether to act — "suspends on the 12th" means one thing for a team that has never missed a payment and the opposite for one that is late every month. It reads existing invoices and attempts only, so it shares #104's cost class and needs no bounding.
+- **#104 and #96 are the two cohort surfaces, and they are separated by cost class.** *Who gets suspended, and when* needs no rating — it is `dunning_schedule` over invoices that already exist, so it scales with **delinquency**, not with the book, and runs unbounded over everything in under a second even at lakh scale (#104). *What will these teams be billed* requires rating each team, and at a few lakh teams a six-month projection is days of compute on a system concurrently onboarding new signups. So #96 is **bounded by construction**: it sizes and cost-estimates the cohort first, **refuses** anything over budget rather than queueing it, answers book-wide questions by stratified sample instead of by grinding, runs on its own queue, and will not start while the monthly run is drafting or collecting.
+- **Where scale bites in #96 is the surface, not the engine.** None of the monthly run's bottlenecks apply to a projection — nothing is inserted (no `tabSeries` lock), no gateway is called (no concurrency cap), no wallet is locked — and per-team work is independent, so the engine is linear and scales with workers. What breaks is that a Query Report executes inside the web request. Hence: materialise a scalar summary row per team from a background batch, and compute per-team detail only on drill-in.
+- **#97–#100** make configuration an input: overrides, price-change what-ifs, injected events, and the cohort blast radius.
+- **#101** points the customer forecast at the same engine, so the number a customer sees and the number an operator simulates cannot drift.
+- **#103** is the regression harness. Diffing projections across a deploy is confounded by data drift, so it records the reads and replays against them; #92 only owes it a hook.
+
 ## Notes
 
 - **Agentless ([ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md), 2026-06-15):** the per-cluster **Subscription Agent** is retired. Central provisions via the **cluster manager API**, records the event log + metered usage itself, and enforces dunning by calling the cluster manager. **#03** (event log) and **#07** (cap enforcement) are Central-only; **#14** suspends via the cluster-manager call. No Plan Cache / Sync Log / Entitlement Token. A new outbound **cluster-manager integration** seam replaces plan-push / token-issue / usage-pull (own slice, TBD).
@@ -182,4 +215,4 @@ The gateway layer is a first-class, front-loaded workstream — it's what this p
 - **Central Merge (#41–#45):** folds Billing into the `central` app and adopts its capability IAM ([ADR 0004](../docs/adr/0004-billing-as-central-module-capability-iam.md)). The dashboard UI is **not** migrated — Central rebuilds it against the same APIs. Supersedes the standalone role model in [security.md](../security.md) §3a–§3b.
 - Multi-currency credits is tracked as **#48** (currency field on `Credit Ledger Entry`, P2); closes the open item in [credits.md](../credits.md).
 - **#30–#33** come from the plan/pricing grilling session (see [final-plan-pricing.md](../final-plan-pricing.md), [ADR 0001](../docs/adr/0001-commitment-as-team-spend-floor.md), [ADR 0002](../docs/adr/0002-live-priced-storage-add-ons.md)). All AFK — designs settled by the two ADRs. Tiered pricing is explicitly future ([final-plan-pricing.md](../final-plan-pricing.md) §10), no slice yet.
-- **#34–#39** are the **integer-minor-units refactor** ([ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md), grilled 2026-06-08): replace every `Currency` (float) money field with `Long Int` — amounts in minor units (paisa/cent), rates in `minor×10⁶`. A cross-cutting hardening pass over the now-built engine; all AFK (per-row round-trip assertions are the migration safety net). **Must land in dependency order** — #34 (the shared `money` module) first, then the flips (#35→#36, #37), then the boundaries (#38, #39) — because money math breaks under mixed float/int representations. Folds into #27 (rates) and #23 (migration tooling).
+- **#34–#39** were the **integer-minor-units refactor** ([ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)) — retype every `Currency` money field to `Long Int` minor units. **OBSOLETE — do not build:** ADR 0003 was never implemented and is deprecated; money is stored as float `Currency` in major units throughout, and any minor-unit conversion stays local to a gateway adapter that requires it (see [catalog-pricing-decisions.md](../catalog-pricing-decisions.md)). Each issue carries an OBSOLETE banner.

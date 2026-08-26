@@ -1,5 +1,7 @@
 # 39 — ERPNext push: convert minor units → major-unit decimal at the boundary, round-off disabled
 
+> **OBSOLETE — do not build.** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)'s integer minor-units money model was never implemented and is **deprecated**; money is already stored as float `Currency` in major units (see [catalog-pricing-decisions.md](../catalog-pricing-decisions.md)), so there is no minor→major conversion to do at the ERPNext boundary. This migration is retired.
+
 **Type:** AFK · **Milestone:** Phase 3 · **Spec:** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md), [invoicing.md](../invoicing.md)
 
 ## What to build

@@ -1,0 +1,16 @@
+flowchart TD
+    A["Lifecycle"] --> G["transition()"]
+    B["Payments"] --> G
+    C["Dunning"] --> G
+    D["Refunds"] --> G
+    E["…five more"] --> G
+    G --> CHK{"`Legal move
+for this document?`"}
+    CHK -->|"No"| X["Refused"]
+    CHK -->|"Yes"| S["Write the field"]
+    S --> LOG["`Append one Billing Event:
+what · from → to · when ·
+who · why`"]
+    LOG -.->|"`read model only —
+the write path may never
+read it`"| RPT["Humans & reports"]

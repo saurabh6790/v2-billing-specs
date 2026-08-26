@@ -20,8 +20,7 @@ up engineers and non-billing readers.
 | **Commitment** | A formal deal: "I'll spend at least ₹X/month for 12 months; in return I get a discount on every invoice" |
 | **Alive (billing state)** | A server that is either running or stopped but still reserved. Stopping a server does not pause your bill — resources are still held |
 | **Composition** | The list of what's included in a plan (2 vCPU, 4 GB RAM, 80 GB disk) — spec only, carries no price |
-| **Rate units (minor × 10⁶)** | A way to store prices with extreme precision so tiny per-unit rates (₹0.009/GB) don't get rounded away when stored |
-| **Minor units** | Storing money as the smallest coin — ₹10 = 1000 paisa — so the system never uses decimals and avoids rounding bugs |
+| **Money representation** | Money is stored as a float `Currency` in **major units** (₹, $) throughout — rates, invoice amounts, credit balances. *(The integer minor-units / "rate units (minor × 10⁶)" model of [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) was never implemented and is deprecated; the only minor-unit conversion is inside a gateway adapter that requires it.)* |
 | **Allowance** | The quantity included in your plan before extra charges kick in. A plan with 1 TB transfer means 1 TB is free; above that, overage applies |
 | **Locked allowance** | The included allowance frozen at the time you subscribed — same concept as price-lock but for quantities, not rates |
 

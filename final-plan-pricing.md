@@ -226,7 +226,7 @@ standalone DocType — **`Catalog Rate`** — shared by Plan and Add-on through 
 | priced_for | Dynamic Link | the specific `bundle-2vcpu` / `Compute` |
 | cluster | Data | **blank = global default**; else region key (`ap-south-1`) |
 | currency | Link → Currency | INR, USD, … |
-| rate | Long Int | **Rate units** (minor × 10⁶), never a float — preset = flat bundle rate; component = per-unit rate (`$/vCPU`, `$/GB`); add-on = per-unit usage rate. See [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) |
+| rate | Currency | Float, **major units** — preset = flat bundle rate; component = per-unit rate (`$/vCPU`, `$/GB`); add-on = per-unit usage rate. *(Not integer "rate units (minor × 10⁶)" — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) deprecated.)* |
 
 **Resolution** for `(plan-or-addon, team currency, resource cluster)`: query by
 `priced_doctype + priced_for + currency`, prefer the row whose `cluster` matches the resource's

@@ -1,5 +1,7 @@
 # 36 — Invoice + tax amounts → minor units; migrate existing invoices (convert stored, never recompute)
 
+> **OBSOLETE — do not build.** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)'s integer minor-units money model was never implemented and is **deprecated**; invoice + tax amounts are stored as float `Currency` in major units (see [catalog-pricing-decisions.md](../catalog-pricing-decisions.md)). This migration is retired.
+
 **Type:** AFK · **Milestone:** Phase 1 (foundation) · **Spec:** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md), [invoicing.md](../invoicing.md), [tax.md](../tax.md)
 
 ## What to build

@@ -1,5 +1,7 @@
 # 38 — Payments boundary → minor units; gateway adapters pass minor units straight through
 
+> **OBSOLETE — do not build.** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)'s integer minor-units money model was never implemented and is **deprecated**; money is stored as float `Currency` in major units (see [catalog-pricing-decisions.md](../catalog-pricing-decisions.md)). Any minor-unit conversion a specific gateway requires happens locally in that adapter, not as a system-wide storage model. This migration is retired.
+
 **Type:** AFK · **Milestone:** Phase 3 · **Spec:** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md), [payments.md](../payments.md)
 
 ## What to build

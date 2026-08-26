@@ -1,0 +1,8 @@
+flowchart LR
+    D["Due date"] -->|"we tried, we failed"| X["Our outage"]
+    X --> N["`Clock restarts:
+full grace period from
+when we actually asked`"]
+    D -.->|"unchanged"| A["`Due date stays put —
+AR aging must stay honest`"]
+    style N fill:#efe,stroke:#0a0

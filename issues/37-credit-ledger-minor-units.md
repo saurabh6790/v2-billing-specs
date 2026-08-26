@@ -1,5 +1,7 @@
 # 37 — Credit ledger → minor units (kills the v1 float-drift balance bug)
 
+> **OBSOLETE — do not build.** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)'s integer minor-units money model was never implemented and is **deprecated**; the credit ledger stores float `Currency` in major units (see [catalog-pricing-decisions.md](../catalog-pricing-decisions.md)). This migration is retired.
+
 **Type:** AFK · **Milestone:** Phase 1 (foundation) · **Spec:** [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md), [credits.md](../credits.md)
 
 ## What to build

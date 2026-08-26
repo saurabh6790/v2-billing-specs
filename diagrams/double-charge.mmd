@@ -1,0 +1,22 @@
+flowchart LR
+    B["`Charge runs
+inside a transaction
+— the gateway
+takes the money`"] --> C["`Worker dies before
+commit: the attempt
+row rolls back, and
+the key dies with it`"]
+    C -->|"retry"| E["`New key — gateway
+has nothing to
+match, charges
+the card again`"]
+    C -->|"meanwhile"| G["`First webhook
+points at a row
+that is gone,
+and is dropped`"]
+    E --> H["`Charged twice,
+settled once,
+one payment
+stranded`"]
+    G --> H
+    style H fill:#fee,stroke:#c00

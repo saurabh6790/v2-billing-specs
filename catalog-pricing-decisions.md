@@ -61,15 +61,33 @@ The end-to-end composable-pricing slice is implemented and green (552 tests):
 ### Future offerings — pressure-tested
 - **Email, PDF, additional storage** fit as metered single-resource Plans (new `Resource
   Type`s where needed) — no new concepts; they validate the narrow Resource-Type boundary.
+- **Team-level (asset-less) metered services** — design resolved in
+  [ADR 0013](docs/adr/0013-team-level-metered-services-synthesized-subject.md): a metered
+  single-resource Plan keyed on a **synthesized `(team, service-plan, cluster)` subject** (no
+  customer asset), regional-over-global rates unchanged, and **allowance-pooling as a `Plan
+  Category` property** (globally-priced families pool team-wide; regionally-priced families stay
+  per-cluster). No new metering/invoicing concept. Build pending.
 
 ### Smaller decisions
+- **Money stays float `Currency` (major units).** [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)'s
+  integer minor-units model was **never implemented** — rates and amounts are `Currency` floats in
+  major units throughout (e.g. `0.12`/vCPU, `0.8` overage), with no paisa/cent conversion. So the
+  Configurator's [ADR 0011](docs/adr/0011-plan-configurator-is-the-single-pricing-authority.md)
+  pricing step writes `Currency` rates, not minor-unit integers. **Reconciled 2026-07-01:** ADR 0003
+  is marked deprecated-never-implemented and CONTEXT.md's money terms (now *Money representation* /
+  *Rate precision*) + flagged ambiguity describe the float model. **Sweep complete (#90):**
+  `invoicing.md`, `metering.md`, `tax.md`, `credits.md`, `commitment.md`, `payments.md`, `security.md`,
+  `observability.md`, and issues #79/#80 now describe the float model, and the ADR 0003 migration
+  issues #34–#39 are marked OBSOLETE.
 - **A Plan always declares what it bills** — `Plan.includes` should require ≥1 row (the include
   binds the metered resource + allowance, or the bundle composition; empty = a price with no
   subject). Decided in principle; not yet enforced in code.
 
 ---
 
-## To decide
+## Remaining work (all decided — implementation + cleanup)
+
+Nothing here is an open *decision* anymore. Items 1–6 are build work; 7–9 are closed.
 
 ### Implementation of the agreed ADRs
 1. **Implement [ADR 0011](docs/adr/0011-plan-configurator-is-the-single-pricing-authority.md)** —
@@ -79,32 +97,68 @@ The end-to-end composable-pricing slice is implemented and green (552 tests):
    the verb-first Desk workspace + the small "Add-ons (metered)" report. (Or spec it further
    first.)
 3. **Enforce `Plan.includes ≥ 1`** — set the Table field `reqd` + a clear validate message.
+4. **Finish the [ADR 0010](docs/adr/0010-price-lock-folded-into-subscription-change.md)
+   read-path migration.** ADR 0010 moved only the *write* path; `Price Lock` is still the
+   **read** source in ~6 places, so a **composed** subscription (which writes no `Price Lock`,
+   only a `Subscription Change`) is **invisible** to the billing readers — undercounted in
+   "resources used", missing from admin consumption, skipped by the currency fallback, and
+   `get_eligible_plans` now computes "what's running" two ways that disagree for composed
+   configs. Replace every remaining `Price Lock` read with a shared `team_active_segments(team)`
+   helper (which also kills the `team_run_rate` N+1), backfill, then retire the `Price Lock`
+   doctype. → [review notes #1+#2](central-billing-review-notes.md).
 
-### Structural gaps the future offerings exposed (need a decision before building them)
-4. **Account-level / asset-less metered services** (email, PDF "common"). Metering and
-   invoicing assume **asset + cluster**; these are team-level with neither. Needs: a service
-   subscription without an asset, and invoicing that collects region-less usage. → ADR/issue.
-5. **One-time charges + per-instance / variable pricing** — the **Domains** misfit:
-   registration is one-shot (model is recurring + metered), and price varies per TLD with a
-   pass-through registrar cost. Needs: first-class one-time line items and a per-instance/live
-   pricing path (not Plan-per-TLD). → ADR/issue.
+### Structural gaps the future offerings exposed (design resolved — build pending)
+5. **Account-level / asset-less metered services** (email, PDF "common"). **[Design resolved —
+   [ADR 0013](docs/adr/0013-team-level-metered-services-synthesized-subject.md); build pending.]**
+   These run on a cluster but have no customer-owned asset. Resolved as a metered single-resource
+   Plan on a synthesized `(team, service-plan, cluster)` subject; rates resolve regional-over-global
+   unchanged; allowance pools team-wide for globally-priced families and stays per-cluster for
+   regionally-priced ones (a `Plan Category` property). The **API contract** a consumer service
+   transacts through is fixed by [ADR 0015](docs/adr/0015-consumer-service-metering-api-contract.md):
+   pilot-authenticated report/subscribe methods (team from the credential), a per-family
+   **reporting mode** (Authoritative-replace vs Incremental-accumulate with a sequence cursor) and
+   **settlement mode** (Postpaid Overage vs Prepaid Pack), plus a console view of a team's metered
+   footprint. Build in progress on `feat/consumer-service-metering`.
+6. **Per-instance / live-registrar pricing (Domains)** — **[Design resolved —
+   [ADR 0014](docs/adr/0014-domains-live-registrar-pricing-threshold-renewals.md); build pending.]**
+   A domain is an annual `Subscription` on a single `Domain` Plan; TLD + rate are instance data
+   (no Plan-per-TLD). The rate is sourced **live from a registrar adapter at registration** and
+   locked on the price-lock spine; renewals **grandfather with a cost-threshold guard** (re-price
+   only when the registrar wholesale rises past a band). The **"one-time line item" need
+   dissolved** — registration is just year 1 of the annual charge; a genuine one-time-charge
+   capability stays deferred (no current offering drives it). What remains is implementation.
 
-### Smaller / deferred
-6. **Resize UX** — lock the profile to the running config, or allow switching it during resize
-   (currently allows switching). Minor.
-7. **Storage unit label** — the picker shows "GB SSD" (hardcoded); decide whether to drive it
-   from the `Disk` resource's `unit`.
-8. **Full-collapse revisit trigger** — only if a primitive ever becomes independently sellable
-   (at which point it is an offering and becomes a Plan honestly).
+### Smaller items (resolved)
+7. **Resize UX** — **[Resolved: allow switching.]** Central billing is **profile-agnostic on
+   resize**: Atlas owns the resize mechanics (a family switch and an in-place upgrade are
+   indistinguishable to billing), so billing just calls the Atlas API, then re-prices + re-locks
+   (a `Plan Changed` segment) and re-validates the composition against the **target** profile's
+   bounds. Any guardrail on a profile change is console UX polish, not a billing rule
+   ([ADR 0006](docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).
+8. **Storage unit label** — **[Resolved: drive the unit, keep "SSD" literal.]** Drive the "GB"
+   from the `Disk` resource's `unit`; leave "SSD" as a literal in the picker (disk is single-type
+   today, no price impact). Revisit only if a second disk type (NVMe/HDD) appears.
+9. **Full-collapse revisit trigger** — **[Resolved: effectively retired.]** Even the one stated
+   trigger doesn't require it: if a primitive ever becomes independently sellable, it just becomes
+   its own metered single-resource `Plan`
+   ([ADR 0008](docs/adr/0008-add-on-as-metered-single-resource-plan.md)) *alongside* its rate-card
+   `Resource Type` row (the Plan prices the standalone offering; the Resource Type still prices
+   composed configs). No scenario requires collapsing *all* primitives, so full collapse is
+   closed, not deferred.
 
 ---
 
 ## Suggested sequencing
 
 1. Enforce `Plan.includes ≥ 1` (tiny, removes ambiguity now). *(#3)*
-2. Implement ADR 0011 in the Configurator (component card + all-currency pricing). *(#1)*
-3. Build the ADR 0012 Desk workspace on top of it — the demoable front door. *(#2)*
-4. Then decide the two structural gaps before building email/PDF/domains. *(#4, #5)*
+2. Finish the ADR 0010 read-path migration — a shared `team_active_segments` helper that kills
+   the composed-invisibility bug **and** the `team_run_rate` N+1 together, then retires
+   `Price Lock`. *(#4)*
+3. Implement ADR 0011 in the Configurator (component card + all-currency pricing). *(#1)*
+4. Build the ADR 0012 Desk workspace on top of it — the demoable front door. *(#2)*
+5. Build the now-resolved structural offerings when those products are scheduled — asset-less
+   metered services (#5, [ADR 0013](docs/adr/0013-team-level-metered-services-synthesized-subject.md))
+   and Domains (#6, [ADR 0014](docs/adr/0014-domains-live-registrar-pricing-threshold-renewals.md)).
 
 ---
 
@@ -112,6 +166,8 @@ The end-to-end composable-pricing slice is implemented and green (552 tests):
 
 - **Code** (#79–#84 + UI refinements): branch `custom-plans` in the central app; 552 tests
   green; console builds (Node 20); build artifacts are gitignored.
-- **ADRs 0011, 0012**: this specs repo (branch `plan-writeup`).
+- **ADRs 0011, 0012** (pricing authority, verb-first workspace) and **0013, 0014** (team-level
+  metered services, Domains live-registrar pricing): this specs repo (branch `plan-writeup`).
+  **ADR 0003** is now marked deprecated-never-implemented (money is float `Currency`).
 - Pricing storage/resolution, price-lock-as-grandfathering, and the customer picker are
   **unchanged** by the open items above — those are authoring/IA and new-offering decisions.

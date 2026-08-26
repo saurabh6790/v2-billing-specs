@@ -1,0 +1,5 @@
+flowchart TD
+    R["Build one bill"] --> A["a query per service"]
+    A --> B["a query per usage row"]
+    B --> C["`re-read the whole account,
+once per region`"]

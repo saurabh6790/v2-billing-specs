@@ -1,0 +1,17 @@
+flowchart LR
+    B["`Write an
+'Initiated' attempt
+and commit it —
+key = invoice +
+attempt number`"] --> D["`Only then
+call the gateway,
+handing over
+the key`"]
+    D --> E{"`Seen this
+key before?`"}
+    E -->|"No"| F["`Charges,
+once`"]
+    E -->|"Yes"| G["`Replays the
+first result.
+Does not
+charge again`"]

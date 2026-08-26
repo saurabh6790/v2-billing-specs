@@ -18,16 +18,16 @@ Model tax correctly as **three structurally different mechanics** — not one ra
 |-------|------|-------|
 | output_tax_type | Select | GST / VAT / none (additive) |
 | output_tax_rate | Float | a percentage, not money — stays `Float` |
-| output_tax_amount | Long Int | **Minor units** — `round_half_up(subtotal × output_tax_rate / 100)`, rounded once. Added to total. [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) |
+| output_tax_amount | Currency | Float, **major units** — `round(subtotal × output_tax_rate / 100, 2)`, rounded once. Added to total. *([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) minor-units model deprecated.)* |
 | zero_rating_reason | Select | sez_lut / export / null |
 | tds_applicable | Check | customer self-declares (has TAN) |
 | tds_rate | Float | a percentage, not money — stays `Float` |
-| tds_amount | Long Int | **Minor units** — `round_half_up(total × tds_rate / 100)`, withheld; reduces collected, not total. **0 at launch** |
+| tds_amount | Currency | Float, **major units** — `round(total × tds_rate / 100, 2)`, withheld; reduces collected, not total. **0 at launch** |
 | tds_certificate_received | Check | gate for closing a withheld invoice |
 
 ## Collection & paid-state
 
-All amounts below are **integer minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)); the rate fields are percentages.
+All amounts below are float `Currency` in **major units** (the [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) integer minor-units model was never implemented and is deprecated); the rate fields are percentages.
 
 - `total = subtotal + output_tax_amount` (exact integer addition)
 - `expected_collection = total − tds_amount` (the auto-charge / mandate target)

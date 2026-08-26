@@ -29,10 +29,12 @@ class GatewayAdapter:
 ```
 
 Notes on the seam:
-- **Amounts cross the seam as integer minor units** — `charge`/`refund` read the invoice/attempt
-  amount (already paisa/cent — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) and pass
-  it straight to Razorpay `amount` (paise) / Stripe `amount` (cents). No float→int conversion, no
-  rounding at the boundary: the integer billing computed is the integer charged.
+- **Each adapter converts to its gateway's minor units at the boundary** — money is stored as a float
+  `Currency` in major units (₹, $); `charge`/`refund` read the invoice/attempt amount and the adapter
+  converts it to the integer units its gateway API requires — Razorpay `amount` (paise), Stripe
+  `amount` (cents) — at the call. That conversion is local to the adapter, not a system-wide storage
+  model. *([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)'s integer minor-units storage
+  was never implemented and is deprecated.)*
 - `validate_credentials` makes the **cheapest possible authenticated read** against the gateway (Stripe `Account.retrieve()`, Razorpay an authed `payments` fetch) purely to prove the keys work. It returns the gateway account identity (used to confirm the keys match the expected account/currency) and raises `GatewayAuthError` on rejected credentials — it never charges or mutates anything.
 - `register_webhook` programmatically creates the webhook endpoint at the gateway pointed at this site's callback URL and returns the signing `secret` to store. Stripe `WebhookEndpoint.create(...)` returns a `whsec_…` secret; Razorpay's create-webhook API takes a secret the caller chooses, so the adapter **generates a strong random secret server-side**, registers it, and returns it. Gateways that can't self-register fall back to the base default (`GatewayUnsupported`) and the admin pastes the secret manually.
 - `parse_webhook_event` receives headers because Razorpay's dedupe id is in the `X-Razorpay-Event-Id` header while Stripe's is in the body.
@@ -111,7 +113,7 @@ active → expired (monthly expiry scheduler)
 | priority | Int | **Fallback order** — 0 = primary, 1 = first backup, … (team-scoped, dense) |
 | display_label | Data | "Visa ····4242" |
 | expiry_month / expiry_year | Int | |
-| mandate_max_amount | Long Int | **Minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) = trust-tier cap (mandate methods only) |
+| mandate_max_amount | Currency | Float, **major units** = trust-tier cap (mandate methods only) |
 | validated_at | Datetime | |
 
 **No duplicate card across slots.** A team cannot register the same card (same `gateway_method_id`) twice — the controller rejects it on validate. Using the same card as both primary *and* backup gives no real fallback, so it is disallowed.
@@ -191,7 +193,7 @@ The `authorised` event advances only from `initiated` (it never walks a terminal
 | invoice | Link → Invoice | |
 | gateway | Link → Payment Gateway | |
 | payment_method | Link → Payment Method | |
-| amount / currency | Long Int / Data | amount in **minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) |
+| amount / currency | Currency / Data | amount as a float in **major units** (converted to the gateway's minor units at the boundary) |
 | idempotency_key | Data | Unique — drives gateway dedupe |
 | status | Select | initiated / authorised / captured / failed / refunded |
 | gateway_transaction_id | Data | |
@@ -226,7 +228,7 @@ The `authorised` event advances only from `initiated` (it never walks a terminal
 | name | Data | |
 | payment_attempt | Link → Payment Attempt | The original charge |
 | invoice | Link → Invoice | Stays `Paid` (no "refunded" state) |
-| amount / currency | Long Int / Data | amount in **minor units** ([ADR 0003](docs/adr/0003-money-as-integer-minor-units.md)) |
+| amount / currency | Currency / Data | amount as a float in **major units** (converted to the gateway's minor units at the boundary) |
 | destination | Select | source (gateway) / wallet (credit ledger) |
 | reason | Small Text | |
 | gateway_refund_id | Data | |

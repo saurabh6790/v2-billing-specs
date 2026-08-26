@@ -32,7 +32,7 @@ from its parts, while presets keep behaving exactly as today.
 - [ ] An invoice for a composed config has **one line** at the locked config rate, time-prorated by days alive; the amount equals the prorated `locked_rate`.
 - [ ] After an admin changes a component rate (#79), a running composed config still bills its **locked** config rate (grandfathered); only a new provision picks up the new rate.
 - [ ] A preset subscription bills exactly one flat line as before (regression).
-- [ ] Test: provision `2 vCPU · 4 GB · 40 GB` composed (config total = `Σ`), generate a full-month invoice, assert one line and the expected total in minor units.
+- [ ] Test: provision `2 vCPU · 4 GB · 40 GB` composed (config total = `Σ`), generate a full-month invoice, assert one line and the expected total (float `Currency`, major units — not minor units; [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md) deprecated).
 
 ## Blocked by
 

@@ -59,7 +59,7 @@ Rates are **not** child tables. Following ERPNext's `Item Price` pattern, every 
 | priced_for | Dynamic Link → `priced_doctype` | The specific bundle (`bundle-2vcpu`) or add-on (`addon-bandwidth`) |
 | cluster | Data | **Blank = global default**; else a region/cluster key (e.g. `ap-south-1`). Plain `Data` for now — upgrade to `Link → Cluster` when a `Cluster` DocType exists |
 | currency | Link → Currency | INR, USD, … — going generic is *adding a document*, never a column |
-| rate | Long Int | **Rate units** (minor × 10⁶), never a float — see [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md). Plan: the flat rate. Add-on: the per-unit rate. Same column, billing decides `qty × rate` vs flat. The sub-minor scale lets a sub-paisa metered rate (€0.009/GB → `900000`) be stored exactly (Stripe `unit_amount_decimal` model) |
+| rate | Currency | Float, **major units**. Plan: the flat rate. Add-on: the per-unit rate. Same column, billing decides `qty × rate` vs flat. A sub-paisa metered rate (€0.009/GB) is stored as the float `0.009` directly. *(Not integer "rate units (minor × 10⁶)" — [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) deprecated.)* |
 
 `autoname` by `{priced_for}-{cluster}-{currency}` (cluster omitted when global). Plan/add-on identities are already distinct (`bundle-2vcpu`, `addon-bandwidth`), so the name is human-readable and the `(priced_doctype, priced_for, cluster, currency)` tuple is unique.
 

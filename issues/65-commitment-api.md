@@ -31,7 +31,7 @@ GET  /api/resource/Team Fixed-Bundle Spend Rollup
 
 `get_active.consumed_discount` sums `discount_applied` across rollup rows for the active Commitment. Testable from [#62](62-commitment-rollup-doctypes.md) onwards with zero-value rollups; accurate figures require [#63](63-commitment-discount-application.md).
 
-Constraints: `floor` validated as positive `Long Int` (reject float or negative); `create` rejects a second active Commitment; customer endpoints auto-scope to the calling team.
+Constraints: `floor` validated as a positive `Currency` amount (reject non-positive); `create` rejects a second active Commitment; customer endpoints auto-scope to the calling team.
 
 ## Acceptance criteria
 

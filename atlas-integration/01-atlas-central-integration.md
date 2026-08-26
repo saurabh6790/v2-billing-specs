@@ -96,11 +96,11 @@ flowchart TD
 ```
 
 - **Projected run-rate** = sum of `shown_rate` over the team's *open* segments
-  in this cluster (which Central already holds, since Central records the event
-  log) plus the new plan's rate, compared against the trust-tier cap for the
-  cluster. Rates are in rate units (minor × 10⁶,
-  [ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)); the cap is in
-  minor units — the gate converts before comparing.
+  in this cluster (which Central already holds, since Central records the runtime)
+  plus the new plan's rate, compared against the trust-tier cap for the cluster.
+  Rates and the cap are both float `Currency` in major units, so the gate compares
+  them directly — no unit conversion. *([ADR 0003](../docs/adr/0003-money-as-integer-minor-units.md)'s
+  integer "rate units (minor × 10⁶)" model was never implemented and is deprecated.)*
 - **The cap is the trust tier, evaluated live from billing history** — not a
   cached signed token ([ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md)).
   Because the check is synchronous on Central, a tier promotion takes effect on

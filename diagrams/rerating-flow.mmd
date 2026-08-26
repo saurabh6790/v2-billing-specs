@@ -1,0 +1,14 @@
+flowchart LR
+    O["`Operator:
+resource type
++ period`"] --> PV["`Dry run: every
+affected invoice,
+now vs rated today`"]
+    PV --> Q{"`Numbers
+look right?`"}
+    Q -->|"No"| STOP["`Nothing has
+changed`"]
+    Q -->|"Yes"| AP["`Cancel + reissue,
+one at a time.
+Recorded as a Rerating
+Run: what, why, who`"]

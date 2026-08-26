@@ -1,0 +1,14 @@
+{
+  "name": "billing-diagram-render",
+  "private": true,
+  "description": "Render the .mmd sources to Excalidraw-style SVGs.",
+  "scripts": {
+    "build": "esbuild entry.js --bundle --format=iife --outfile=bundle.js --define:process.env.NODE_ENV='\"production\"' --loader:.woff2=dataurl --loader:.ttf=dataurl",
+    "render": "npm run build && node render.js"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.1",
+    "@excalidraw/mermaid-to-excalidraw": "^2.2.2",
+    "esbuild": "^0.25.0"
+  }
+}

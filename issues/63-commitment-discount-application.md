@@ -6,14 +6,14 @@
 
 Implement the floor-met branch of `evaluate_commitment()`: when a team's fixed-bundle spend meets the committed floor, apply the discount to fixed-bundle invoice lines and record it on the rollup.
 
-Discount math per `fixed_bundle` line item (all integer minor units — ADR 0003):
+Discount math per `fixed_bundle` line item (all float `Currency`, major units — ADR 0003 minor-units model deprecated):
 
 ```
-discounted_amount = round_half_up(line_amount × (1 − discount_pct / 100))
+discounted_amount = round(line_amount × (1 − discount_pct / 100), 2)
 discount_given    = line_amount − discounted_amount
 ```
 
-`discount_pct` is the only Float in this path; the result rounds once to a minor-unit integer per line item. Metered and clawback lines are never touched.
+`discount_pct` is a percentage rate; the result rounds once to the currency's 2 decimals per line item. Metered and clawback lines are never touched.
 
 On floor met: stamp rollup `floor_met = True`, `discount_applied = Σ discount_given`. If `billing_period` is in or past `ends_at`, mark Commitment `completed`. Forecast projected total reflects the discount for committed teams.
 
@@ -24,7 +24,7 @@ On floor met: stamp rollup `floor_met = True`, `discount_applied = Σ discount_g
 - [ ] A team that upgrades or swaps bundles within the period but stays at or above the floor still receives the discount with no extra charge.
 - [ ] Commitment status → `completed` when `ends_at` has elapsed and the floor was met throughout.
 - [ ] Forecast projected total reflects the discount for committed teams.
-- [ ] All amounts remain integer minor units end-to-end; no float money at rest.
+- [ ] All amounts are float `Currency` in major units, rounded once per line item (ADR 0003 minor-units model deprecated).
 - [ ] Test: floor met → discounted lines; floor met on final month → completed; metered lines untouched.
 
 ## Blocked by
