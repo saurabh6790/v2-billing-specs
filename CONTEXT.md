@@ -171,6 +171,32 @@ VM), so it survives the VM's termination, now owned by the team and billed at th
 snapshot rate.
 _Avoid_: Deleted, cancelled, off.
 
+### Who pays
+
+**Partner team**:
+An ordinary Team that **settles invoices for other teams**. Nothing about its own billing changes —
+it has a wallet, payment methods, a trust tier and its own servers. Its cycle total is what it runs
+plus what each team it settles for ran ([partner-billing.md](partner-billing.md),
+[ADR 0024](docs/adr/0024-partner-billing-budget-allocation.md)).
+_Avoid_: reseller (accurate but unused in the product), sponsor (misstates who is out of pocket).
+
+**Billed-through customer**:
+A Team whose invoices are **raised to it and settled by a partner**. It holds no payment method and
+never meets a gateway. Marked by `Billing Profile.settled_by`.
+_Avoid_: sub-account, child team, sponsored team. (It is an ordinary Team; only who settles changes.)
+
+**Budget allocation**:
+What a partner will let one customer consume in a **cycle**. Resets each cycle, does not carry over,
+and is the partner's assertion of what that customer has already paid *them* — Central never
+verifies it, because that payment happens outside Central. The partner **allocates** it.
+_Avoid_: sponsorship, allowance, credit limit, spending cap (that is the trust tier).
+
+**Remaining budget**:
+`budget − consumed this cycle`, and the number both sides read. It bounds **new provisions only** —
+composed into the existing cap check as `min(tier cap, remaining budget)`. Everything already
+running keeps running; a budget set below what is already spent means "no more", never "off".
+_Avoid_: balance (that is the wallet), headroom (that is the tier's).
+
 ### Projecting forward
 
 **Projection**:

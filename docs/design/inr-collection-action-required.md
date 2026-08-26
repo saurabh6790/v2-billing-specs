@@ -1,7 +1,7 @@
 # Design brief — INR collection & the "Action Required" moment
 
 **Audience:** product design (UX/UI). **Status:** requirements for build/refactor.
-**Behaviour spec:** [payments-inr.md](../../payments-inr.md) · **Decision:** [ADR 0005](../adr/0005-inr-collection-emandate-threshold-prepaid.md).
+**Behaviour spec:** [payments-inr.md](../../payments-inr.md) · **Decisions:** [ADR 0005](../adr/0005-inr-collection-emandate-threshold-prepaid.md) (the threshold), [ADR 0022](../adr/0022-stripe-primary-razorpay-carries-the-rest.md) and [ADR 0023](../adr/0023-stripe-first-by-capability-two-payment-surfaces.md) (the two payment surfaces).
 
 This brief describes *what the customer must be able to do and understand*. It
 does not prescribe final visuals — that's your call. It does fix the states,
@@ -35,7 +35,7 @@ The UI must represent each clearly (a small status indicator in the billing area
 
 | State | Plain meaning | Tone |
 |-------|---------------|------|
-| **Auto-pay (e-mandate)** | "We charge your card/UPI automatically." | Calm / invisible |
+| **Auto-pay** (`auto_charge`) | "We charge your card/UPI automatically." | Calm / invisible |
 | **Action required** | "Your bill is growing — choose how to keep paying." | Attention, not alarm |
 | **Pay per invoice** | "You pay each bill yourself." | Neutral |
 | **Prepaid wallet** | "You pay from your credit balance." | Neutral, shows balance |
@@ -43,6 +43,57 @@ The UI must represent each clearly (a small status indicator in the billing area
 ---
 
 ## 3. Screens & surfaces to design
+
+### 3.0 The two payment surfaces
+
+There are two, they are not the same screen, and conflating them is the mistake to
+avoid. **Wallet recharge** pays once with the customer present. **Auto-pay setup**
+saves a mandate that debits later with nobody present. Different instruments are
+available on each, because different instruments can be saved
+([ADR 0023](../adr/0023-stripe-first-by-capability-two-payment-surfaces.md)).
+
+**Wallet recharge** offers: Card · RuPay card · UPI · Netbanking.
+
+**Auto-pay setup** offers: Card (Visa or Mastercard) · RuPay card · UPI. Netbanking
+is absent, because it cannot be saved.
+
+**Amex and Diners belong nowhere on this screen**, and that has to be said out loud
+rather than left as an absence. No rail in India registers a mandate on those
+networks, so a customer holding one cannot auto-pay at all and the prepaid wallet
+is their path.
+
+Say it in one line, and make that line the way out:
+
+> Amex or Diners can't auto-pay — top up a wallet →
+
+It sits under the tiles on the auto-pay screen and opens the top-up directly. No
+panel, no second button, and nothing to read for the customer holding a Visa. The
+same line appears on the choice of how to pay (§3.2), where it informs the
+decision rather than arriving after it.
+
+The earlier draft explained which bank rails register mandates, which is a
+question nobody asked, and then made the customer press a button to get where the
+sentence had already pointed them. Prototype and rationale:
+[four flows](https://claude.ai/code/artifact/1392aec4-8068-446a-92f2-1e36c1db3f6f).
+
+Requirements for both:
+- **"RuPay card" is spelled out**, never softened to "Other cards". A customer
+  holding an unusual Visa would read "Other" as *their* card and land on a rail
+  that cannot take it.
+- **Auto-pay's card tile says which networks it takes.** Our card rail registers
+  mandates on Visa and Mastercard only; anything else has to go the other way. Say
+  that in the tile ("Visa and Mastercard") rather than letting the customer find
+  out at authorisation. The RuPay tile beside it is where they land instead.
+- **Never name the gateway.** The customer chose an instrument, not a provider,
+  and two tiles on one screen may sit on different providers.
+- Non-INR customers see a card form, no picker.
+- **If a card fails**, offer the alternative rail once, with the amount already
+  filled in. Never an empty second card form, and never a retry loop that looks
+  like the first attempt did not happen.
+- **Auto-pay warns about the timing on the card rail.** A mandate debit is
+  announced to the customer and then held for a day before it is taken. That is a
+  bank requirement, not a delay we invented, and it is worth one line so an
+  invoice that says "paid tomorrow" doesn't read as broken.
 
 ### 3.1 The "Action Required" banner (the centrepiece)
 
@@ -104,7 +155,7 @@ Requirements:
 
 For `manual_checkout` customers and any open balance.
 - Invoice list shows status + a **Pay now** button on open invoices.
-- "Pay now" opens the Razorpay checkout (hosted); on return, reflect
+- "Pay now" opens the hosted checkout of whichever rail the instrument sits on; on return, reflect
   **pending → paid** (settlement is webhook-confirmed; show an interim "confirming
   payment…" state, never a premature "Paid").
 - Handle: success, cancelled, failed, and "still confirming" (webhook lag).
@@ -115,7 +166,7 @@ For `prepaid` customers.
 - Wallet balance shown prominently; **Add credits** primary action.
 - Amount entry with sensible suggestions (e.g. cover open balance; 1×/2×/3×
   recent monthly spend).
-- Razorpay checkout; same pending → confirmed handling as §3.3.
+- Hosted checkout on the instrument's own rail; same pending → confirmed handling as §3.3.
 - **Low-balance state**: when the wallet won't cover the forecast, show a calm
   "Top up to avoid interruption" prompt with the shortfall amount — not alarm,
   until it's actually overdue.
@@ -142,6 +193,8 @@ The same moments arrive as in-app + email notifications ([#20](../../issues/20-n
 
 - **Numbers, not jargon.** Say "₹15,000 limit for automatic payments," never
   "RBI AFA e-mandate cap."
+- **No gateway names anywhere in customer copy.** "Stripe" and "Razorpay" are our
+  plumbing; the customer has a card, a UPI ID or a bank account.
 - **Reassure before instruct.** Lead with "services keep running," then the ask.
 - **Name the benefit of each option**, not just the mechanic.
 - **Never imply blame** ("you exceeded…"). Frame as growth ("your usage is

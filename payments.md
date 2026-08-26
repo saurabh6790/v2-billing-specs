@@ -41,17 +41,18 @@ Notes on the seam:
 - `verify_payment_signature` is the **client checkout callback** verification (Razorpay UPI Autopay authorisation / one-time order) — distinct from `verify_webhook_signature`. Stripe confirms via intent status, so it leaves this unsupported.
 - Declines return a failed `PaymentResult`; transient/network failures raise `GatewayTimeout` so a retry reuses the same idempotency key.
 
-Implemented: Stripe (USD/EUR, Payment Intents, SetupIntent, micro-charge — the off-session saved-method rail), Razorpay (INR, one-time top-ups + card/UPI e-mandate gated ≤ ₹15k per [ADR 0005](docs/adr/0005-inr-collection-emandate-threshold-prepaid.md)). PayPal is a one-time method *inside* Razorpay (international acceptance), not a separate adapter — the standalone PayPal adapter ([#25](issues/25-paypal-adapter.md)) is retired.
+Implemented: Stripe (Payment Intents, SetupIntent, micro-charge — the off-session saved-method rail, and under [ADR 0023](docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md) the rail for **every instrument a Stripe India account can carry**: Visa, Mastercard and Amex one-time, and Visa/Mastercard India card e-mandates), Razorpay (**everything Stripe India cannot take at all** — RuPay, UPI one-time, UPI Autopay, netbanking, and card mandates on networks Stripe will not register). PayPal is a one-time method *inside* Razorpay (international acceptance), not a separate adapter — the standalone PayPal adapter ([#25](issues/25-paypal-adapter.md)) is retired.
+
+The ₹15,000 silent-debit ceiling is an **RBI rule and applies to Stripe India identically** — moving the rail does not move the ceiling. See [payments-inr.md](payments-inr.md).
 
 ## Payment Gateway (config)
 
-One row per configured gateway. Credentials and webhook secrets are stored encrypted; the adapter for a charge/refund/webhook is resolved by `adapter_key`.
+**Exactly one row per provider, named after its adapter** — `Stripe`, `Razorpay`, `Paypal` ([ADR 0021](docs/adr/0021-one-payment-gateway-record-per-provider.md)). The rows are seeded on install/migrate; an admin fills in keys and flips `is_enabled`, and never creates or deletes one. A second row for the same provider would be unaddressable — there is one webhook callback URL per adapter, and nothing on the row carries a team/region/entity to route on. Credentials and webhook secrets are stored encrypted; the adapter for a charge/refund/webhook is resolved by `adapter_key`.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| name | Data | e.g. GW-Stripe, GW-Razorpay |
-| title | Data | Display name |
-| adapter_key | Select | stripe / razorpay / paypal — selects the `GatewayAdapter` impl |
+| name | Data | = `adapter_key` (`autoname: field:adapter_key`); renaming is off |
+| adapter_key | Select | Stripe / Razorpay / Paypal — selects the `GatewayAdapter` impl. `set_only_once`: it names the row, so it cannot be repointed at another provider |
 | currencies | Table → Payment Gateway Currency | Currencies this gateway can settle; one row per currency |
 | api_key | Password | Encrypted |
 | api_secret | Password | Encrypted |
@@ -67,10 +68,16 @@ One row per configured gateway. Credentials and webhook secrets are stored encry
 |-------|------|-------|
 | currency | Link → Currency | e.g. USD, INR, EUR |
 | is_default | Check | This gateway is the default handler for this currency. At most one enabled gateway may have `is_default = True` per currency — saving a row with `is_default = True` clears the flag on any other gateway row for the same currency. |
+| max_silent_charge | Currency | Largest amount this gateway may pull **off-session** in this currency. Empty = no ceiling. Stripe INR = ₹15,000, Stripe USD = empty, Razorpay INR = ₹15,000 |
+| requires_predebit_notice | Check | **We** send the pre-debit notification and hold the debit for 24h on this rail. False where the gateway does it itself: Stripe's India flow notifies on confirm and holds the intent in `processing` for 26h, so arming our own window on top would delay the charge by two days and notify twice ([ADR 0023](docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md) §6) |
 
-A gateway handles as many currencies as it has rows in this child table (e.g. Stripe can carry USD, EUR, GBP; Razorpay carries INR). The `is_default` check is how the resolver picks the gateway when a team's billing currency matches multiple configured gateways. Marking a different gateway's row `is_default` for a currency is all that is needed to switch routing — no other field changes.
+A gateway handles as many currencies as it has rows in this child table (Stripe carries USD, EUR, GBP **and INR**; Razorpay carries INR). The `is_default` check is how the resolver picks the gateway when a team's billing currency matches multiple configured gateways. Marking a different gateway's row `is_default` for a currency is all that is needed to switch routing — no other field changes.
 
-**Gateway resolver** (`gateways.resolve_gateway_for_currency(currency)`): queries `Payment Gateway Currency` for rows where `currency = <team currency>`, `is_default = True`, and the parent gateway `is_enabled = True`. Returns the matching gateway; raises `GatewayNotFound` if none configured.
+**The silent-debit ceiling lives here, not on the adapter** ([ADR 0022](docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md) §6). It is a property of *(gateway, currency)*: Stripe pulls any amount in USD and at most ₹15,000 in INR, because the RBI ceiling follows the currency and the merchant's country, not the provider. A per-adapter scalar cannot express that.
+
+**Gateway resolver** (`gateways.resolve_gateway_for_currency(currency)`): queries `Payment Gateway Currency` for rows where `currency = <team currency>` and `is_default = True`, and returns the first whose parent gateway `is_enabled = True`; raises `GatewayNotFound` if none configured. Every default row is considered, not just one — the uniqueness rule only clears the flag on *enabled* gateways, so a gateway that was switched off keeps its default flag and must not shadow the live one.
+
+**Resolving a specific rail** (a PayPal top-up, or the Razorpay a Via-Razorpay PayPal row delegates to) is a primary-key read: the row named after the adapter, checked for `is_enabled` and for a currency row. The same is true of the webhook spine — `webhooks._resolve_gateway(adapter_key)` loads the row by name, so there is no ambiguity about which `webhook_secret` verifies a signature.
 
 Managed only via the admin **Gateway Config** panel (see [dashboard.md](dashboard.md)). Secrets are never returned by any customer-facing API.
 
@@ -93,6 +100,38 @@ This is admin-only and gateway-setup-time; it does not touch the hot charge/webh
 
 Add card → gateway setup flow (Stripe SetupIntent / Razorpay order) → customer confirms → **micro-charge (₹1 / $0.50) captured and refunded** to prove the card is live → `active`.
 
+**The customer picks the instrument; the instrument picks the gateway**, and **Stripe takes everything it can** ([ADR 0023](docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)). Razorpay is consulted only where Stripe India cannot serve the instrument or the network at all, so a Stripe product change moves a rail without re-opening the decision.
+
+There are **two surfaces**, and they carry different instruments. Wallet recharge is one-time, the customer is present, and no ceiling applies. A mandate is off-session, the customer is absent, and the ₹15,000 rule applies.
+
+*Wallet recharge* (see [credits.md](credits.md)):
+
+| Tile | Gateway |
+|------|---------|
+| Card — Visa / Mastercard / Amex | **Stripe** |
+| RuPay card | **Razorpay** — Stripe carries no RuPay |
+| UPI | **Razorpay** — Stripe India cannot accept UPI |
+| Netbanking | **Razorpay** — Stripe has no netbanking product |
+
+*Auto-pay mandate* (the Payment Method this section describes):
+
+| Tile | Gateway |
+|------|---------|
+| Card — Visa / Mastercard | **Stripe** (India e-mandate; ₹15k ceiling off-session) |
+| Card — RuPay | **Razorpay** — Stripe registers India mandates on Visa and Mastercard only |
+| UPI Autopay | **Razorpay** |
+
+**An Amex or Diners card cannot auto-pay at all.** Stripe registers India mandates on Visa and
+Mastercard; Razorpay's standing instructions cover Visa, Mastercard and RuPay. Between the two rails
+there is nowhere to put one, so the surface says so and points at prepaid rather than offering a tile
+that fails at registration.
+
+Netbanking never appears on the mandate surface: it pays once and saves nothing, so offering it there is a promise we cannot keep.
+
+We do **not** detect the card network. Stripe Elements iframes the PAN, so the digits never reach the server, and a BIN table we cannot check is not a design. Instead the mandate surface **names the two networks Stripe can hold a mandate for** and puts the other rail beside it. The RuPay tile says "RuPay card", never "Other cards", or a customer with an unusual Visa lands on the wrong rail. Non-INR teams see a Stripe card form.
+
+**Gateway is a property of the method, not of the charge** (§4). Once a Payment Method exists, its own `gateway` settles it for the rest of its life. We never re-probe Stripe for a card we already know is RuPay, and a charge never shops between gateways for a better rate or a healthier endpoint.
+
 ```
 pending_validation → active
                    ↘ failed
@@ -114,6 +153,7 @@ active → expired (monthly expiry scheduler)
 | display_label | Data | "Visa ····4242" |
 | expiry_month / expiry_year | Int | |
 | mandate_max_amount | Currency | Float, **major units** = trust-tier cap (mandate methods only) |
+| fallback_reason | Select | Why this method is not on the primary rail: `rupay` / `stripe_decline` / `customer_choice`. Empty for a method added on the default rail |
 | validated_at | Datetime | |
 
 **No duplicate card across slots.** A team cannot register the same card (same `gateway_method_id`) twice — the controller rejects it on validate. Using the same card as both primary *and* backup gives no real fallback, so it is disallowed.
@@ -130,21 +170,34 @@ A team keeps an **ordered list** of active methods (by `priority`). When credits
 
 Credits are untouched by fallback — they are consumed once before the card legs (the credits-then-card waterfall in [credits.md](credits.md)); fallback only re-charges the card **remainder**.
 
+### Gateway fallback (a card that fails on Stripe)
+
+The upfront instrument picker removes RuPay-by-surprise, but an ordinary Visa can still fail Stripe validation. The offer of the other rail is a **safety net, not the routing mechanism** ([ADR 0022](docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md) §5), and it reuses the ordered-method machinery above rather than adding a second one:
+
+- **Only a terminal decline falls back** — `card_declined`, `card_not_supported`, `authentication_failed`. Network timeouts, `processing` and abandoned 3DS are **ambiguous**: the charge may yet succeed, so they never fall back and the reconciliation job ([#21](issues/21-reconciliation-job.md)) resolves them.
+- The fallback is a **new Payment Attempt** with its own idempotency key, created only once the prior attempt is terminal. One in-flight attempt per invoice, held by the existing `Invoice … FOR UPDATE` lock.
+- **Off-session failures have no interactive fallback.** Nobody is present to authenticate on the other rail, so they degrade to dunning plus an "add another way to pay" notification — the escalate-don't-repeat rule, unchanged.
+- The customer is **never shown an empty second card form**: one tap to the alternative, amount prefilled. A method added this way carries `fallback_reason = stripe_decline`.
+
+**Routing is configuration, not code** (§8). Billing Settings carries a per-currency primary gateway and an `enable_gateway_fallback` switch, so the bet that Stripe India's authorisation rate holds against a domestic acquirer can be reversed without a deploy. Attempt success rate is reported by **gateway × network × currency** from the day this ships, which is the number that settles the bet.
+
 ## Settlement & mandates
 
 See [credits.md](credits.md) for the full settlement model (≥1 source required; credits-then-card waterfall; wallet-gating for credits-only).
 
-> **Updated 2026-06-15 ([ADR 0005](docs/adr/0005-inr-collection-emandate-threshold-prepaid.md)).** Billing is usage-based and **variable**, and an Indian *off-session* recurring debit **above ₹15,000 needs per-cycle re-authentication** (an RBI rule on every gateway). The model below replaces the earlier "cards are exempt, any amount" and "UPI ₹1L gate" framing. Full behaviour + case matrix: [payments-inr.md](payments-inr.md).
+> **Updated 2026-08-08 ([ADR 0022](docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md), revising [ADR 0005](docs/adr/0005-inr-collection-emandate-threshold-prepaid.md)).** Billing is usage-based and **variable**, and an Indian *off-session* recurring debit **above ₹15,000 needs per-cycle re-authentication** — an RBI rule that binds Stripe India exactly as it binds Razorpay. Full behaviour + case matrix: [payments-inr.md](payments-inr.md).
 
-**Saved methods are Stripe-only (off-session, variable, postpaid).** Off-session auto-charge of a variable invoice is the Stripe SetupIntent → off-session PaymentIntent flow; no subscription. The **trust-tier cap** bounds the otherwise-ceilingless off-session charge. Stripe = international in practice (Stripe-India recurring is RBI-constrained too).
+**Saved methods are Stripe wherever Stripe can hold them.** Off-session auto-charge of a variable invoice is the Stripe SetupIntent → off-session PaymentIntent flow; no subscription. We are a **Stripe India merchant**, so INR settles domestically and a Visa or Mastercard mandate is a Stripe mandate. Razorpay keeps the saved methods Stripe will not register: **UPI Autopay**, and card mandates on **RuPay, Amex and Diners**. The **trust-tier cap** bounds every off-session charge, and in INR the `max_silent_charge` on the gateway's currency row bounds it further.
 
-**INR runs on a collection mode, not a blanket mandate.** Each team carries a `collection_mode`:
-- `emandate` — Razorpay card/UPI auto-charge, **only while the debit ≤ ₹15,000** (`INR_EMANDATE_SILENT_MAX = 1_500_000` paise); a pre-debit notification precedes each off-session debit.
-- `manual_checkout` — invoice paid **on-session** via Razorpay checkout (OTP, any amount — on-session carries no ₹15k limit).
-- `prepaid` — wallet funded by Razorpay top-ups; usage draws credits down.
-- `action_required` — transient: an `emandate` team's invoice/forecast crossed ₹15,000. Auto-charge pauses, the account **keeps running**, and an **Action Required** prompt asks the customer to pick `manual_checkout` or `prepaid`. We do **not** build the off-session >₹15k AFA-link auto-charge. (`stripe_auto` is the international postpaid mode.)
+**Collection mode names what the customer experiences, not which provider we called.** Each team carries a `collection_mode`:
+- `auto_charge` — the saved method is debited **off-session** with no customer present. In INR this holds only while the debit stays ≤ ₹15,000, and a pre-debit notification precedes each one; in USD there is no ceiling beyond the tier cap. Whether the ceiling applies is derived at charge time from *(currency, gateway capability)*, so the mode does not have to know.
+- `manual_checkout` — invoice paid **on-session** at a hosted checkout (OTP, any amount; on-session carries no ₹15k limit).
+- `prepaid` — wallet funded by top-ups; usage draws credits down.
+- `action_required` — transient: an `auto_charge` team's invoice or forecast crossed the ceiling. Auto-charge pauses, the account **keeps running**, and an **Action Required** prompt asks the customer to pick `manual_checkout` or `prepaid`. We do **not** build the off-session >₹15k AFA-link auto-charge.
 
-**Capability-driven routing, not hardcoded.** Each adapter declares `supports_off_session_charge`, `max_silent_charge` (Stripe = ∞, Razorpay = ₹15,000), `requires_predebit_notice`, supported currencies. The collection layer asks *"who can pull `amount` in `currency` silently now?"* → Stripe / Razorpay e-mandate / else the customer-chosen path. Top-ups resolve the gateway by currency via the `is_default` row (`gateways.resolve_gateway_for_currency`); the Stripe card is added with Stripe.js Elements against a SetupIntent (PCI: the PAN never reaches the server). **PayPal** is a one-time **method inside Razorpay** (international top-ups), not a standalone adapter — the standalone PayPal adapter ([#25](issues/25-paypal-adapter.md)) is retired.
+The earlier `stripe_auto` and `emandate` were provider names dressed as behaviours, and under ADR 0022 an Indian Stripe card mandate is both at once. They collapse into `auto_charge`.
+
+**Capability-driven routing, not hardcoded.** The capabilities are read from the gateway's **`Payment Gateway Currency`** row — `max_silent_charge`, `requires_predebit_notice` — beside the adapter's own `supports_off_session_charge`. The collection layer asks *"who can pull `amount` in `currency` silently now?"* and, if nobody can, routes to the customer-chosen path. **Top-ups resolve the gateway from the instrument the customer picked**, not from the currency default ([ADR 0023](docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)) — a currency-wide default would send every INR top-up to one provider, including the card ones Stripe should take. A card is added with Stripe.js Elements against a SetupIntent (PCI: the PAN never reaches the server). **PayPal** is a one-time **method inside Razorpay** (international top-ups), not a standalone adapter — the standalone PayPal adapter ([#25](issues/25-paypal-adapter.md)) is retired.
 
 ## Webhooks (signature-first)
 

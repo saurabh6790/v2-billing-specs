@@ -26,6 +26,7 @@ Spec for the **Billing** layer of Central — the sole system of record for mone
 | [payments.md](payments.md) | Gateway adapter, payment methods, settlement, mandates, webhooks, retry, reconciliation |
 | [credits.md](credits.md) | Credit ledger, wallet, settlement waterfall |
 | [commitment.md](commitment.md) | Commitment — team spend-floor, discount, clawback |
+| [partner-billing.md](partner-billing.md) | Partner resale — budget allocations, the provision ceiling, who is invoiced and who settles ([ADR 0024](docs/adr/0024-partner-billing-budget-allocation.md)) |
 | [tax.md](tax.md) | Three-mechanic tax model (output / zero-rating / withholding) |
 | [security.md](security.md) | Security standard — trust boundaries, threat model, controls, audit checklist, safe-extension rules |
 | [observability.md](observability.md) | Observability standard — two-plane metrics (runtime telemetry + auditable business metrics), catalogue per subsystem, alerting, coverage checklist |
