@@ -23,6 +23,11 @@ up engineers and non-billing readers.
 | **Money representation** | Money is stored as a float `Currency` in **major units** (₹, $) throughout — rates, invoice amounts, credit balances. *(The integer minor-units / "rate units (minor × 10⁶)" model of [ADR 0003](docs/adr/0003-money-as-integer-minor-units.md) was never implemented and is deprecated; the only minor-unit conversion is inside a gateway adapter that requires it.)* |
 | **Allowance** | The quantity included in your plan before extra charges kick in. A plan with 1 TB transfer means 1 TB is free; above that, overage applies |
 | **Locked allowance** | The included allowance frozen at the time you subscribed — same concept as price-lock but for quantities, not rates |
+| **Private cluster** | A bare-metal server the customer owns and we manage. Their hardware, our control plane. Customer-facing word is "private cluster" — never "BYOD", which reads as bring-your-own-laptop |
+| **Node** | One physical machine inside a private cluster. It is the thing that gets billed — not the cluster it sits in, and not the VMs running on it |
+| **Management fee** | The monthly charge for managing one node. Replaces per-VM charging on a private cluster: you bought the compute, you pay us to run it |
+| **Pricing basis** | Which rate card a node is priced on — per physical core, per thread, or flat per node. Set by us when the node is registered, not chosen by the customer |
+| **Billing treatment** | What a team's VMs cost on a given private cluster: `Free` (the owner's own workload, the normal case) or `Standard` (ordinary region rates — someone else's team on your hardware) |
 
 ---
 
