@@ -1,7 +1,7 @@
 # Invoice cancellation, refunds and disputes
 
 Date: 2026-09-30
-Status: For review. Nothing here is built.
+Status: Full cancellation, refunds and lost disputes are built (Central `erpnext-sync`, commits `056f76ad`, `aca15ac1`, `a59c7590`). Partial refunds are designed, not built.
 
 ## What is expected
 
@@ -141,14 +141,53 @@ is earlier. After that date, the action is refused with this reason.
 5. Lose a Stripe test dispute (test card `4000000000000259`, losing evidence). The
    invoice is cancelled, with a credit note and a Pay entry, and no refund.
 
-## Decisions needed
+## Decisions
 
-1. **Wallet part in ERPNext.** The plan uses two Payment Entries through a Wallet
-   Clearing account. The other choice is one Journal Entry. Payment Entries are what
-   the invoice already allocates, so they are proposed.
-2. **Dispute and the wallet part.** When a lost dispute cancels a mixed invoice, should
-   the wallet part go back to the wallet? The customer has already won the card part
-   back.
-3. **Partial refunds.** This plan covers cancelling the whole invoice. A refund of part
-   of an invoice needs a credit note for that part. Build it now, or later?
-4. **Credit note series name** to create in ERPNext.
+1. **Wallet part in ERPNext.** Two Payment Entries through a Wallet Clearing account,
+   one per currency.
+2. **Dispute and the wallet part.** When a dispute takes back the whole card charge,
+   the invoice is cancelled and the wallet part goes back to the wallet too. A dispute
+   over part of the charge is left to a person, because it needs a partial credit note.
+3. **Partial refunds.** Designed below. Build after full cancellation is tested.
+4. **Credit note series.** `CN/.TFY./.#####`. It is created by hand in ERPNext.
+
+## Partial refunds (design)
+
+A partial refund gives back part of a paid invoice. The invoice stays Paid, because
+the rest of the supply stands.
+
+### What the operator gives
+
+- The amount to give back, including GST. It cannot be more than what is left after
+  earlier partial refunds.
+- Where it goes: to the card or UPI (up to what that charge paid, less earlier card
+  refunds), or to the wallet.
+- A reason.
+
+### What happens
+
+1. **Split the amount.** The amount is split into net and GST at the invoice's own
+   rate: `net = amount / (1 + rate)`, GST is the rest.
+2. **Credit note for that part.** In ERPNext, a credit note against the Sales Invoice
+   with one line of `net` for the service item and the matching GST rows. It is not a
+   full return, so it is built directly, not with `make_sales_return`.
+3. **Money back.**
+   - To the card or UPI: a gateway refund for the amount, and a Pay entry against the
+     credit note, as for a full refund.
+   - To the wallet: paid-in credit of `net` with `GST` as its advance GST, and in
+     ERPNext the two Payment Entries through Wallet Clearing, as for a full refund.
+4. **Central.** The invoice records `credited_amount` (the running total). A Refund is
+   kept for each partial refund. When `credited_amount` reaches the total, the invoice
+   moves to Cancelled.
+
+### Partial dispute
+
+A lost dispute over part of a charge becomes a partial refund of the disputed amount
+to the "Dispute" destination: a credit note for that part, a Pay entry out of the
+Stripe clearing account, and no gateway refund.
+
+### Checks
+
+- The GST deadline for credit notes applies to each partial refund.
+- The sum of partial refunds and the card refunds never exceeds what was captured.
+- An invoice with a full cancellation under way takes no partial refund.
