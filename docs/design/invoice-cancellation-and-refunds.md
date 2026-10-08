@@ -1,7 +1,7 @@
 # Invoice cancellation, refunds and disputes
 
 Date: 2026-09-30
-Status: Full cancellation, refunds and lost disputes are built (Central `erpnext-sync`, commits `056f76ad`, `aca15ac1`, `a59c7590`). Partial refunds are designed, not built.
+Status: Built on Central `erpnext-sync`: full cancellation, refunds, lost disputes, and partial refunds.
 
 ## What is expected
 
@@ -148,10 +148,10 @@ is earlier. After that date, the action is refused with this reason.
 2. **Dispute and the wallet part.** When a dispute takes back the whole card charge,
    the invoice is cancelled and the wallet part goes back to the wallet too. A dispute
    over part of the charge is left to a person, because it needs a partial credit note.
-3. **Partial refunds.** Designed below. Build after full cancellation is tested.
+3. **Partial refunds.** Built. A refund goes to the wallet by default. It goes to the card or UPI only when a captured charge on the invoice paid at least that much, so an invoice paid from purchased credits is always refunded to the wallet.
 4. **Credit note series.** `CN/.TFY./.#####`. It is created by hand in ERPNext.
 
-## Partial refunds (design)
+## Partial refunds
 
 A partial refund gives back part of a paid invoice. The invoice stays Paid, because
 the rest of the supply stands.
