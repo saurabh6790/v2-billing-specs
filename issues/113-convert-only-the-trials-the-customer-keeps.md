@@ -33,3 +33,5 @@ billed. The user did not ask for Raven back. This ends in a refund or a dispute.
 ## Blocked by
 
 None.
+
+**Done** on central `fix/trial-billing`: `b7bc102c`.

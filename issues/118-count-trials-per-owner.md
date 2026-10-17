@@ -22,3 +22,5 @@ The welcome credit is already checked per owner (`has_owner_received_welcome_cre
 ## Blocked by
 
 None.
+
+**Done** on central `fix/trial-billing`: `a998c763`.

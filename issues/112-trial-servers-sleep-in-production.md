@@ -36,3 +36,5 @@ def idle_shutdown_seconds(team: str) -> int:
 ## Blocked by
 
 None. Ship first.
+
+**Done** on central `fix/trial-billing`: `26320171`.

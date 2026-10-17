@@ -26,3 +26,5 @@ adds a card gets three subscriptions at once, even if they are above its limit.
 ## Blocked by
 
 #113.
+
+**Done** on central `fix/trial-billing`: `5be9679d`.

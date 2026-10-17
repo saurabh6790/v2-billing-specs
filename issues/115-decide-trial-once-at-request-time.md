@@ -38,3 +38,5 @@ minutes, so it is rare, but the result is not predictable and it is hard to expl
 ## Blocked by
 
 None. #114 and #117 build on it, and #112 can switch to the stored flag once it lands.
+
+**Done** on central `fix/trial-billing`: `cb30ab35`.

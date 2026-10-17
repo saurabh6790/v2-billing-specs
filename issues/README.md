@@ -122,7 +122,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [118](118-count-trials-per-owner.md) | Count open trials per owner, not per team | AFK | — | **TR** |
 | [119](119-convert-trials-for-teams-that-pay-without-a-card.md) | Convert trials for Manual Checkout and prepaid teams | **HITL** | 113 | **TR** |
 | [120](120-card-setup-charge-matches-what-we-say.md) | Card setup charges what the screen says (Stripe $0.50, Razorpay ₹1) | **HITL** | — | **TR** |
-| [121](121-welcome-credit-amount-per-product.md) | Welcome credit amount per product | AFK | — | **TR** |
+| [121](121-welcome-credit-amount-per-product.md) | ~~Welcome credit amount per product~~ (dropped) | — | — | **TR** |
 | [122](122-metered-services-and-trial-sites.md) | Rule for team-level metered usage inside a trial site | **HITL** | — | **TR** |
 
 ## Atlas Integration milestone (AT)

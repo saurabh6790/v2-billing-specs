@@ -1,6 +1,6 @@
 # 121 — Welcome credit amount per product
 
-**Type:** AFK · **Milestone:** TR · **Area:** `central/signups/doctype/product/`, `central/billing/payments/provisioning.py` · **Write-up:** [trials-review.md](../trials-review.md)
+**Type:** Dropped · **Milestone:** TR · **Area:** `central/signups/doctype/product/`, `central/billing/payments/provisioning.py` · **Write-up:** [trials-review.md](../trials-review.md)
 
 ## Problem
 
@@ -24,3 +24,5 @@ how the user came in.
 ## Blocked by
 
 None.
+
+**Dropped.** The welcome credit is not set per product. It stays one amount per currency in Billing Settings, granted once per owner. "$5 or $10" meant either amount, not a different amount per product.

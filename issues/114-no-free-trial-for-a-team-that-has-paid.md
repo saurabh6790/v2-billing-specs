@@ -29,3 +29,5 @@ while its paid servers are being suspended. No trial path checks account standin
 ## Blocked by
 
 #115, so the decision is stored once and not recomputed.
+
+**Done** on central `fix/trial-billing`: `67b6b39b`.
