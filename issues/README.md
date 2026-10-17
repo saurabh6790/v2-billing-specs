@@ -4,7 +4,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 **Targets:** Demo 30 Jun 2026 · Feature-complete 31 Jul 2026.
 
-**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **SP** = Stripe Primary (Stripe takes every instrument a Stripe India account can carry, Razorpay takes the rest; [ADR 0022](../docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md), corrected by [ADR 0023](../docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)) · **post** = post-launch.
+**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **SP** = Stripe Primary (Stripe takes every instrument a Stripe India account can carry, Razorpay takes the rest; [ADR 0022](../docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md), corrected by [ADR 0023](../docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)) · **TR** = Trials (signup trials meet billing; [trials-review.md](../trials-review.md)) · **post** = post-launch.
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
@@ -113,6 +113,17 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [109](109-gateway-fallback-routing-config.md) | Terminal-decline fallback to the other rail + routing config in Billing Settings + success rate by gateway × network × currency | AFK | 108 | **SP** |
 | [110](110-two-payment-surfaces-capability-routing.md) | Split recharge from auto-pay; route each instrument by what Stripe India can actually carry ([ADR 0023](../docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)) | AFK | 108 | **SP** |
 | [111](111-stripe-owns-its-predebit-window.md) | Stripe runs its own pre-debit window (26h `processing`); map its mandate failure codes | AFK | 107 | **SP** |
+| [112](112-trial-servers-sleep-in-production.md) | Trial servers sleep in production (today only staging teams sleep) | AFK | — | **TR** |
+| [113](113-convert-only-the-trials-the-customer-keeps.md) | A card converts only Active trials; an Ended trial converts when the user starts it | AFK | — | **TR** |
+| [114](114-no-free-trial-for-a-team-that-has-paid.md) | No free trial for a team that has paid before (lapsed card, dunning) | AFK | 115 | **TR** |
+| [115](115-decide-trial-once-at-request-time.md) | Store "is free trial" once on the Resource Action; stop re-reading the card | AFK | — | **TR** |
+| [116](116-check-the-spend-limit-at-conversion.md) | Check the spend limit when trials convert | AFK | 113 | **TR** |
+| [117](117-trial-per-product-for-paying-teams.md) | Free trial per product for teams that already pay | **HITL** | 114, 115 | **TR** |
+| [118](118-count-trials-per-owner.md) | Count open trials per owner, not per team | AFK | — | **TR** |
+| [119](119-convert-trials-for-teams-that-pay-without-a-card.md) | Convert trials for Manual Checkout and prepaid teams | **HITL** | 113 | **TR** |
+| [120](120-card-setup-charge-matches-what-we-say.md) | Card setup charges what the screen says (Stripe $0.50, Razorpay ₹1) | **HITL** | — | **TR** |
+| [121](121-welcome-credit-amount-per-product.md) | Welcome credit amount per product | AFK | — | **TR** |
+| [122](122-metered-services-and-trial-sites.md) | Rule for team-level metered usage inside a trial site | **HITL** | — | **TR** |
 
 ## Atlas Integration milestone (AT)
 
@@ -254,6 +265,15 @@ Billing asked what it *will* do, rather than run and observed afterwards — [AD
 - **#97–#100** make configuration an input: overrides, price-change what-ifs, injected events, and the cohort blast radius.
 - **#101** points the customer forecast at the same engine, so the number a customer sees and the number an operator simulates cannot drift.
 - **#103** is the regression harness. Diffing projections across a deploy is confounded by data drift, so it records the reads and replays against them; #92 only owes it a hook.
+
+## Trials milestone (TR)
+
+Signup trials (built in `central/signups/` by Prathamesh, #470 and #495) run a site with no Subscription for a set number of days, so the billing engine never sees them. The problems are at the two edges: when a site is decided to be a trial, and when a card turns it into a paid server. Full write-up: [trials-review.md](../trials-review.md).
+
+- **Step 1, stop wrong charges and leaks:** #112 (ship first, a few lines), then #115, #113, #114.
+- **Step 2, tighten limits:** #116, #118. No visible change for a normal user.
+- **Step 3, needs product decisions:** #117, #119, #120, #121, #122.
+- Config only, no issue: set Trial Days and Trial Deletion Days to 7 for the 7 + 7 day flow.
 
 ## Notes
 
