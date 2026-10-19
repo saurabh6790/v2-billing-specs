@@ -67,6 +67,11 @@ Most of the billing spine is already built. The gaps are at the edges, where the
    in Grove.
 6. **A platform service cannot report.** `report_usage` takes a pilot credential, which is bound to
    one team. Grove and Cargo serve every team.
+7. **The month is taken from the arrival time, in IST.** `_billing_period` in
+   `api/billing_api.py` uses `frappe.utils.nowdate()` when no `period` is sent. Grove counts in UTC
+   months. Grove's final October total, sent at 1 Nov 02:00 IST (31 Oct 20:30 UTC), lands on the
+   **November** rollup. October misses its last updates and November starts with October's total.
+   See [Time zones](#time-zones-grove-counts-in-utc-central-in-ist).
 
 ## The model
 
@@ -107,6 +112,7 @@ The registry. One row per service. This replaces the Select options.
 | `state_url` | Data | Where Central pushes team state and limits. Blank: the service reads them |
 | `expected_cadence` | Select Hourly, Daily, Weekly, Monthly | Only for the "no report" alert |
 | `late_window_hours` | Int, default 72 | How long after a period ends a report can still change it |
+| `period_timezone` | Data, default `UTC` | The clock the service counts its Sum periods in. Grove: `UTC` |
 | `meters` | Table Service Meter | |
 
 ### New: `Service Meter` (child of `Service`)
@@ -190,16 +196,22 @@ Grove, the same call:
 {
   "as_of": "2026-10-19T10:00:00Z",
   "lines": [
-    {"subject": "team-8f2a", "meter": "spend_usd", "dimension": "llama-3.3-70b", "value": 12.4381},
-    {"subject": "team-8f2a", "meter": "spend_usd", "dimension": "whisper-large",  "value": 0.9120}
+    {"subject": "team-8f2a", "meter": "spend_usd", "dimension": "llama-3.3-70b",
+     "period": "2026-10", "value": 12.4381},
+    {"subject": "team-8f2a", "meter": "spend_usd", "dimension": "whisper-large",
+     "period": "2026-10", "value": 0.9120}
   ]
 }
 ```
 
 The rule for `value`:
 
-- **Sum meter**: the total for the period so far. Never the amount since the last report.
-- **Level meter**: how much is held at `as_of`.
+- **Sum meter**: the total for `period` so far. Never the amount since the last report. `period` is
+  required, in the service's own clock (`Service.period_timezone`). Central never guesses it from
+  the arrival time.
+- **Level meter**: how much is held at `as_of`. It has no `period`.
+
+Every timestamp on the wire is UTC with a `Z` (RFC 3339), in both directions.
 
 Central's answer: `{"accepted": 2, "rejected": [{"subject": "...", "reason": "unknown subject"}]}`.
 
@@ -321,6 +333,56 @@ another system worked out. It is written down as a deliberate exception in ADR 0
 Tokens are still visible: Grove can also report `tokens` per model as a meter with no resource type.
 Central stores it for the dashboard and for a token limit, and never bills it.
 
+## Time zones: Grove counts in UTC, Central in IST
+
+Grove counts in UTC. A Usage Record's `day` is a UTC day, and the gateway's `spent:<YYYY-MM>`
+counter, which enforces the monthly cap, starts at 00:00 UTC. Central's site runs in IST
+(Asia/Kolkata, UTC+05:30), and Frappe stores every Datetime as naive IST.
+
+So "October" means two windows that are 5 h 30 min apart:
+
+| | Starts | Ends |
+|---|---|---|
+| Grove's October (UTC) | 1 Oct 00:00 UTC = 1 Oct **05:30 IST** | 1 Nov 00:00 UTC = 1 Nov **05:30 IST** |
+| Central's October (IST) | 1 Oct 00:00 IST | 1 Nov 00:00 IST |
+
+Grove cannot report an IST month. Its smallest bucket is a UTC day, and a UTC day straddles two IST
+days. Asking Grove to change clocks would also move its spend caps, its reports and its vendor
+reconciliation.
+
+**The rule: a period belongs to whoever counts it.**
+
+1. **On the wire, everything is UTC.** `as_of`, `observed_at` and every other timestamp carry a `Z`.
+   Central converts to IST when it stores a value (`convert_utc_to_system_timezone`) and converts
+   back when it sends one. A timestamp with no zone is refused.
+2. **Sum meters keep the service's period.** Grove sends `"period": "2026-10"`. With
+   `period_timezone = UTC`, Central stores the rollup's `period_start` as 1 Oct 05:30 IST and
+   `period_end` as 1 Nov 05:30 IST. The idempotency key uses the period label, so every October
+   report lands on the same row whenever it arrives.
+3. **Level meters use Central's period.** A level is a reading at one moment, so it has no clock of
+   its own. Central integrates it and cuts it at the IST month boundary. Cargo storage is billed by
+   IST month.
+4. **An invoice takes each service's period that ended in its month.** Central's October invoice
+   takes Grove's October (ending 1 Nov 05:30 IST) and storage's October (ending 1 Nov 00:00 IST).
+   The line shows its real window: "AI usage, 1 Oct 05:30 – 1 Nov 05:30 IST".
+5. **The month closes on the service's clock.** Grove's October closes 72 hours after 1 Nov 05:30
+   IST, not after midnight.
+6. **Limits use the service's clock.** Grove's monthly cap resets at 05:30 IST and its daily token
+   cap at 05:30 IST each day. Central's 80% check reads the rollup of Grove's current period, so the
+   two agree. A notice says "resets on 1 Nov at 05:30 IST", not "on 1 Nov".
+
+**What a customer sees.** A request at 1 Nov 02:00 IST is 31 Oct 20:30 UTC. It is on the October
+invoice. Every period is contiguous, so a request is billed once: it moves at most 5 h 30 min
+across a month boundary, and is never billed twice or lost.
+
+**What this fixes.** Gap 7: today the month comes from `nowdate()` at arrival. With `period` required
+on Sum lines, a late report for October always goes to October.
+
+**Trust tier spend.** `max_spend` is checked against the sum of each meter's current period. Near a
+month boundary, AI and storage are on different periods for up to 5 h 30 min. This is accepted:
+the error is at most 5 h 30 min of one service's usage, and Grove's own cap still blocks in real
+time.
+
 ## Limits
 
 The trust tier sets how much a team can use of each service. The service enforces it.
@@ -427,7 +489,8 @@ A print service sold as packs ("1,000 pages for $3") is the same, with Prepaid P
 1. Fix the Grove client to Grove HEAD. Without this, nothing else about AI works.
 2. `Service` and `Service Meter`. Link `Team Service` and `Service Detail` to it. Patch the two rows.
 3. `Usage Rollup`: `dimension`, `last_level`, `last_reported_at`, and the Level integration.
-4. `central.metering.api.report` with signature, subject lookup and order guard.
+4. `central.metering.api.report` with signature, subject lookup, order guard, required `period` on
+   Sum lines and UTC-only timestamps. This also fixes gap 7.
 5. Storage: Cargo's hourly report, the GB-month resource type and rate, invoice lines.
 6. AI: the AI Usage resource type, open a subscription for AI, Grove's hourly report.
 7. `Trust Tier Service Limit`, `Service Limit Override`, `get_service_limits`, the state push.

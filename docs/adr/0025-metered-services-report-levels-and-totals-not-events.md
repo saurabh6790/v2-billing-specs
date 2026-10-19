@@ -31,6 +31,11 @@ through `Team Service`, and pushes the team's limits back to the service.**
   "AI Usage" in USD with a Catalog Rate per currency. This is a deliberate exception to ADR 0011,
   because the gateway needs the per-model rates to stop a key in real time and a second copy would
   drift.
+- **A period belongs to whoever counts it.** All wire timestamps are UTC. A Sum line carries its
+  `period` in the service's clock (`Service.period_timezone`; Grove counts UTC months), and Central
+  stores that window in IST (1 Oct 05:30 – 1 Nov 05:30). Level meters use Central's IST months. An
+  invoice takes each service period that ended in its month. Central never takes the period from
+  the arrival time.
 - **Central owns limits.** `Trust Tier Service Limit` rows on `Trust Tier Level`, and overrides on
   `Billing Profile`, resolve through `get_service_limits`. Central pushes them on every change. The
   service enforces Block limits; Central checks Notify limits on each report.
