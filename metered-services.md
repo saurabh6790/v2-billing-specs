@@ -177,7 +177,7 @@ A service talks to Central through one call in and one call out. Nothing else is
 ### In: the service reports usage
 
 ```
-POST /api/method/central.metering.api.report
+POST /api/method/central.billing.api.metering.report
 X-Central-Service: storage
 X-Central-Signature: <base64 HMAC-SHA256 of the raw body, keyed by Service.report_secret>
 
@@ -252,7 +252,7 @@ changes tier, gets an override, is suspended or cancels. The service keeps the n
 and ignores an older one. Grove's `team_webhook` already works this way for `tier` and `suspended`.
 
 A failed push is retried by a background job. A service that has no `state_url` reads the same body
-from `central.metering.api.get_state(team)`.
+from a `get_state(team)` call in `central/billing/api/metering.py` (not built yet).
 
 ## Why report totals and levels, not events
 
@@ -463,8 +463,11 @@ A print service sold as packs ("1,000 pages for $3") is the same, with Prepaid P
 **Cargo**
 
 - An hourly job: for each bucket on the region's cluster, read the byte and object counts from
-  Garage, and call `report` once per region. Cargo signs it with the secret Central already gives it
-  at enrolment (`webhooks.configure`).
+  Garage, and call `report` once per region. Cargo signs it with the storage `Service` record's
+  `report_secret`. This is a different secret from the per-region one Cargo signs its state reports
+  with (`webhooks.configure`). An operator sets the secret on the record and gives it to Cargo.
+  Until Cargo sends reports, Central reads each bucket every hour itself (`storage_usage.py`) and
+  feeds the same Level code. It skips a bucket that Cargo reported in the last 55 minutes.
 - A `state_url` endpoint that turns Subject limits into `set_quota` calls, and Suspended into a
   read-only quota.
 
@@ -486,10 +489,30 @@ A print service sold as packs ("1,000 pages for $3") is the same, with Prepaid P
 
 ## Build order
 
+Status on 2026-10-26, central branch `feat/metered-services-platform`: steps 2, 3, 4 and 5 (the
+Central side), and step 7 without the push, are built. The endpoint is
+`central.billing.api.metering.report`, because only `billing/api/**` may be whitelisted. All three
+`Service` records (`storage`, `ai`, `telemetry`) are seeded disabled. AI keeps its current Grove
+integration until step 1 and step 6 are done.
+
+Rules the build added:
+
+- A report for a month that already has an invoice is refused with `period already invoiced`.
+  This stands in for the 72-hour close until invoicing waits for `late_window_hours`.
+- An `as_of` more than 5 minutes in the future is refused. A future reading would bill hours that
+  have not happened.
+- A level still held at month end is counted up to the period end when the invoice is rated. The
+  closing report or job then writes the same number.
+- A Live family takes its allowance from the plan's `Plan Includes`, the same way it takes its rate.
+- The storage line lists each bucket in the invoice line's `details` field. The console and the
+  ERPNext item description show it.
+- A deleted bucket writes level 0 when its `Team Service` row is trashed. A suspended bucket still
+  bills, because it still holds data.
+
 1. Fix the Grove client to Grove HEAD. Without this, nothing else about AI works.
 2. `Service` and `Service Meter`. Link `Team Service` and `Service Detail` to it. Patch the two rows.
 3. `Usage Rollup`: `dimension`, `last_level`, `last_reported_at`, and the Level integration.
-4. `central.metering.api.report` with signature, subject lookup, order guard, required `period` on
+4. `central.billing.api.metering.report` with signature, subject lookup, order guard, required `period` on
    Sum lines and UTC-only timestamps. This also fixes gap 7.
 5. Storage: Cargo's hourly report, the GB-month resource type and rate, invoice lines.
 6. AI: the AI Usage resource type, open a subscription for AI, Grove's hourly report.
