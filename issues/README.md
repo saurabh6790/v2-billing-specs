@@ -124,6 +124,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [120](120-card-setup-charge-matches-what-we-say.md) | Card setup charges what the screen says (Stripe $0.50, Razorpay ₹1) | **HITL** | — | **TR** |
 | [121](121-welcome-credit-amount-per-product.md) | ~~Welcome credit amount per product~~ (dropped) | — | — | **TR** |
 | [122](122-metered-services-and-trial-sites.md) | Rule for team-level metered usage inside a trial site | **HITL** | — | **TR** |
+| [123](123-billing-day-simulation-findings.md) | Fix what the 1 November billing day simulation found | AFK | — | post |
 
 ## Atlas Integration milestone (AT)
 
