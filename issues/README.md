@@ -4,7 +4,7 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 
 **Targets:** Demo 30 Jun 2026 · Feature-complete 31 Jul 2026.
 
-**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **SP** = Stripe Primary (Stripe takes every instrument a Stripe India account can carry, Razorpay takes the rest; [ADR 0022](../docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md), corrected by [ADR 0023](../docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)) · **TR** = Trials (signup trials meet billing; [trials-review.md](../trials-review.md)) · **post** = post-launch.
+**Milestones:** **GW** = Gateway Integrations (front-loaded, Phase 1 foundation) · **P1**–**P4** = roadmap phases · **CM** = Central Merge (fold Billing into the `central` app as a module) · **AT** = Atlas Integration (Central provisions/records/enforces via the Atlas API — agentless, [ADR 0006](../docs/adr/0006-agentless-central-owns-provisioning-and-enforcement.md); specced in [atlas-integration](../atlas-integration/README.md)) · **CO** = Console UI migration (legacy `dashboard/` → `console/`; specced in [console-migration.md](../console-migration.md)) · **PC** = Polymorphic Catalog (product families as masters — VM / AI Tokens / SaaS Storage / Remote Storage; [ADR 0007](../docs/adr/0007-polymorphic-catalog-category-masters.md)) · **CC** = Composable Config (design-your-own compute priced from a per-resource rate card, beside curated presets; [ADR 0009](../docs/adr/0009-composable-resource-pricing-design-your-own-config.md)) · **SIM** = Billing Simulator (the projection engine — billing asked what it *will* do, read-only; [ADR 0020](../docs/adr/0020-the-simulator-is-the-billing-engine-run-forward.md)) · **SP** = Stripe Primary (Stripe takes every instrument a Stripe India account can carry, Razorpay takes the rest; [ADR 0022](../docs/adr/0022-stripe-primary-razorpay-carries-the-rest.md), corrected by [ADR 0023](../docs/adr/0023-stripe-first-by-capability-two-payment-surfaces.md)) · **TR** = Trials (signup trials meet billing; [trials-review.md](../trials-review.md)) · **SA** = Security audit (23 Oct 2026 billing audit; see the milestone section) · **post** = post-launch.
 
 | # | Slice | Type | Blocked by | Milestone |
 |---|-------|------|-----------|-----------|
@@ -125,6 +125,28 @@ Tracer-bullet vertical slices derived from the [spec](../README.md) and [roadmap
 | [121](121-welcome-credit-amount-per-product.md) | ~~Welcome credit amount per product~~ (dropped) | — | — | **TR** |
 | [122](122-metered-services-and-trial-sites.md) | Rule for team-level metered usage inside a trial site | **HITL** | — | **TR** |
 | [123](123-billing-day-simulation-findings.md) | Fix what the 1 November billing day simulation found | AFK | — | post |
+| [124](124-billing-audit-and-dashboards-at-scale.md) | Keep the billing audit and dashboards off the hot path at scale | AFK | — | post |
+| [125](125-record-every-payment-method-and-top-up-failure.md) | Record why adding a payment method or topping up the wallet failed | AFK | — | post |
+| [126](126-first-charge-and-3ds-gaps.md) | Close the gaps that make a first charge or a mandate debit fail | AFK | — | post |
+| [127](127-partner-pays-invoicing-limits-and-dunning.md) | Invoice the partner when it pays, ask the partner above the limit, and handle partner dunning | AFK | central#508 | post |
+| [128](128-bind-every-payment-to-its-intent.md) | Settle or credit a payment only when it matches the intent we stored | AFK | — | **SA** |
+| [129](129-verify-cards-and-mandates-at-the-gateway.md) | Activate a card or mandate only from what the gateway says | AFK | — | **SA** |
+| [130](130-razorpay-charges-and-refunds-safe-to-retry.md) | Make Razorpay recurring charges and refunds safe to retry | AFK | — | **SA** |
+| [131](131-never-lose-a-gateway-webhook.md) | Never lose a gateway webhook, and give late money a home | AFK | 128 | **SA** |
+| [132](132-track-refunds-until-the-gateway-finishes.md) | Track a refund until the gateway finishes it | AFK | — | **SA** |
+| [133](133-finish-the-paypal-integration.md) | Finish the PayPal integration | AFK | — | **SA** |
+| [134](134-receive-disputes-on-every-gateway.md) | Receive and record disputes on every gateway | AFK | — | **SA** |
+| [135](135-page-and-isolate-money-jobs.md) | Page and isolate the daily and hourly money jobs | AFK | — | **SA** |
+| [136](136-lock-the-invoice-before-cancel.md) | Lock the invoice before cancel or an on-session order | AFK | — | **SA** |
+| [137](137-read-only-money-records.md) | Make money records read-only and keep their history | AFK | — | **SA** |
+| [138](138-map-every-stripe-outcome.md) | Map every Stripe outcome and pin the API version | AFK | — | **SA** |
+| [139](139-keep-payment-records-refunds-need.md) | Keep the payment records that refunds and disputes need | AFK | — | **SA** |
+| [140](140-two-layer-permissions-billing.md) | Add query conditions and has_permission to team-scoped billing DocTypes | AFK | — | **SA** |
+| [141](141-hosted-checkout-payment-attempt.md) | Record a Payment Attempt for hosted-checkout invoice payments | AFK | 128 | **SA** |
+| [142](142-predebit-before-every-mandate-debit.md) | Send the pre-debit notice before every mandate debit | AFK | — | **SA** |
+| [143](143-no-test-endpoints-and-scoped-pilot-credential.md) | Ship no test endpoints, and scope the pilot credential | **HITL** | — | **SA** |
+| [144](144-rate-limits-and-safe-exports.md) | Rate-limit payment endpoints and escape CSV exports | AFK | — | **SA** |
+| [145](145-operator-alerts-to-raven.md) | Send billing operator alerts to a Raven channel, with email as a setting | AFK | — | **SA** |
 
 ## Atlas Integration milestone (AT)
 
@@ -275,6 +297,17 @@ Signup trials (built in `central/signups/` by Prathamesh, #470 and #495) run a s
 - **Step 2, tighten limits:** #116, #118. No visible change for a normal user.
 - **Step 3, needs product decisions:** #117, #119, #120, #121, #122.
 - Config only, no issue: set Trial Days and Trial Deletion Days to 7 for the 7 + 7 day flow.
+
+## Security audit milestone (SA)
+
+From the billing security audit of 23 Oct 2026. The report and its probes stay on the bench (`docs/bug-reviews/central-billing/`), because this repository is public. Issues here state the fix and the risk, not how to exploit it.
+
+- **Step 1, close the money paths:** #128, #129. Then audit past data as #128 says.
+- **Step 2, retries and lost events:** #130, #131, #132.
+- **Step 3, jobs and locks:** #135, #136, #137.
+- **Step 4, gateway coverage:** #133, #134, #138, #141, #142.
+- **Step 5, hardening:** #139, #140, #143 (needs the pilot credential decision), #144.
+- **#145** routes operator alerts to Raven. It can ship any time, and steps 2 and 4 send their new alerts through it.
 
 ## Notes
 
