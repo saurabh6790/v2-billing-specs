@@ -28,6 +28,7 @@ Spec for the **Billing** layer of Central — the sole system of record for mone
 | [commitment.md](commitment.md) | Commitment — team spend-floor, discount, clawback |
 | [partner-billing.md](partner-billing.md) | Partner resale — budget allocations, the provision ceiling, who is invoiced and who settles ([ADR 0024](docs/adr/0024-partner-billing-budget-allocation.md)) |
 | [private-clusters.md](private-clusters.md) | Private clusters (customer-owned bare metal) — billing the node not the workload, the three pricing bases, zero-rated workload, read-only enforcement |
+| [metered-services.md](metered-services.md) | Metered services platform — Grove (AI) and Cargo (storage) report totals and levels, Service registry, trust-tier service limits ([ADR 0025](docs/adr/0025-metered-services-report-levels-and-totals-not-events.md)) |
 | [tax.md](tax.md) | Three-mechanic tax model (output / zero-rating / withholding) |
 | [security.md](security.md) | Security standard — trust boundaries, threat model, controls, audit checklist, safe-extension rules |
 | [observability.md](observability.md) | Observability standard — two-plane metrics (runtime telemetry + auditable business metrics), catalogue per subsystem, alerting, coverage checklist |
