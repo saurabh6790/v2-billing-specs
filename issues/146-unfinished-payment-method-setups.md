@@ -4,7 +4,9 @@
 **Area:** `dashboard/src/components/billing/`, `dashboard/src/components/AddMethodDialog.vue`, `central/billing/api/dashboard/`, `central/billing/payments/`
 **Source:** [CB-21](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-04 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (9 Nov 2026):** D-04, an unfinished setup expires after 24 hours, and the customer is told.
+>
+> **HITL:** still needs D-05 (limit on repeated failed setups).
 
 ## Problem
 
@@ -42,6 +44,8 @@ Build on existing issue 125 (record why adding a payment method failed: `Payment
 
 ## Acceptance criteria
 
+- [ ] A setup not finished in 24 hours is marked Expired.
+- [ ] When a setup expires, the team's billing contacts get an email and an in-app notice: "Your card or UPI setup was not finished, so it was not saved. Add it again from Billing."
 - [ ] A Razorpay `payment.failed` or Stripe `setup_intent.setup_failed` for a pending method sets it to Failed with the gateway reason.
 - [ ] Payments lists unfinished and failed setups from the last N days with the reason and a Retry that reopens the same instrument.
 - [ ] Pending rows older than N days move to an expired state and stop showing.
@@ -50,4 +54,4 @@ Build on existing issue 125 (record why adding a payment method failed: `Payment
 
 ## Dependencies
 
-Issue 125 (failure recording) first or together. D-04 (expiry period), D-05 (attempt limits). Measurement step above.
+Issue 125 (failure recording) first or together. D-04 decided (24 h, notify). D-05 (attempt limits) open. Measurement step above.

@@ -319,8 +319,8 @@ Decisions already made (9 Nov 2026): Prepaid = the wallet pays first, the saved 
 |---|-------|------|----------|------|---------|
 | [146](146-unfinished-payment-method-setups.md) | Payment-method setups and top-ups that fail or are abandoned leave no end state and nothing the customer can see | HITL | P1 | M | CB-21 |
 | [147](147-spending-limit-one-figure.md) | The spending limit is compared with three figures on screen, and none is the one the server-create gate uses | AFK | P1 | M | CB-25 |
-| [148](148-show-and-change-how-you-pay.md) | Customers cannot see or change how they pay, and making a card primary silently changes it | HITL | P1 | M | CB-03 |
-| [149](149-team-billing-view-for-support.md) | Support has no single view of a team's billing | HITL | P1 | M | CB-18 |
+| [148](148-show-and-change-how-you-pay.md) | Customers cannot see or change how they pay, and making a card primary silently changes it | AFK | P1 | M | CB-03 |
+| [149](149-team-billing-view-for-support.md) | Support has no single view of a team's billing | AFK | P1 | M | CB-18 |
 | [150](150-prepaid-meaning-screen-vs-engine.md) | Prepaid copy assumes credits only, and adding or promoting a method silently turns Prepaid into Auto Charge | AFK | P2 | S | CB-04 |
 | [151](151-overview-setup-banner-flash.md) | Overview shows "Add your billing details" on every load, even for teams with complete details | AFK | P2 | XS | CB-27 |
 | [152](152-invoice-list-error-state.md) | Invoice list shows "No invoices yet" when loading fails | AFK | P2 | XS | CB-06 |
@@ -338,8 +338,8 @@ Decisions already made (9 Nov 2026): Prepaid = the wallet pays first, the saved 
 | [164](164-pay-now-names-method.md) | "Pay ₹X now" charges immediately without naming the payment method | AFK | P2 | S | CB-09 |
 | [165](165-live-payment-status.md) | After paying, "Waiting for your bank to confirm" never updates without a reload | AFK | P2 | S | CB-07 |
 | [166](166-manual-checkout-gateway.md) | Manual Checkout always opens the Razorpay sheet whatever gateway the order was created on | AFK | P2 | S | CB-10 |
-| [167](167-operator-invoice-actions.md) | Operators cannot charge again, send a payment link or release a hold from an invoice; Cancel shows no effects | HITL | P2 | M | CB-19 |
-| [168](168-last-payment-method-removal.md) | The last payment method can be removed while an invoice is owed, with a warning that does not say so | HITL | P2 | S | CB-02 |
+| [167](167-operator-invoice-actions.md) | Operators cannot charge again, send a payment link or release a hold from an invoice; Cancel shows no effects | AFK | P2 | M | CB-19 |
+| [168](168-last-payment-method-removal.md) | The last payment method can be removed while an invoice is owed, with a warning that does not say so | AFK | P2 | S | CB-02 |
 | [169](169-payment-invoice-accessibility.md) | Accessibility gaps in payment-method and invoice screens | AFK | P2 | S | CB-17 |
 | [170](170-remove-disabled-email-invoice.md) | Remove controls that never work: "Email invoice" and the "Auto-recharge" switch | AFK | P3 | XS | CB-15 |
 | [171](171-primary-method-controls.md) | "Primary payment method" is disabled without a reason while "Move up" does the same thing | AFK | P3 | XS | CB-05 |

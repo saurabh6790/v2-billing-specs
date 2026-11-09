@@ -1,10 +1,10 @@
 # 149 — Support has no single view of a team's billing
 
-**Type:** HITL · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:operations` `priority:p1` `area:operator-desk`
+**Type:** AFK · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:operations` `priority:p1` `area:operator-desk`
 **Area:** `central/billing/doctype/`, `central/identity/doctype/team/`, `central/workspace_sidebar/billing.json`
 **Source:** [CB-18](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-03 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (9 Nov 2026):** D-03, support can see everything on a team's billing, read only. No money or invoice action is added for support.
 
 ## Problem
 
@@ -45,4 +45,4 @@ B first, A next.
 
 ## Dependencies
 
-D-03.
+None.

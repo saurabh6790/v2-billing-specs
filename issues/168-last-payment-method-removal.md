@@ -1,10 +1,10 @@
 # 168 — The last payment method can be removed while an invoice is owed, with a warning that does not say so
 
-**Type:** HITL · **Milestone:** TD · **Priority:** P2 · **Size:** S · **Labels:** `type:feature` `priority:p2` `area:billing-setup`
+**Type:** AFK · **Milestone:** TD · **Priority:** P2 · **Size:** S · **Labels:** `type:feature` `priority:p2` `area:billing-setup`
 **Area:** `dashboard/src/components/billing/`, `dashboard/src/components/AddMethodDialog.vue`, `central/billing/api/dashboard/`, `central/billing/payments/`
 **Source:** [CB-02](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-11 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (9 Nov 2026):** D-11, replace-only: the last active method can be removed once another method is active or nothing is owed.
 
 ## Problem
 
@@ -44,4 +44,4 @@ B now; C later.
 
 ## Dependencies
 
-D-11.
+None.

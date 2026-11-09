@@ -36,6 +36,8 @@ A.
 
 ## Acceptance criteria
 
+- [ ] A day on which the bucket held 0 bytes bills nothing; GB-month = sum of each day's peak GB ÷ days in the month.
+- [ ] Cargo is read hourly and the Usage Day keeps the day's peak, so a bucket emptied mid-day bills that day's peak and nothing after.
 - [ ] Usage Day exists with the fields in the design, unique on source_ref, no edit or delete for any role.
 - [ ] The storage job writes one Usage Day per bucket per day with that day's reading.
 - [ ] The monthly run builds each metered Usage Rollup from the period's Usage Days and stamps the invoice on them.
@@ -44,4 +46,4 @@ A.
 
 ## Dependencies
 
-D-23 decided: GB (10⁹). D-24 (missed day) still open. #186 and #188 build on it.
+D-23 decided: GB (10⁹). D-24 decided: bill what is stored, as S3 and R2 do; an empty bucket bills nothing. D-27 (a missed reading) open. #186 and #188 build on it.

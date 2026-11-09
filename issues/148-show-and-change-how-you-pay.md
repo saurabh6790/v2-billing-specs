@@ -1,10 +1,10 @@
 # 148 — Customers cannot see or change how they pay, and making a card primary silently changes it
 
-**Type:** HITL · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:feature` `type:ux` `priority:p1` `area:billing-setup`
+**Type:** AFK · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:feature` `type:ux` `priority:p1` `area:billing-setup`
 **Area:** `dashboard/src/components/billing/`, `dashboard/src/components/AddMethodDialog.vue`, `central/billing/api/dashboard/`, `central/billing/payments/`
 **Source:** [CB-03](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-02 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (9 Nov 2026):** D-02, the team owner or a member with billing rights can change how the team pays. One rule for collection: the wallet pays first; when the wallet is empty or short, the payment method is charged directly.
 
 ## Problem
 
@@ -44,6 +44,8 @@ Check the Auto Charge sentence against the credit draw before shipping: if credi
 
 ## Acceptance criteria
 
+- [ ] Only the team owner or a member with billing rights sees and can use the control; others see the current setting read only.
+- [ ] Every surface states one rule: "Your wallet pays first. When it is short, we charge {method}."
 - [ ] Payments shows the current mode and what happens when credit runs out.
 - [ ] Change opens a chooser that explains each mode and confirms the effect before saving.
 - [ ] Promoting or adding a payment method never changes the mode (see #150 for the first-method switch).
@@ -52,4 +54,4 @@ Check the Auto Charge sentence against the credit draw before shipping: if credi
 
 ## Dependencies
 
-D-02 (who may change mode). Ships with or after #150.
+D-02 decided. Ships with or after #150.

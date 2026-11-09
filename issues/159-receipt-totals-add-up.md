@@ -4,6 +4,8 @@
 **Area:** `dashboard/src/pages/billing/BillingInvoicesPage.vue`, `dashboard/src/components/billing/`, `central/billing/api/dashboard/invoices.py`
 **Source:** [CB-01](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
+> **Decided (9 Nov 2026):** D-10, the invoice list Amount column shows the invoice total.
+
 ## Problem
 
 When credits, top-up GST or TDS apply, the receipt's figures do not add up and the amount to pay is not explained.
@@ -37,11 +39,12 @@ A.
 
 ## Acceptance criteria
 
+- [ ] The list column is labelled "Total" and shows the invoice total; the amount still due appears on the invoice detail and the Pay button.
 - [ ] Panel shows Invoice total, then each deduction including TDS, then Amount due.
 - [ ] Pay button amount equals Amount due.
-- [ ] List column label matches the figure shown (D-10).
+- [ ] List column label matches the figure shown (D-10 decided: total).
 - [ ] A unit test of the panel covers credits, top-up GST and TDS.
 
 ## Dependencies
 
-D-10.
+None.

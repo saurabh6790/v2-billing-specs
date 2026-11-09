@@ -69,12 +69,24 @@ Unique on `source_ref`, so a re-pull or a retried sample writes nothing twice.
 Corrections are new rows with a negative quantity or amount (Grove's Usage
 Correction maps to one), never edits.
 
+### How other object stores bill storage (for D-24)
+
+| Provider | Measure | Empty bucket | Minimum duration |
+|---|---|---|---|
+| Amazon S3 | Byte-hours over the month, as GB-month | Bills nothing | None on Standard; 30 days on Standard-IA, 90 to 180 on Glacier classes |
+| Cloudflare R2 | Average of each day's peak storage over the month | Bills nothing | None |
+| Backblaze B2 | Byte-hours | Bills nothing | None |
+| Wasabi | GB-month | 1 TB monthly minimum | 90 days (pay as you go) |
+
+Central can only read Cargo's current size, so it follows R2: read every hour, keep the
+day's peak on the Usage Day, and bill GB-month = sum of daily peaks ÷ days in the
+month. A day on which the bucket held 0 bytes bills 0. No minimum duration.
+
 ### Collect
 
-- **Storage:** the daily job stores one Usage Day per bucket with that day's reading
-  (GB-day = GB held that day). A missed day is a missing row, and the month is billed
-  on the days present, scaled to the month only if D-24 says so. No guessing a past
-  day from today's size.
+- **Storage:** an hourly job reads each bucket; one Usage Day per bucket per day keeps
+  that day's peak GB (GB-day). An empty bucket gives 0. A day the job did not run is
+  D-27.
 - **AI:** an hourly job asks Grove for the landing window since the last pull, per
   team, and stores one Usage Day per team, model and UTC day from `daily_summary`.
   Billing by landing window means a late drain goes on the next invoice, not twice.
@@ -127,7 +139,8 @@ on the billing day that closes the month, the Overview can show only an estimate
 | D-21 | AI for INR teams? | **Decided:** convert at the billing day's rate |
 | D-22 | What is bundled? | **Decided:** the plan's base offering, per subscription |
 | D-23 | Storage unit? | **Decided:** GB (10⁹) |
-| D-24 | A day with no storage reading: bill nothing, or the day before's size? | Open. Recommended: the day before's size, marked estimated on the Usage Day |
+| D-24 | A day with nothing stored? | **Decided:** bill only what is stored, as S3 does; an empty bucket bills nothing |
+| D-27 | A day the reading job did not run? | Open. Recommended: the last reading, marked estimated |
 | D-26 | How the Overview shows AI in INR | Open. Recommended: one rate per month, above |
 
 ## Order

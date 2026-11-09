@@ -1,10 +1,10 @@
 # 167 — Operators cannot charge again, send a payment link or release a hold from an invoice; Cancel shows no effects
 
-**Type:** HITL · **Milestone:** TD · **Priority:** P2 · **Size:** M · **Labels:** `type:operations` `priority:p2` `area:operator-desk`
+**Type:** AFK · **Milestone:** TD · **Priority:** P2 · **Size:** M · **Labels:** `type:operations` `priority:p2` `area:operator-desk`
 **Area:** `central/billing/doctype/`, `central/identity/doctype/team/`, `central/workspace_sidebar/billing.json`
 **Source:** [CB-19](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-03 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (9 Nov 2026):** D-03, support is read only. The invoice actions in this issue are for finance and billing operators, not support.
 
 ## Problem
 
@@ -32,7 +32,7 @@ Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorm
 
 ## Recommended approach
 
-A, scoped by D-03.
+A, for finance and billing operators (D-03: support is read only).
 
 ## Acceptance criteria
 
@@ -41,4 +41,4 @@ A, scoped by D-03.
 
 ## Dependencies
 
-D-03; #149.
+#149.
