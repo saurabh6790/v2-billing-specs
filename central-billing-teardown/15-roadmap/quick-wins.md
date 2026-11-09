@@ -1,4 +1,4 @@
-# Quick wins (D1–D4)
+# Quick wins (D1–D7)
 
 Each is under a day of work, needs no product decision, and changes no money logic.
 All touch only `dashboard/src` (and #172 one backend label); none needs a migration.
@@ -18,3 +18,6 @@ All touch only `dashboard/src` (and #172 one backend label); none needs a migrat
 
 Suggested order: #151, #152, #153, #157, #170, #158 (part), #172, #155, #154,
 #169 (part).
+
+Checkpoint 3 adds no XS item. The smallest are #178 (credit gate) and #177
+(price basis), each S.

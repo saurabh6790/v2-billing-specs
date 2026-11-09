@@ -311,23 +311,23 @@ From the billing security audit of 23 Oct 2026. The report and its probes stay o
 
 ## Teardown (TD)
 
-From the [central billing teardown](../central-billing-teardown/README.md), checkpoints 1 and 2: billing setup and payment methods, invoices and collection, cost and limits, wallet and credits. Each issue cites `path:line` at central `a95b491e` and production counts from the backup of 3 Nov 2026. Problem IDs (`CB-nn`) point to the [problem register](../central-billing-teardown/12-problem-discovery/problem-register.md). Ordered by priority; HITL issues need a decision from [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) first.
+From the [central billing teardown](../central-billing-teardown/README.md), checkpoints 1 to 3: billing setup and payment methods, invoices and collection, cost and limits, wallet and credits, subscriptions and projects, purchase-time billing, operator back office. Each issue cites `path:line` at central `a95b491e` and production counts from the backup of 3 Nov 2026. Problem IDs (`CB-nn`) point to the [problem register](../central-billing-teardown/12-problem-discovery/problem-register.md). Ordered by priority; HITL issues need a decision from [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) first.
 
-Decisions already made (9 Nov 2026): Prepaid = credits first, then the saved method for the rest; invoices held for accounting sync are expected until the integration is finalised (no issue).
+Decisions already made (9 Nov 2026): Prepaid = the wallet pays first, the saved method only for the shortfall, and Prepaid stays separate from Auto Charge; the spending limit is checked against base cost before tax, with "taxes are added on top" wherever cost is shown; no auto-recharge; budget alerts are built; invoices held for accounting sync are expected until the integration is finalised (no issue).
 
 | # | Slice | Type | Priority | Size | Problem |
 |---|-------|------|----------|------|---------|
 | [146](146-unfinished-payment-method-setups.md) | Payment-method setups and top-ups that fail or are abandoned leave no end state and nothing the customer can see | HITL | P1 | M | CB-21 |
-| [147](147-spending-limit-one-figure.md) | The spending limit is compared with three figures on screen, and none is the one the server-create gate uses | HITL | P1 | M | CB-25 |
+| [147](147-spending-limit-one-figure.md) | The spending limit is compared with three figures on screen, and none is the one the server-create gate uses | AFK | P1 | M | CB-25 |
 | [148](148-show-and-change-how-you-pay.md) | Customers cannot see or change how they pay, and making a card primary silently changes it | HITL | P1 | M | CB-03 |
 | [149](149-team-billing-view-for-support.md) | Support has no single view of a team's billing | HITL | P1 | M | CB-18 |
-| [150](150-prepaid-meaning-screen-vs-engine.md) | Prepaid copy and console logic assume credits only; the decided rule is credits first, then the saved method | AFK | P2 | S | CB-04 |
+| [150](150-prepaid-meaning-screen-vs-engine.md) | Prepaid copy assumes credits only, and adding or promoting a method silently turns Prepaid into Auto Charge | AFK | P2 | S | CB-04 |
 | [151](151-overview-setup-banner-flash.md) | Overview shows "Add your billing details" on every load, even for teams with complete details | AFK | P2 | XS | CB-27 |
 | [152](152-invoice-list-error-state.md) | Invoice list shows "No invoices yet" when loading fails | AFK | P2 | XS | CB-06 |
 | [153](153-banner-pay-now-deep-link.md) | Overview "Pay now" opens the invoice list instead of the owed invoice | AFK | P2 | XS | CB-08 |
 | [154](154-onboarding-country-autosave.md) | Onboarding saves a billing country from the browser time zone without the user choosing it | AFK | P2 | XS | CB-12 |
 | [155](155-card-check-charge-disclosure.md) | Onboarding says "No charge today" but adding a card makes a small refunded charge | AFK | P2 | XS | CB-11 |
-| [156](156-budget-alerts-never-sent.md) | Budget alerts are saved but never sent | HITL | P2 | S | CB-23 |
+| [156](156-budget-alerts-never-sent.md) | Budget alerts are saved but never sent | AFK | P2 | S | CB-23 |
 | [157](157-facts-card-label-truncation.md) | Overview facts card labels shrink to single letters when a side panel is open | AFK | P2 | XS | CB-28 |
 | [158](158-invoice-filter-and-statement.md) | Invoice filter cannot show Cancelled or Waived invoices; Statement tab repeats the list and misstates tax invoices | AFK | P2 | S | CB-16 |
 | [159](159-receipt-totals-add-up.md) | Invoice receipt shows deductions above a Total that ignores them, hides TDS, and the Pay amount differs from Total | AFK | P2 | S | CB-01 |
@@ -346,10 +346,19 @@ Decisions already made (9 Nov 2026): Prepaid = credits first, then the saved met
 | [172](172-mandate-label-duplicate.md) | "UPI Autopay" is shown twice on a mandate row with no UPI ID | AFK | P3 | XS | CB-24 |
 | [173](173-billing-details-form-polish.md) | Billing details form: country editable after currency lock, vague lock text, address field order | AFK | P3 | XS | CB-13 |
 | [174](174-customer-copy-glossary.md) | Customer copy in payment and invoice screens uses internal words | AFK | P3 | S | CB-14 |
+| [175](175-pause-billing-keeps-charging.md) | "Pause billing" stops the server but not the charges, and a paused server that is later terminated bills on | AFK | P1 | M | CB-34 |
+| [176](176-stop-versus-pause-billing.md) | Stopping a server keeps full billing, while the docs say billing follows the hours it ran, and "Stop" and "Pause billing" look like the same action | HITL | P2 | S | CB-35 |
+| [178](178-purchase-payment-gate-mismatch.md) | The New server page says no payment method is needed when the team has any credit, then the server refuses the create | AFK | P2 | S | CB-39 |
+| [177](177-purchase-price-basis.md) | The server price at purchase does not say it is before tax, leaves out the IPv4 charge, and says servers are billed to the payment method | AFK | P2 | S | CB-38 |
+| [179](179-record-purchase-refusals.md) | Refused server creates and resizes leave no record, so nobody can see how often customers hit the spending limit | AFK | P2 | S | CB-40 |
+| [181](181-desk-billing-home-for-support.md) | The Desk billing home counts internal teams as customers and has nothing for support work | AFK | P2 | S | CB-41 |
+| [182](182-operator-alerts-desk-queue.md) | Open operator alerts are visible only in Raven or email, with no list in Desk | AFK | P2 | S | CB-42 |
+| [180](180-project-limit-gaps.md) | A project's spending limit is checked only when a server is tagged, and its errors show internal ids | AFK | P3 | S | CB-36 |
 
 - **Quick wins first:** #151, #152, #153, #154, #155, #170 (each under a day, no decision needed).
 - **#146** builds on **#125** (record why setups and top-ups failed).
 - **#150** (Prepaid copy) ships before or with **#148** (how you pay).
+- **Checkpoint 3:** #175 (pause keeps charging) is P1 and needs no decision. #176 waits for D-16 and D-17. #179 (record refusals) is needed to measure #147.
 
 ## Notes
 

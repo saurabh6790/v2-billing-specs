@@ -72,15 +72,17 @@ folders share number prefixes with the first pass; they sit beside them.
 | [11-ui-ux](11-ui-ux/) | [screen-inventory.md](11-ui-ux/screen-inventory.md), [navigation-audit.md](11-ui-ux/navigation-audit.md), [workflow-ux-audit.md](11-ui-ux/workflow-ux-audit.md), [visual-consistency-review.md](11-ui-ux/visual-consistency-review.md), [accessibility-review.md](11-ui-ux/accessibility-review.md), [ux-findings.md](11-ui-ux/ux-findings.md) |
 | [12-problem-discovery](12-problem-discovery/) | [problem-register.md](12-problem-discovery/problem-register.md), [strengths-register.md](12-problem-discovery/strengths-register.md), [missing-capabilities.md](12-problem-discovery/missing-capabilities.md), plus [capability-teardown.md](12-problem-discovery/capability-teardown.md) (Workstream A) and [measurements.md](12-problem-discovery/measurements.md) (production backup counts) |
 | [13-brainstorming](13-brainstorming/) | [solution-alternatives.md](13-brainstorming/solution-alternatives.md), [product-decisions-required.md](13-brainstorming/product-decisions-required.md) |
-| [14-github-backlog](14-github-backlog/) | [issue-index.md](14-github-backlog/issue-index.md), [duplicate-analysis.md](14-github-backlog/duplicate-analysis.md). The issues themselves are in [`issues/146`–`174`](../issues/README.md#teardown-td) (milestone TD) |
+| [14-github-backlog](14-github-backlog/) | [issue-index.md](14-github-backlog/issue-index.md), [duplicate-analysis.md](14-github-backlog/duplicate-analysis.md). The issues themselves are in [`issues/146`–`182`](../issues/README.md#teardown-td) (milestone TD) |
 | [15-roadmap](15-roadmap/) | [prioritized-backlog.md](15-roadmap/prioritized-backlog.md), [quick-wins.md](15-roadmap/quick-wins.md), [strategic-improvements.md](15-roadmap/strategic-improvements.md) |
 
 Checkpoint 1 covers D1 (billing setup and payment methods) and D2 (invoices and
 collection); checkpoint 2 covers D3 (cost visibility and limits) and D4 (wallet and
-credits). Problem IDs are `CB-nn`. Production frequencies come from read-only counts
+credits); checkpoint 3 covers D5 (subscriptions and projects), D6 (purchase-time
+billing) and D7 (operator back office). Problem IDs are `CB-nn`. Production frequencies come from read-only counts
 on the production backup `prod-central-bck.local` (E4, data as of 3 Nov 2026).
 Checkpoint 2 added a browser pass on `demo-billing.localhost` at 1440 px (marked
-**Seen**). Product decisions of 9 Nov 2026 (Prepaid, held invoices) are recorded in
+**Seen**). Product decisions of 9 Nov 2026 (Prepaid, held invoices, limit basis, auto-recharge,
+budget alerts) are recorded in
 [product-decisions-required.md](13-brainstorming/product-decisions-required.md).
 
 Four files sit beside the requested ones because they carry the UX work:

@@ -23,7 +23,7 @@ Only working actions are shown.
 
 ## Options
 
-- A. Remove both now; track invoice email (MC-06) and auto-recharge (D-14) separately.
+- A. Remove both now; track invoice email (MC-06) separately. Auto-recharge will not be built (D-14).
 
 Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorming/solution-alternatives.md).
 
@@ -34,8 +34,9 @@ A.
 ## Acceptance criteria
 
 - [ ] Both controls removed.
-- [ ] Separate feature notes exist for invoice email and auto-recharge.
+- [ ] A separate feature note exists for invoice email.
+- [ ] The `auto_recharge` setting, if stored, is removed with its reads.
 
 ## Dependencies
 
-D-14 decides whether auto-recharge is built later.
+None. D-14 decided 9 Nov 2026: auto-recharge is not built.

@@ -1,4 +1,4 @@
-# Missing capabilities (D1–D4)
+# Missing capabilities (D1–D7)
 
 Things a customer or operator needs for a D1/D2 task that the product does not
 offer. "Not found" means searched in the console and Desk source at `a95b491e`
@@ -21,6 +21,10 @@ and absent. Each links to the problem it would solve.
 | MC-12 | **Full wallet history and export** | Customer accounts team | 50-entry cap, no CSV (CB-30) | CB-30 |
 | MC-13 | **Credit expiry per grant, and a reminder** | Customer | Only one hint (CB-31) | CB-31, H-04 |
 | MC-14 | **Why a server size is over the limit, at the point of purchase**, in the same figure the gate uses | Customer | Gate figure appears nowhere (CB-25) | CB-25 |
+| MC-15 | **Record and count purchase refusals** (limit, payment) per team | Product, support | Refusals raise before an action exists; 0 recorded (E4) | CB-40 |
+| MC-16 | **Choose a project when creating a server** | Customer | Create form has no project field; tagging only from Billing | CB-36 |
+| MC-17 | **Desk list of open operator alerts** | Billing on-call | Alerts only in Raven, email or Error Log | CB-42 |
+| MC-18 | **"Needs attention" queue on the billing home** | Support | Home is catalog and finance first (seen) | CB-41, CB-18 |
 
 ## Capabilities present but unused
 

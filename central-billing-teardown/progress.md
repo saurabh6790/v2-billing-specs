@@ -25,14 +25,16 @@ measurement: [roadmap stage A](10-final-assessment/prioritized-roadmap.md#stage-
 | Checkpoint | Scope | Status | Evidence |
 |---|---|---|---|
 | 1 | D1 billing setup and payment methods; D2 invoices and collection | Done, reviewed 9 Nov 2026 | E2 + E4 |
-| 2 | D3 cost visibility and limits; D4 wallet and credits | **Done, waiting for review** | E2 + E4 + Seen (demo, 1440 px) |
-| 3+ | D5 subscriptions and projects, D6 purchase-time billing, D7 operator back office | Not started | — |
+| 2 | D3 cost visibility and limits; D4 wallet and credits | Done, reviewed 9 Nov 2026 (D-12 to D-15 decided) | E2 + E4 + Seen (demo, 1440 px) |
+| 3 | D5 subscriptions and projects, D6 purchase-time billing, D7 operator back office | **Done, waiting for review** | E2 + E4 + Seen (demo: Subscriptions card, Desk home) |
 
-Output so far: 33 problems (CB-01 to CB-33; CB-22 deferred by decision), 4
-hypotheses, 2 suggestions, 25 strengths, 14 missing capabilities, 15 decisions
-(3 decided), 29 issues in `issues/146`–`174`.
+Output so far: 41 problems (CB-01 to CB-42; CB-22 deferred by decision), 5
+hypotheses, 2 suggestions, 32 strengths, 18 missing capabilities, 17 decisions
+(7 decided), 37 issues in `issues/146`–`182`.
 Browser pass done at 1440 px on `demo-billing.localhost` with a test user created
-there. Not done: phone width, screen reader, Pay and add-method end to end.
+there, plus an operator test user for Desk. Not done: phone width, screen reader,
+Pay and add-method end to end, the New server page (the demo site cannot load
+plans), Plan Configurator, Billing Simulator and report numbers.
 
 ## What was read
 

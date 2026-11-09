@@ -1,10 +1,10 @@
 # 147 — The spending limit is compared with three figures on screen, and none is the one the server-create gate uses
 
-**Type:** HITL · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:bug` `type:ux` `priority:p1` `area:limits`
+**Type:** AFK · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:bug` `type:ux` `priority:p1` `area:limits`
 **Area:** `dashboard/src/components/billing/` (Overview cards), `central/billing/catalog/subscriptions.py`
 **Source:** [CB-25](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-13 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (D-13, 9 Nov 2026):** the limit is checked against base cost before tax, which is what the gate does today. The Overview shows cost with tax, so every place that compares cost with the limit must say taxes are added on top.
 
 ## Problem
 
@@ -20,7 +20,7 @@ Customers cannot predict when a new server will be refused, because the limit is
 
 ## What we want
 
-One figure means "spend against your limit" on every card, in the plan menu, in the gate and in the refusal.
+One figure means "spend against your limit" on every card, in the plan menu, in the gate and in the refusal: the monthly base cost (before tax) of what runs. Every such place says that taxes are added on top.
 
 **Who it affects:** Customers creating or resizing servers; support.
 
@@ -36,15 +36,17 @@ Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorm
 
 ## Recommended approach
 
-A (decide D-13).
+A. Decided by D-13: base cost before tax; the gate does not change.
 
 ## Acceptance criteria
 
-- [ ] This cycle card, Limits card and Tiers tray show the same figure against the limit, with its basis stated.
-- [ ] The plan menu and the refusal use that figure and the words "spending limit".
-- [ ] Refusal text: "This server adds {x} a month. Your limit is {limit} and your servers already run at {current}."
+- [ ] This cycle card, Limits card and Tiers tray compare the limit with the monthly base cost of running servers (the gate's figure, from the server), not the subtotal, projected total or measured amount.
+- [ ] Each of these places says "before tax" next to the figure and "Taxes are added on top" next to the limit.
+- [ ] Where a figure with tax sits next to the limit (This cycle card), the two are labelled so they cannot be read as the same number.
+- [ ] The plan menu and the refusal use that figure and the words "spending limit", never "headroom".
+- [ ] Refusal text: "This server adds {x} a month before tax. Your spending limit is {limit} and your servers already run at {current}. Taxes are added on top."
 - [ ] A test covers the gate and the card figure agreeing.
 
 ## Dependencies
 
-D-13.
+None. #162 (one cost figure) follows.

@@ -38,6 +38,7 @@ A.
 
 - [ ] Entries read e.g. "Welcome credit", "Top-up", "Used for October 2026 invoice", "Expired".
 - [ ] Operator notes are not shown to customers.
+- [ ] Desk Grant Credit and Adjust Credit ask for a customer-facing description separately from the internal note, and say which one the customer sees (`central/identity/doctype/team/team.js:166-220`; the Note now defaults to "Beta credit").
 - [ ] Dates use `formatDate`.
 - [ ] Promotional grants show expiry and remaining amount.
 - [ ] "Show more" loads older entries; CSV export available.

@@ -36,3 +36,15 @@ screens that lack it.
 | ST-23 | **The wallet is credited only after the gateway confirms**; the GST split is stored on the order before the payer acts. | `central/billing/api/dashboard/invoices.py` (`create_topup_order`) | — |
 | ST-24 | **Budget alert button shows its state**: tint and tooltip for near and crossed. | `EstimatedCard.vue:95-120` | (once alerts are sent, CB-23) |
 | ST-25 | **The GSTIN banner says what the customer loses and gives two fixes** (seen). | `GstStatusBanner.vue:60-77` | — |
+
+## Checkpoint 3: D5 subscriptions, D6 purchase, D7 back office
+
+| ID | Strength | Where | Copy it to |
+|---|---|---|---|
+| ST-26 | **The plan menu disables plans over the limit and says why**, on the same pre-tax figure as the gate. | `PlanGroup.vue:114,149-152` | Resize dialog, #147 |
+| ST-27 | **A team behind on payment can still downsize**: only the added rate passes the payment gate. | `subscriptions.py:634-641` | — |
+| ST-28 | **Creates reserve headroom under a lock**, so two creates cannot spend the same room. | `subscriptions.py:1044-1072`, `resource_actions.py:549-564` | — |
+| ST-29 | **Subscriptions are sorted by cost**, answering "where is the money going". | `usePayingFor.ts:56-80` | — |
+| ST-30 | **Stop all asks the team name to confirm** and reports partial failures. | `StopAllServersRow.vue:37-97` | — |
+| ST-31 | **Billing Settings can test itself**: "Send Test Alert" and "Check Accounting Setup". Alerts can be muted per kind while a fix is in progress. | `billing_settings.js`, `alerts.py:437-445` | — |
+| ST-32 | **Suspend states its reason stays internal** ("The owner's email does not include it"). | `team.js:96-100` | Grant and Adjust Credit dialogs (CB-29) |

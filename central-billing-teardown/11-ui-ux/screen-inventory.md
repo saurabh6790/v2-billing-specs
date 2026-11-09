@@ -39,9 +39,9 @@ The teardown runs domain by domain. Checkpoints 1 and 2 cover D1–D4.
 | **D2 Invoices and collection** | Invoice list, receipt panel, Pay now, outstanding banner, statement, refunds card, operator invoice actions | **Covered at this checkpoint** |
 | **D3 Cost visibility and limits** | This cycle card, spend chart, breakdown, limits, tiers, budget alert | **Covered at checkpoint 2** |
 | **D4 Wallet and credits** | Top-up, wallet history, auto-recharge, credit expiry | **Covered at checkpoint 2** |
-| D5 Subscriptions and projects | Subscriptions table, pause/resume, projects, stop all servers | Not started (earlier pass only) |
-| D6 Purchase-time billing | Plan menu prices, limit checks, resize, trial upgrade | Not started (earlier pass only) |
-| D7 Operator back office | Desk workspace, reports, catalog, corrections, simulator | D1/D2 touch points only |
+| **D5 Subscriptions and projects** | Subscriptions table, pause/resume, projects, stop all servers | **Covered at checkpoint 3** |
+| **D6 Purchase-time billing** | Plan menu prices, limit checks, resize, trial upgrade | **Covered at checkpoint 3** (code; demo cannot load plans) |
+| **D7 Operator back office** | Desk workspace, reports, catalog, corrections, simulator | **Covered at checkpoint 3** (home, sidebar, Team actions, alerts; configurator, simulator and reports listed only) |
 
 ## Customer console (`dashboard/`)
 
@@ -71,8 +71,8 @@ Routes: `dashboard/src/router/index.ts:114-130`. Sidebar: `dashboard/src/compone
 | S-20 | GSTIN status banner | `components/billing/GstStatusBanner.vue` | Banner | D1 | Customer (India) | Earlier pass |
 | S-21 | This cycle, spend, limits, tiers, budget alert | `EstimatedCard.vue`, `SpendCard.vue`, `LimitsCard.vue`, `TiersPanel.vue`, `CycleBreakdownPanel.vue` | Cards + trays | D3 | Customer | Yes, seen at 1440 px |
 | S-22 | Wallet history, top-up | `WalletHistoryPanel.vue`, `TopupDialog.vue` | Tray + dialog | D4 | Customer | Yes, seen at 1440 px |
-| S-23 | Subscriptions, projects, stop all | `PayingForCard.vue`, `PayingForTable.vue`, `ProjectsPanel.vue`, project dialogs, `StopAllServersRow.vue` | Card + trays + dialogs | D5 | Customer | Not yet |
-| S-24 | Plan menu, resize, trial upgrade | `PlanGroup.vue`, `NewServerPage.vue`, `ResizeServerDialog.vue`, `TrialUpgradePanel.vue` | Pages + dialogs | D6 | Customer | Not yet |
+| S-23 | Subscriptions, projects, stop all | `PayingForCard.vue`, `PayingForTable.vue`, `ProjectsPanel.vue`, project dialogs, `StopAllServersRow.vue` | Card + trays + dialogs | D5 | Customer | Yes, seen at 1440 px (Subscriptions card, Pause dialog) |
+| S-24 | Plan menu, resize, trial upgrade | `PlanGroup.vue`, `NewServerPage.vue`, `ResizeServerDialog.vue`, `TrialUpgradePanel.vue` | Pages + dialogs | D6 | Customer | Code; demo New server page cannot load plans |
 | — | `MeteredServicesCard.vue` | not imported anywhere | Dead component | — | — | Earlier pass |
 
 ## Operator surfaces (Frappe Desk)
@@ -82,13 +82,13 @@ Sidebar: `central/workspace_sidebar/billing.json` (95 items). Workspace:
 
 | # | Surface | File | Domain | Persona | Covered |
 |---|---|---|---|---|---|
-| O-01 | Billing sidebar | `central/workspace_sidebar/billing.json` | D7 | Support, finance, product admin | Structure read |
+| O-01 | Billing sidebar | `central/workspace_sidebar/billing.json` | D7 | Support, finance, product admin | Yes, home seen on demo |
 | O-02 | Invoice form + Cancel / Refund Part / Cancel and Refund / Retry Failed Refunds | `central/billing/doctype/invoice/invoice.js:6-107` | D2 | Support, finance | Yes, source only |
-| O-03 | Team form: Grant Credit, Adjust Credit, Suspend, Archive, Impersonate | `central/identity/doctype/team/team.js:8-49` | D1/D2/D4 | Support | Buttons read |
+| O-03 | Team form: Grant Credit, Adjust Credit, Suspend, Archive, Impersonate | `central/identity/doctype/team/team.js:8-49` | D1/D2/D4/D7 | Support | Grant and Adjust Credit dialogs read (CB-29) |
 | O-04 | Billing Profile form | `central/billing/doctype/billing_profile/billing_profile.js` (20 lines) | D1 | Support | Listed |
 | O-05 | Payment Method form | `central/billing/doctype/payment_method/` (no `.js`) | D1 | Support | Listed: no form script |
 | O-06 | Payment Attempt, Refund, Webhook Event lists | DocType lists | D2 | Support, platform admin | Listed |
 | O-07 | 41 reports (Collections section: AR Aging, Failed Payments, Dunning Recovery, …) | `central/billing/report/*` | D2/D7 | Finance | Listed, not reviewed |
-| O-08 | Plan Configurator, catalog DocTypes | `central/billing/doctype/plan_configurator/` | D7 | Product admin | Not yet |
-| O-09 | Billing Simulator page | `central/billing/page/billing_simulator` | D7 | Product admin, finance | Not yet |
-| O-10 | Billing Settings, Payment Gateway, Trust Tier Level | Single + DocTypes | D7 | Platform admin | Not yet |
+| O-08 | Plan Configurator, catalog DocTypes | `central/billing/doctype/plan_configurator/` | D7 | Product admin | Listed only |
+| O-09 | Billing Simulator page | `central/billing/page/billing_simulator` | D7 | Product admin, finance | Listed only |
+| O-10 | Billing Settings, Payment Gateway, Trust Tier Level | Single + DocTypes | D7 | Platform admin | Settings read (alerts, accounting check) |

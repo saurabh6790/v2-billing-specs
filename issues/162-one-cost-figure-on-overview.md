@@ -37,6 +37,7 @@ A.
 - [ ] The page shows at most one "this cycle" total.
 - [ ] Every other money figure states its basis (before tax, with tax, so far).
 - [ ] One name for the cycle-end date.
+- [ ] Next to the spending limit, the figure is the base cost before tax with "Taxes are added on top" (D-13, #147).
 
 ## Dependencies
 

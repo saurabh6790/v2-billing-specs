@@ -158,3 +158,28 @@ frequent and unexplained.
 
 Wallet history: separate a customer description per entry type from the operator
 note; format dates; show expiry and remaining amount per grant; page and export.
+
+## CB-34 + CB-35 Pause, stop and the bill (checkpoint 3)
+
+| Option | For | Against |
+|---|---|---|
+| **A. Pause closes the segment, Resume reopens at the locked rate; Stop says it keeps billing** | Matches the pause promise and ADR 0010; small engine change | Two verbs stay |
+| B. Stop ends billing; Pause removed | One verb | Revenue change; capacity held for free |
+| C. Stop bills disk only | Close to cloud norms | New rating rule |
+
+Recommended: A for #175 now (bug against a written promise); D-16 and D-17 settle the rest.
+
+## CB-39 + CB-38 Purchase (checkpoint 3)
+
+Return the credit-funded amount with the purchase state and mark plans above it,
+rather than a second call per selection. Show plan + IPv4 = monthly total before
+tax with "Taxes are added on top" (D-13).
+
+## CB-41 + CB-42 Desk for support (checkpoint 3)
+
+| Option | For | Against |
+|---|---|---|
+| **A. External-only cards, Team link, "Needs attention" block, alerts report from `collect()`** | Reuses existing queries; no new DocType | Alerts have no owner |
+| B. Alert documents with owner and status | Assignment and history | New DocType and lifecycle |
+
+Recommended: A; B only if alerts need assigning.

@@ -4,7 +4,8 @@ One register for all workstreams. One ID per root problem; symptoms of the same
 root are merged ([duplicate-analysis.md](../14-github-backlog/duplicate-analysis.md)).
 Scope: **D1 Billing setup and payment methods**, **D2 Invoices and collection**
 (checkpoint 1), **D3 Cost visibility and limits**, **D4 Wallet and credits**
-(checkpoint 2).
+(checkpoint 2), **D5 Subscriptions and projects**, **D6 Purchase-time billing**,
+**D7 Operator back office** (checkpoint 3).
 
 **Product decisions recorded (9 Nov 2026):**
 - **Prepaid** = credits first. A top-up is an advance that settles invoices; when
@@ -12,11 +13,18 @@ Scope: **D1 Billing setup and payment methods**, **D2 Invoices and collection**
   for the rest. The engine already does this (`central/billing/payments/collection_mode.py:105-112`).
 - **Held invoices** are expected: they wait until the accounting integration and
   accounts are finalised. CB-22 is deferred to that work.
+- **Prepaid stays a separate mode** (D-12): the wallet pays dues; only when the
+  wallet is short is the alternative method (card or UPI) charged.
+- **The spending limit is checked against base cost before tax** (D-13), which is
+  today's gate. Surfaces that show cost with tax must say taxes are added on top.
+- **No auto-recharge** (D-14): remove the switch.
+- **Budget alerts are needed** (D-15): build the sender; keep the setting.
 
 - **Evidence:** E2 = read in code and follows from it; **Seen** = observed in the
   browser on `demo-billing.localhost` at 1440 px (checkpoint 2); E4 = measured in
   the production backup ([measurements.md](measurements.md)).
-- **Domain:** D1 setup and methods, D2 invoices, D3 cost and limits, D4 wallet.
+- **Domain:** D1 setup and methods, D2 invoices, D3 cost and limits, D4 wallet,
+  D5 subscriptions and projects, D6 purchase, D7 operator back office.
 - **Status:** *Verified* = shown by code or data. *Hypothesis* = plausible, not shown.
   *Suggestion* = an improvement with no defect behind it.
 - **F-nn** = the same problem in the earlier pass
@@ -31,6 +39,7 @@ Scope: **D1 Billing setup and payment methods**, **D2 Invoices and collection**
 | CB-03 | No screen shows or changes the collection mode; making a card primary silently switches mode | Missing capability | D1 | Verified | E2 + E4 + Seen | **P1** | F-05 |
 | CB-18 | Support has no single view of a team's billing | Operational | D1/D2 | Verified | E2 | **P1** | — |
 | CB-25 | The spend limit is compared with three different figures on screen, and none is the one the server-create gate uses | Bug | D3 | Verified | E2 + Seen + E4 | **P1** | F-01 |
+| CB-34 | "Pause billing" stops the server but not the charges; a paused server that is later terminated bills on | Bug (money) | D5 | Verified | E2 + E4 + Seen | **P1** | — |
 | CB-23 | Budget alerts are saved but never sent | Bug | D3 | Verified | E2 + E4 | P2 | — |
 | CB-04 | Console copy and code assume Prepaid is credits only; the decided rule is credits then the method | Bug | D1 | Verified; decision made | E2 | P2 | F-23 |
 | CB-27 | Overview shows "Add your billing details" on every load, even for complete teams | Bug | D3 | Verified | E2 + Seen | P2 | — |
@@ -59,11 +68,19 @@ Scope: **D1 Billing setup and payment methods**, **D2 Invoices and collection**
 | CB-24 | "UPI Autopay" shown twice on a mandate row with no UPI ID | UX | D1 | Verified | E2 + Seen | P3 | — |
 | CB-30 | Wallet history shows only the latest 50 entries, with no way to see more | UX | D4 | Verified | E2 | P3 | — |
 | CB-33 | Top-up GST is computed in the browser; the order stores the server's split | Tech debt | D4 | Verified | E2 | P3 | F-17 |
+| CB-35 | Stopping a server keeps full billing; the docs say otherwise; Stop and Pause look alike | UX | D5 | Verified | E2 + Seen | P2 | — |
+| CB-39 | The New server page and the server use different rules for "credit is enough" | Bug | D6 | Verified | E2 + E4 | P2 | — |
+| CB-38 | Purchase price is not marked before tax and leaves out IPv4; alert says billed to the payment method | UX | D6 | Verified | E2 | P2 | — |
+| CB-40 | Limit and payment refusals at purchase leave no record | Observability | D6 | Verified | E2 + E4 | P2 | — |
+| CB-41 | Desk billing home counts internal teams and has nothing for support | Operational | D7 | Verified | E2 + E4 + Seen | P2 | — |
+| CB-42 | Open operator alerts have no Desk list | Operational | D7 | Verified | E2 | P2 | — |
+| CB-36 | Project spending limit checked only on tagging; errors show internal ids | Bug / UX | D5 | Verified | E2 + E4 | P3 | — |
 | CB-22 | Owed invoices held for accounting sync show no date | Operational | D2 | **Expected (decision)** | E4 | Deferred | F-25 related |
 | H-01 | A failed Pay call may show the previous call's "Payment initiated" toast | Bug | D2 | Hypothesis | — | — | — |
 | H-02 | Manual Checkout says "We email you each bill"; sending not traced | UX | D1 | Hypothesis | — | — | — |
 | H-03 | Side panel at phone width covers the list with no focus move or Escape | UX (a11y) | D2 | Hypothesis | — | — | — |
 | H-04 | Prepaid teams are not warned before promotional credit expires | UX | D4 | Hypothesis | — | — | — |
+| H-05 | Operator alerts reach no one in production (Raven and email unset) | Operational | D7 | Hypothesis | E4 (backup, settings touched by local migrate) | — | — |
 | S-01 | Warn before a saved card expires | Suggestion | D1 | — | — | — | — |
 | S-02 | Extra invoice recipients (accounts team) | Suggestion | D2 | — | — | — | — |
 
@@ -140,8 +157,12 @@ model fix in the console.
 - **Impact.** Under the decision, these teams are charged as intended. The risk
   now is a customer choosing "Prepaid wallet" to avoid card debits and being
   debited anyway.
-- **Open.** With this rule, Prepaid and Auto Charge differ only when no method is
-  saved (D-12).
+- **Decided (D-12).** Keep Prepaid separate from Auto Charge. This conflicts with
+  the engine in one place: `PaymentMethod.on_update` calls `start_auto_charge`,
+  which moves a Prepaid team to Auto Charge when its first method becomes active
+  (`central/billing/doctype/payment_method/payment_method.py:15-18`). Under D-12 a
+  Prepaid team that adds a card should stay Prepaid. The 4 Prepaid teams with an
+  active method are what D-12 asks for; the teams that were moved are not.
 
 ### CB-18 Support has no single view of a team's billing
 - **Observed (E2).** `get_team_billing` returns a team's subscriptions, invoices and
@@ -290,6 +311,7 @@ model fix in the console.
   title (`BillingInvoicesPage.vue:195-201`). The Wallet history header has an
   "Auto-recharge" switch that flips back with "Auto-recharge isn't available yet"
   (`WalletHistoryPanel.vue:25-31,51-57`); no auto-recharge endpoint exists.
+- **Decided (D-14).** Auto-recharge will not be built; remove the switch.
 
 ## Checkpoint 2: D3 cost visibility and limits
 
@@ -308,6 +330,10 @@ model fix in the console.
 - **Impact.** A customer can see room left on screen and still be refused, with a
   word ("headroom") they have not seen.
 - **Not established.** How often server creation is refused for the limit.
+- **Decided (D-13).** The limit is checked against base cost before tax, as the
+  gate does now (it sums `locked_rate`, `subscriptions.py:1036-1041`). The cards must
+  compare the limit with that figure and say taxes are added on top, because the
+  Overview's cost figures include tax.
 
 ### CB-23 Budget alerts are saved but never sent
 - **Observed (E2).** The dialog says "We'll notify the team once projected spend
@@ -316,6 +342,7 @@ model fix in the console.
   (`central/billing/api/dashboard/account.py:203-235`). A search of the whole
   repository finds no other reader: no job, no notification.
 - **Observed (E4).** 0 of 64 external teams have set one, so no one has been misled yet.
+- **Decided (D-15).** Budget alerts are needed. Build the sender; keep the setting.
 - **Also.** Placeholder "20000" in every currency (`EstimatedCard.vue:294`); the toast
   says "Billing alert saved" while the button says "Budget alerts" (`:145,175`).
 
@@ -397,11 +424,108 @@ model fix in the console.
   behind the current code. The console's "Couldn't load · Retry" handled it well.
 - Phone width could not be set (the browser kept a desktop frame), so H-03 stays open.
 
+## Checkpoint 3: D5 subscriptions and projects
+
+### CB-34 "Pause billing" stops the server but not the charges
+- **Observed (E2).** `pause_billing` sets `enabled = 0`, writes a `Paused` change and
+  stops the server; its docstring says this is so it is "not left running and
+  accruing" (`central/billing/catalog/subscriptions.py:1134-1146`). Invoice lines are
+  built from `Created`, `Plan Changed` and `Cancelled` only
+  (`central/billing/revenue/invoicing/lines.py:317`, `subscriptions.py:894`), and
+  `team_line_items` does not filter on `enabled` (`lines.py:85-89`). The pause does
+  not close the segment.
+- **Observed (E4).** The one paused subscription in production (24 Oct 2026, ₹710 a
+  month, internal team) was invoiced for 13 whole days, 19 Oct to 1 Nov (₹297.74 =
+  13 × 710 / 31): about 7 days after the pause. The invoice was waived.
+- **Observed (E2).** Pause then terminate: `disable_active_subscription` looks only
+  for `enabled = 1` (`central/infrastructure/doctype/virtual_machine/virtual_machine.py:293-303`),
+  so no `Cancelled` row is written and billing continues. Readiness S3 filters
+  `enabled = 1` too (`central/billing/platform/readiness.py:313-334`). No case in the backup.
+- **Observed (E2).** Headroom counts a paused server (`active_segments`, no `enabled`
+  filter); project run-rate does not (`subscriptions.py:1075-1085`).
+- **Seen.** "Pause billing for acme-corp-3? This stops the server/VM and the
+  site(s)/services running on it, and stops charges until you resume."
+- **Impact.** A wrong charge on every pause, against a written promise.
+
+### CB-35 Stop keeps billing; the docs and the two verbs disagree
+- **Observed (E2).** A server Stop writes no Subscription Change, so a stopped server
+  bills in full. Customer docs: "On the day a server is created, resized, or
+  stopped, each plan is billed for the hours it ran on that day."
+  (`docs/content/billing/index.md:26`).
+- **Seen.** "Stop 3 servers at once. Data is retained, and you can restart them." No
+  word on charges (`StopAllServersRow.vue:69-97`).
+- **Observed (E4).** No external team has a stopped server with an open subscription
+  today; the 10 external stopped servers are free trials.
+- **Open.** D-16 (is a stopped server billed?), D-17 (keep Pause separate?).
+
+### CB-36 Project limit checked only on tagging
+- **Observed (E2).** `validate_project` runs the limit only when the subscription is
+  new or its project changes (`central/billing/doctype/subscription/subscription.py:76-82`);
+  `_plan_resize` does not call it (`subscriptions.py:601-631`). Errors use internal
+  names and are not translated (`subscription.py:66-73`); the limit refusal calls
+  the new server's rate "committed" (`subscriptions.py:1100-1106`). No server can be
+  put in a project at create.
+- **Observed (E4).** 2 projects, 1 enabled, 0 with a limit, 1 tagged subscription.
+
+## Checkpoint 3: D6 purchase-time billing
+
+### CB-39 Console and server disagree on "credit is enough"
+- **Observed (E2).** The console hides "Add a payment method" when the wallet balance
+  is above zero (`central/signups/credit.py:47-61`). The server accepts credit only
+  when it covers the server's monthly rate (`central/resource_actions.py:525-546`,
+  `central/billing/payments/settlement.py:179-187`). A team with some credit picks a
+  bigger plan and is refused after Create.
+- **Observed (E4).** 2 external teams hold credit with no active method. Welcome
+  credit is off (`grant_welcome_credits = 0`).
+
+### CB-38 Purchase price basis
+- **Observed (E2).** Summary shows the plan's monthly rate only
+  (`dashboard/src/composables/useServerCreation.ts:313-323`); IPv4 is a tag
+  (`:366`); nothing says before tax. The plan menu's "Over your spending limit"
+  (`PlanGroup.vue:149-152`) uses the gate's pre-tax figure, which is right under D-13.
+  The alert says "Servers are billed monthly to your payment method."
+  (`NewServerPage.vue:158-159`), though every external team is Prepaid.
+- **Not seen.** The demo site cannot load images or plans (schema behind the code).
+
+### CB-40 Purchase refusals leave no record
+- **Observed (E2).** `enforce_headroom` and `require_payment_method_or_credit` raise
+  before a Resource Action exists.
+- **Observed (E4).** 239 paid create actions, 81 failed, all for infrastructure
+  reasons (80 of them internal `ATLAS_REJECTED`); 0 billing refusals recorded; Error
+  Log has none. How often the limit refuses a customer cannot be measured (blocks
+  the #147 measurement).
+
+## Checkpoint 3: D7 operator back office
+
+### CB-41 Desk billing home
+- **Observed (E2, E4).** Number cards filter only on status or `enabled`: Active
+  Subscriptions shows 81, of which 14 are external. Sidebar has about 90 links by
+  DocType; Team (Grant Credit, Adjust Credit, Suspend) is missing; Entitlement Token
+  (0 rows, retired by ADR 0006) is present.
+- **Seen.** Home order: At a glance, Manage catalog, Dashboards, Reports. Nothing
+  for a support task.
+
+### CB-42 Operator alerts have no Desk list
+- **Observed (E2).** `collect()` gathers nine alert kinds; `run_operator_alerts` posts
+  to Raven or email and writes an Error Log row
+  (`central/billing/platform/alerts.py:36-462`). No Desk list of what is open.
+
+### CB-29 (scope added) Operator notes reach customers by design
+- **Observed (E2).** Grant Credit's Note defaults to "Beta credit"; Adjust Credit
+  asks for a Reason (`central/identity/doctype/team/team.js:166-220`). Both become the
+  ledger note the customer sees in Wallet history. Neither dialog says so. The
+  Suspend dialog does say its reason stays internal. Added to #160.
+
+### Not reviewed in depth
+Plan Configurator, Billing Simulator, the 41 reports' numbers, the resize and
+trial-upgrade dialogs (read for billing calls only).
+
 ## Hypotheses
 
 | ID | Hypothesis | Why plausible | How to check |
 |---|---|---|---|
 | H-04 | Prepaid teams are not warned before promotional credit expires | Only a facts-card hint (`CycleFacts.vue:91-99`) | Trace notifications for credit expiry |
+| H-05 | Operator alerts reach no one in production | Backup: Raven fields and `operator_alert_emails` empty; 0 "Billing operator alert" rows in Error Log (1–15 Oct). The settings row was changed by the local migrate on 6 Nov | Check Billing Settings and the alert channel on production |
 | H-01 | After a failed `pay_invoice`, `pay.data` may still hold the previous call's result, so the toast says "Payment initiated" | `usePayInvoice.ts:38-39` reads `pay.data` after `submit` without checking `pay.error` | Read frappe-ui `useCall` on error; or pay two invoices in demo, the second failing |
 | H-02 | Manual Checkout customers are not emailed each bill | Copy at `CollectionActionBanner.vue:68`; sender not traced | Trace `platform/notifications.py` for invoice issue |
 | H-03 | At phone width the receipt panel covers the list and traps users without a clear way back | `SidePanel.vue:23` (`absolute inset-0` below `md`) | Browser pass (D-09) |

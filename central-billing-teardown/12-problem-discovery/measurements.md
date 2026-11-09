@@ -102,6 +102,35 @@ paid and no debit has been booked. The limit, alert and wallet screens have most
 shown zeros so far. Their problems come from code and the demo, and will reach
 every team once billing runs.
 
+## D5 Subscriptions and projects (checkpoint 3)
+
+| Measure | Value | Used in |
+|---|---|---|
+| Enabled subscriptions | 81; 14 belong to external teams (7 servers, 7 services) | CB-41 |
+| External servers | 20 running, 10 stopped; 13 running and all 10 stopped are free trials with no subscription (expected) | CB-35 |
+| Subscription Change rows | 228 Created, 55 Plan Changed, 147 Cancelled, 1 Paused, 0 Resumed | CB-34 |
+| The paused subscription | Internal team, ₹710/month, paused 24 Oct; invoiced 13 whole days 19 Oct–1 Nov (₹297.74), waived | CB-34 |
+| Projects | 2, 1 enabled, 0 with a spending limit, 1 tagged subscription | CB-36 |
+
+## D6 Purchase-time billing (checkpoint 3)
+
+| Measure | Value | Used in |
+|---|---|---|
+| Paid server creates (Oct–3 Nov) | 239; 81 failed: 80 internal `ATLAS_REJECTED`, then mailbox pool (5), Atlas (2), capacity (1), others | CB-40 (infrastructure, not billing) |
+| Billing refusals recorded | 0 (they never become actions; Error Log has none) | CB-40 |
+| External teams with credit and no active method | 2 | CB-39 |
+| `require_payment_method` | on | CB-39 |
+| `grant_welcome_credits` | off | CB-39 |
+
+## D7 Operator back office (checkpoint 3)
+
+| Measure | Value | Used in |
+|---|---|---|
+| Number card "Active Subscriptions" | 81 shown, 14 external | CB-41 |
+| Entitlement Token rows | 0 (still in the sidebar) | CB-41 |
+| Raven fields, alert emails | Empty in the backup; settings row modified by the local migrate (6 Nov) | H-05 |
+| Error Log | 1,623 rows, 1–15 Oct; 0 "Billing operator alert" rows | H-05 |
+
 ## How the measurements changed priorities
 
 | Problem | Before measuring | After | Why |
@@ -117,3 +146,6 @@ every team once billing runs.
 | CB-23 budget alert | — | P2 | Never sent, but 0 teams have set one |
 | CB-04 Prepaid | P1 | **P2** | Decision: the engine is right; copy only |
 | CB-22 held invoices | P1 | **Deferred** | Decision: expected until the integration is finalised |
+| CB-34 pause keeps charging | — | **P1** | Shown on real data (one paused server billed after its pause); a wrong charge |
+| CB-36 project limit | — | P3 | No project has a limit |
+| CB-35 stop billing | — | P2 | No external exposure today; docs contradict the engine |

@@ -64,4 +64,7 @@ earlier pass. Issue numbers refer to `billing-specs/issues/` (146–174).
 | 93 Derived payment outcomes | Mentions Manual Checkout dunning | No overlap with D1/D2 drafts |
 | 127 Partner pays | Uses collection mode | No overlap; #148 must keep the partner rule in mind |
 
+| **145** Send billing operator alerts to Raven (built: settings, `notify_operators`, test button) | CB-42 alert delivery | **#182 is scoped** to the Desk list of open alerts, which 145 does not cover |
+| 86 / ADR 0010 price lock folded into Subscription Change | CB-34 pause segments | ADR 0010 says stop/start carries the locked rate; #175 implements that for Pause. No open issue covers it |
+
 No other open issue matches a draft. Check again before publishing.

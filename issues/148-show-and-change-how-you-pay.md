@@ -4,7 +4,7 @@
 **Area:** `dashboard/src/components/billing/`, `dashboard/src/components/AddMethodDialog.vue`, `central/billing/api/dashboard/`, `central/billing/payments/`
 **Source:** [CB-03](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-02, D-12 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **HITL:** needs decision D-02 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
 
 ## Problem
 
@@ -15,6 +15,8 @@ The collection mode decides whether a team is charged, but customers cannot see 
 - No control sets Auto Charge / Manual Checkout / Prepaid except the INR Action-required dialog, which says "You can switch anytime in Billing settings" (`dashboard/src/components/billing/CollectionActionBanner.vue:134-136`). No such screen exists.
 - "Primary payment method" on a Prepaid team also sets Auto Charge; the toast says only "{card} is charged first" (`dashboard/src/components/billing/PaymentMethodsCard.vue:138-157`).
 - All 64 external teams are Prepaid (production backup).
+
+Decided (D-12, 9 Nov 2026): Prepaid stays separate from Auto Charge. Prepaid = the wallet pays dues; only when the wallet is short is the alternative method (card or UPI) charged.
 
 ## What we want
 
@@ -34,16 +36,20 @@ Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorm
 
 ## Recommended approach
 
-A, after D-01.
+A. One sentence per mode, used by the console, emails and support:
+- Prepaid: "Your wallet pays your invoices. If it runs short, {method} pays the rest."
+- Auto Charge: "{method} is charged for each invoice."
+- Manual Checkout: "You pay each invoice yourself."
+Check the Auto Charge sentence against the credit draw before shipping: if credit is applied first in every mode, say so.
 
 ## Acceptance criteria
 
 - [ ] Payments shows the current mode and what happens when credit runs out.
 - [ ] Change opens a chooser that explains each mode and confirms the effect before saving.
-- [ ] Promoting a payment method never changes the mode.
+- [ ] Promoting or adding a payment method never changes the mode (see #150 for the first-method switch).
 - [ ] The "Billing settings" sentence points to the new control.
 - [ ] Viewers without manage rights see the mode but no Change.
 
 ## Dependencies
 
-D-02 (who may change mode), D-12. Ships with the Prepaid copy fix.
+D-02 (who may change mode). Ships with or after #150.

@@ -1,10 +1,10 @@
 # 156 — Budget alerts are saved but never sent
 
-**Type:** HITL · **Milestone:** TD · **Priority:** P2 · **Size:** S · **Labels:** `type:bug` `priority:p2` `area:limits`
+**Type:** AFK · **Milestone:** TD · **Priority:** P2 · **Size:** S · **Labels:** `type:bug` `priority:p2` `area:limits`
 **Area:** `dashboard/src/components/billing/` (Overview cards), `central/billing/catalog/subscriptions.py`
 **Source:** [CB-23](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-15 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (D-15, 9 Nov 2026):** budget alerts are needed. Build the sender; do not hide the setting.
 
 ## Problem
 
@@ -19,7 +19,7 @@ Customers can set a budget alert that the product promises to send, and nothing 
 
 ## What we want
 
-An alert set by a customer is delivered once per cycle when the forecast crosses it, or the control is hidden until it can be.
+An alert set by a customer is delivered once per cycle when the forecast crosses it.
 
 **Who it affects:** Customer admins and finance contacts.
 
@@ -29,13 +29,13 @@ An alert set by a customer is delivered once per cycle when the forecast crosses
 
 - A. Daily job + email and in-app notice.
 - B. Console banner only.
-- C. Hide the dialog until A ships.
+- C. Hide the dialog until A ships. Rejected by None. Reads the forecast #147 and #162 settle on; can ship before them using today's before-tax forecast.
 
 Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorming/solution-alternatives.md).
 
 ## Recommended approach
 
-C now if A is more than a sprint away, then A (D-15).
+A, using the Team Notification feed (in-app) and the billing email sender. Compare the threshold with the same before-tax forecast the dialog names.
 
 ## Acceptance criteria
 

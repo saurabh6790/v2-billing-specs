@@ -1,6 +1,6 @@
 # Capability teardown (Workstream A)
 
-Business capabilities in D1 and D2, each with the nine points the brief asks for.
+Business capabilities in D1 to D7, each with the nine points the brief asks for.
 "Current behaviour" is from code (E2); numbers are from the production backup at
 3 Nov 2026 (E4, [measurements.md](measurements.md)). This file is an addition to the
 requested set: Workstream A had no named file.
@@ -199,7 +199,7 @@ requested set: Workstream A had no named file.
 5. **Inefficient or broken.** The promise in the dialog is not kept.
 6. **Missing.** MC-10.
 7. **Impact.** 0 teams use it yet (E4).
-8. **Recommend.** Send it, or remove the dialog until it can be sent.
+8. **Recommend.** Send it (D-15 decided 9 Nov 2026: alerts are needed; do not hide).
 9. **Evidence.** CB-23.
 
 ## D4 Wallet and credits (checkpoint 2)
@@ -235,3 +235,83 @@ requested set: Workstream A had no named file.
 8. **Recommend.** Customer-facing descriptions separate from operator notes; dates
    formatted; expiry on each grant; paging and export.
 9. **Evidence.** CB-29, CB-30, CB-31.
+
+## D5 Subscriptions and projects (checkpoint 3)
+
+### E1. Subscriptions list, pause and resume
+
+1. **Purpose.** Show what the team pays for and let it stop paying for a server.
+2. **Users.** Customer admin.
+3. **Current behaviour.** Billing Overview card lists servers and metered services by
+   cost, 5 visible, with Pause billing / Resume billing and Move to project per row
+   (`PayingForCard.vue`, `SubscriptionRowActions.vue`). Pause disables the
+   subscription and stops the server (`subscriptions.py:1134-1146`).
+4. **Works well.** ST-29 (sorted by cost), ST-30 (Stop all confirms).
+5. **Inefficient or broken.** Pause does not stop charges, and a paused server that is
+   terminated bills on (CB-34). Stop keeps billing and nothing says so (CB-35).
+6. **Missing.** —
+7. **Impact.** 1 pause in production, billed after the pause (E4).
+8. **Recommend.** Close the segment on pause, reopen on resume (#175); decide what
+   Stop means for the bill (D-16, D-17).
+9. **Evidence.** CB-34, CB-35.
+
+### E2. Projects
+
+1. **Purpose.** Group costs by customer or environment on the one invoice, with an
+   optional monthly limit.
+2. **Users.** Customer admin; agencies.
+3. **Current behaviour.** Create, rename, disable, set a limit, tag servers from the
+   Billing Overview (`ProjectsPanel.vue`, `api/dashboard/projects.py`). The limit is
+   checked when a server is tagged.
+4. **Works well.** No delete, so past invoice labels stay valid; disabled projects
+   refuse new tags.
+5. **Inefficient or broken.** Limit not checked on resize; errors show ids (CB-36).
+6. **Missing.** Choose a project at create (MC-16).
+7. **Impact.** 2 projects, none with a limit (E4).
+8. **Recommend.** #180.
+9. **Evidence.** CB-36.
+
+## D6 Purchase-time billing (checkpoint 3)
+
+### F1. Price, limit and payment check at create and resize
+
+1. **Purpose.** Tell the customer what a server will cost and whether they can buy it,
+   before they commit.
+2. **Users.** Customer admin, developer with create rights.
+3. **Current behaviour.** Plan menu filtered and disabled by remaining limit
+   (pre-tax); summary shows the plan's monthly rate; a payment alert when the team
+   has no method and no credit. The server re-checks limit (`enforce_headroom`) and
+   payment (`require_payment_method_or_credit`) on create and on resize.
+4. **Works well.** ST-26, ST-27, ST-28.
+5. **Inefficient or broken.** No tax basis; IPv4 not in the price (CB-38). Console
+   and server disagree on when credit is enough (CB-39). Refusals are not recorded
+   (CB-40).
+6. **Missing.** MC-15.
+7. **Impact.** 61 of 64 teams on the lowest limit (checkpoint 2); refusal frequency
+   unknown because nothing records it.
+8. **Recommend.** #177, #178, #179.
+9. **Evidence.** CB-38, CB-39, CB-40.
+
+## D7 Operator back office (checkpoint 3)
+
+### G1. Billing home and navigation
+
+1. **Purpose.** Let support, finance and product admins find their task.
+2. **Users.** Support, finance, product admin, billing on-call.
+3. **Current behaviour.** Workspace with 4 number cards, catalog shortcuts, 7
+   dashboards, about 47 report links; a sidebar of about 90 links by DocType.
+4. **Works well.** The catalog has verb-first shortcuts (Launch a plan, Update
+   prices); Billing Settings tests its own alert channel and accounting setup (ST-31).
+5. **Inefficient or broken.** Cards mix internal and external teams; Team missing;
+   retired Entitlement Token present (CB-41). Open alerts have no Desk list (CB-42).
+   Credit dialogs do not say the note is shown to the customer (CB-29).
+6. **Missing.** MC-17, MC-18; and MC-03 from checkpoint 1.
+7. **Impact.** 81 active subscriptions shown, 14 paying (E4).
+8. **Recommend.** #181, #182, with #149.
+9. **Evidence.** CB-41, CB-42, CB-29.
+
+### G2. Catalog, simulator, reports
+
+Listed, not reviewed in depth at this checkpoint: Plan Configurator, Billing
+Simulator, 41 reports. A review needs report runs on a migrated demo site, not on
+the production backup.
