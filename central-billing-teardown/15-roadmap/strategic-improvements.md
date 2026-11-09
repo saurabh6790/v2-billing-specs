@@ -65,7 +65,8 @@ control ships before its endpoint, and a saved setting has a reader.
 ## 7. Subscription billing follows the server's life
 
 **Issues.** #175, #176. **Decided.** D-16 stopped servers bill disk only; D-17 Pause
-billing stays its own action. **Open.** D-18 (disk while paused).
+billing stays its own action and bills nothing (D-18); dunning stops bill nothing
+(D-19). **Open.** D-25 (snapshot instead of disk).
 
 Pause, stop, resume and terminate each have one stated effect on the bill, the
 engine applies it through Subscription Change rows, and a readiness check proves no
@@ -89,7 +90,7 @@ internal teams; open alerts are a list, not only a channel message.
 
 ## 10. Metered services on a daily ledger
 
-**Issues.** #187, #186, #188, #189. **Open.** D-20 to D-24.
+**Issues.** #187, #186, #188, #189. **Decided.** D-20 to D-23. **Open.** D-24, D-26.
 
 Every metered service writes one row per subject and day; the month is the sum of
 its days, compared with what the plan includes, and the same rows feed the

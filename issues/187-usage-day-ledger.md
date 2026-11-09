@@ -44,4 +44,4 @@ A.
 
 ## Dependencies
 
-D-23 (unit), D-24 (missed day). #186 and #188 build on it.
+D-23 decided: GB (10⁹). D-24 (missed day) still open. #186 and #188 build on it.

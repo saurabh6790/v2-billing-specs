@@ -4,7 +4,9 @@
 **Area:** central/billing/revenue/storage_usage.py, Catalog Rate (Storage), Object Storage Plan
 **Source:** [CB-47](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-23 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (9 Nov 2026):** D-23, GB (10⁹). D-22, any included amount comes from the plan's base offering.
+>
+> **HITL:** needs a Storage price from finance.
 
 ## Problem
 
@@ -18,7 +20,7 @@ Storage usage is recorded every day and billed at ₹0, and the quantity is in G
 
 ## What we want
 
-Storage has a price per GB-month per currency (and an included amount if D-22 says so), and the unit on the invoice is what was measured.
+Storage has a price per GB-month per currency (and the included amount of the plan's base offering, D-22), and the unit on the invoice is what was measured.
 
 **Who it affects:** Storage customers; finance.
 
@@ -33,7 +35,7 @@ Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorm
 
 ## Recommended approach
 
-A (D-23).
+A (D-23 decided).
 
 ## Acceptance criteria
 
@@ -43,4 +45,4 @@ A (D-23).
 
 ## Dependencies
 
-#187. D-23. Price from finance.
+#187. Price from finance.

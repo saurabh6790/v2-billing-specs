@@ -69,7 +69,7 @@ quick wins first, so it is not a strict sort by score.
 | 4 | #177 | CB-38 purchase price basis | 2 | 1 | 1 | 1 | 3 (every create) | 2 (S) | 10 | P2 | First invoice above the quoted price for INR |
 | 5 | #181 | CB-41 Desk home | 0 | 0 | 2 | 1 | 3 (every visit) | 2 (S) | 8 | P2 | With #149 |
 | 6 | #182 | CB-42 alerts list | 0 | 1 | 2 | 2 | 1 | 2 (S) | 8 | P2 | Confirm H-05 first |
-| 7 | #176 | CB-35 stopped = disk only | 2 | 2 | 1 | 1 | 0 (no external case) | 1 (M) | 7 | P2 | D-16, D-17 decided; after #175 |
+| 7 | #176 | CB-35 stopped = disk only | 2 | 2 | 1 | 1 | 0 (no external case) | 1 (M) | 7 | P2 | D-16, D-17, D-19 decided; D-25 open; after #175 |
 | 8 | #180 | CB-36 project limit | 1 | 0 | 0 | 1 | 0 (no limits set) | 2 (S) | 4 | P3 | — |
 
 ### Open-points pass

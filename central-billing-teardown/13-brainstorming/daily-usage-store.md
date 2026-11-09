@@ -59,8 +59,8 @@ A new DocType **Usage Day**, append-only, one row per subject, meter and day:
 | `resource_type` | The catalog resource it is rated as (Storage, Tokens, AI Usage) |
 | `subject` | The bucket, or the Grove API key hash |
 | `day` | The day the usage happened, in the source's time zone (UTC for Grove; IST for storage samples) |
-| `quantity`, `unit` | GB-day for storage (bytes ÷ 10⁹ or ÷ 2³⁰, see D-23), tokens or requests for AI |
-| `source_amount`, `source_currency` | Grove's USD cost for the day, kept even if Central re-rates (D-20) |
+| `quantity`, `unit` | GB-day for storage (bytes ÷ 10⁹, D-23), tokens or requests for AI |
+| `source_amount`, `source_currency` | Grove's USD cost for the day, the price billed (D-20) |
 | `source_ref` | Grove drain id + key + day, or the storage sample id: the unique key |
 | `landed_at` | When Central stored it, to bill by landing window |
 | `invoice` | Set when billed; never changed after |
@@ -92,7 +92,7 @@ At the monthly run, per team and resource type:
 4. Stamp the invoice on the Usage Days it used.
 
 The allowance ("bundled") comes from the subscription's Plan Includes row for that
-resource type, or from a team-wide pool when D-22 says the bundle is per team.
+resource type: the plan's base offering, per subscription, never pooled (D-22).
 
 ### Show
 
@@ -100,19 +100,39 @@ The customer sees a daily chart per service and "used X of Y included this month
 from the Usage Days, the same rows the invoice used. Today the console's AI usage
 comes straight from Grove and storage shows nothing per day.
 
-## Decisions needed
+### Showing AI in INR
 
-| ID | Question | Recommendation |
+Grove prices in USD and the invoice converts at the billing day's rate (D-21). An
+Overview that converts at each day's rate would change the INR price of the same
+usage from day to day, and would not match the invoice. Recommended (D-26): one
+rate per month.
+
+- On the billing day (the 1st), Central reads the USD to INR rate (ERPNext Currency
+  Exchange for that date, so ERPNext's Sales Invoice uses the same rate) and fixes it
+  for the month that starts.
+- Each AI Usage Day for an INR team stores the USD amount and the INR amount at the
+  month's rate.
+- The Overview, the AI price list and the daily chart show INR at that rate, with
+  "Rate for November: ₹84.10 per US$1" next to them.
+- The month's invoice uses the same rate and prints it on the AI line.
+
+Frappe carries one month of rate change on AI revenue. If the rate must be the one
+on the billing day that closes the month, the Overview can show only an estimate.
+
+## Decisions
+
+| ID | Question | Status |
 |---|---|---|
-| D-20 | Who rates AI: Grove's USD price, or Central's catalog rates per token? | Grove's price, converted (D-21). Grove's invoice API returns cost per model and day, not per token type, so Central rating needs a Grove change. |
-| D-21 | AI for INR teams: convert Grove's USD at what rate, or an INR price book? | Convert at the invoice date's rate with the rate on the line; revisit when AI revenue is material |
-| D-22 | What is bundled, and per subscription or pooled per team? | Per subscription for storage and AI plans; transfer stays "included" with no meter until a fair-use rule exists |
-| D-23 | Storage unit: GB (10⁹) or GiB (2³⁰)? | Bill GB, the unit the customer sees; convert from bytes with 10⁹ |
-| D-24 | A day with no storage reading: bill nothing, or the day before's size? | The day before's size, marked estimated on the Usage Day |
+| D-20 | Who rates AI? | **Decided:** Grove's USD price |
+| D-21 | AI for INR teams? | **Decided:** convert at the billing day's rate |
+| D-22 | What is bundled? | **Decided:** the plan's base offering, per subscription |
+| D-23 | Storage unit? | **Decided:** GB (10⁹) |
+| D-24 | A day with no storage reading: bill nothing, or the day before's size? | Open. Recommended: the day before's size, marked estimated on the Usage Day |
+| D-26 | How the Overview shows AI in INR | Open. Recommended: one rate per month, above |
 
 ## Order
 
 1. Usage Day ledger and storage writing to it (#187).
-2. AI pull into the ledger, then AI subscriptions and billing (#186; needs D-20, D-21).
-3. Storage price and unit (#188; needs a price and D-23).
-4. Bundled transfer (#189; D-22).
+2. AI pull into the ledger, then AI subscriptions and billing (#186; needs D-26).
+3. Storage price and unit (#188; needs a price from finance).
+4. Bundled transfer (#189).

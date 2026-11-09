@@ -14,7 +14,12 @@ Grove AI** (open-points pass).
   for the rest. The engine already does this (`central/billing/payments/collection_mode.py:105-112`).
 - **Held invoices** are expected: they wait until the accounting integration and
   accounts are finalised. CB-22 is deferred to that work.
-- **Stopped servers bill disk only** (D-16); **Pause billing stays its own action** (D-17).
+- **Stopped servers bill disk only** (D-16); **Pause billing stays its own action** (D-17)
+  and bills nothing, disk included (D-18); servers stopped by dunning bill nothing
+  (D-19). Open: offer a snapshot on Stop and bill it instead of the disk (D-25).
+- **AI** is rated at Grove's USD price (D-20), converted for INR at the billing day's
+  rate (D-21). **Bundles** are the plan's base offering, per subscription (D-22).
+  **Storage** is billed in GB (D-23).
 - **Prepaid stays a separate mode** (D-12): the wallet pays dues; only when the
   wallet is short is the alternative method (card or UPI) charged.
 - **The spending limit is checked against base cost before tax** (D-13), which is
@@ -466,7 +471,8 @@ model fix in the console.
 - **Observed (E4).** No external team has a stopped server with an open subscription
   today; the 10 external stopped servers are free trials.
 - **Decided (D-16, D-17, 9 Nov 2026).** A stopped server bills for its disk only.
-  Pause billing stays its own action. Open: D-18, whether a paused server bills disk.
+  Pause billing stays its own action and bills nothing (D-18); dunning stops bill
+  nothing (D-19). Open: D-25, snapshot instead of disk.
 
 ### CB-36 Project limit checked only on tagging
 - **Observed (E2).** `validate_project` runs the limit only when the subscription is

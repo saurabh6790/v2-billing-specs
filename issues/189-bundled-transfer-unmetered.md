@@ -4,7 +4,9 @@
 **Area:** dashboard/src/components/servers/PlanGroup.vue, Central Settings included_transfer_gb, Atlas
 **Source:** [CB-49](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-22 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (9 Nov 2026):** D-22, the bundle is the plan's base offering, per subscription. The 1 TB is part of each server's base offering.
+>
+> **HITL:** choose B now or wait for A.
 
 ## Problem
 
@@ -32,7 +34,7 @@ Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorm
 
 ## Recommended approach
 
-B now, A when Atlas exposes per-VM egress (D-22).
+B now, A when Atlas exposes per-VM egress. Under D-22 the 1 TB is per server, not pooled.
 
 ## Acceptance criteria
 
@@ -41,4 +43,4 @@ B now, A when Atlas exposes per-VM egress (D-22).
 
 ## Dependencies
 
-D-22. #187 for A.
+#187 for A.

@@ -20,14 +20,17 @@ suggestion; nobody is assigned.
 | D-13 | ~~What figure is the spending limit checked against?~~ **Decided 9 Nov 2026:** the base cost before tax (today's gate: monthly run-rate of what runs). Because the Overview shows cost with tax, every limit surface must say taxes are added on top | — | CB-25, CB-26 | User | Gate sums `locked_rate`, pre-tax (`subscriptions.py:1036-1041,1072`) |
 | D-14 | ~~Auto-recharge: build or remove?~~ **Decided 9 Nov 2026:** do not build it. Remove the switch | — | CB-15 | User | Inert switch (`WalletHistoryPanel.vue:25-31,51-57`) |
 | D-15 | ~~Ship or hide budget alerts?~~ **Decided 9 Nov 2026:** budget alerts are needed. Build the sender; do not hide the setting | — | CB-23 | User | Never sent; 0 teams set one |
-| D-16 | ~~Is a stopped server billed?~~ **Decided 9 Nov 2026:** a stopped server bills for its disk only | — | CB-35 | User | Engine bills in full today; a per-GB Disk component rate exists (`resolve_component_rate("Disk")`, `subscriptions.py:686-700`) |
+| D-16 | ~~Is a stopped server billed?~~ **Decided 9 Nov 2026:** a stopped server bills for its disk only. **Revisited the same day:** offer a snapshot and bill the snapshot instead of the disk (D-25, open) | — | CB-35 | User | Engine bills in full today; a per-GB Disk component rate exists (`resolve_component_rate("Disk")`, `subscriptions.py:686-700`) |
 | D-17 | ~~Keep "Pause billing" separate from Stop?~~ **Decided 9 Nov 2026:** keep Pause billing as its own action | — | CB-34, CB-35 | User | — |
-| D-18 | Does a paused server bill its disk, like a stopped one? | No charge (today's promise) / disk only (same as Stop) | CB-34 | Product | With D-16, Pause and Stop differ only in this; the Pause dialog promises "stops charges" |
-| D-19 | When dunning stops a team's servers, do they bill disk only (D-16) or nothing? | Disk only / nothing / full | CB-35 | Finance | Suspension uses the same stop path (`subscriptions.py:1189-1211`) |
+| D-18 | ~~Does a paused server bill its disk?~~ **Decided 9 Nov 2026:** no. Pause billing stops billing for everything on that server, disk included | — | CB-34 | User | Matches the Pause dialog's promise |
+| D-19 | ~~Servers stopped by dunning: disk only?~~ **Decided 9 Nov 2026:** no. A server stopped by dunning bills nothing while it is suspended | — | CB-35 | User | Suspension uses the same stop path (`subscriptions.py:1189-1211`), so it needs its own rule |
+
+| D-20 | ~~Who rates AI?~~ **Decided 9 Nov 2026:** Grove's USD price | — | CB-46 | User | Grove's invoice API returns cost per model and day |
+| D-21 | ~~AI for INR teams?~~ **Decided 9 Nov 2026:** convert Grove's USD to INR at the exchange rate of the billing day. How the Overview shows INR during the month is D-26 | — | CB-46 | User | Central has no exchange-rate source today; only the ERPNext payment sync reads a conversion rate (`erpnext_sync.py:325`) |
+| D-22 | ~~What is bundled?~~ **Decided 9 Nov 2026:** the bundle is the base offering of the plan: what each plan includes, per subscription, not pooled per team | — | CB-48, CB-49 | User | Matches Plan Includes |
+| D-23 | ~~Storage unit?~~ **Decided 9 Nov 2026:** GB (10⁹ bytes) | — | CB-47 | User | Code computes GiB, labels GB |
+| D-24 | A day with no storage reading: bill nothing, or the previous day's size? | Nothing / previous day, marked estimated | CB-48 | Finance | — |
+| D-25 | When a customer stops a server, offer to snapshot it and release the disk, then bill the snapshot instead of the disk? | Disk only (D-16) / offer "snapshot and release disk" beside plain Stop / snapshot always | CB-35 | Product + infrastructure | Snapshot rate ₹6.50 / $0.08 per GB-month on used size; Disk rate ₹20 / $0.20 per GB-month on full size (production catalog). Restore creates a new server from the snapshot (`api/servers.py:769`) |
+| D-26 | How does the Overview show AI usage to an INR team during the month, when the rate is set on the billing day (D-21)? | One rate per month, fixed on the billing day that opens it / today's rate, marked estimate / an INR price per model reviewed by finance | CB-46 | Product + finance | A rate that changes every day makes the Overview disagree with itself and with the invoice |
 
 Recommendations for each open decision: [decision-briefs.md](decision-briefs.md).
-| D-20 | Who rates AI: Grove's USD price, or Central's catalog rates per token counter? | Grove / Central | CB-46 | Product + finance | Grove's invoice API returns cost per model and day, not per counter |
-| D-21 | AI for INR teams: convert Grove's USD, or an INR price book? | Convert at invoice date / INR price book | CB-46 | Finance | — |
-| D-22 | What is bundled with a service or server, and is it per subscription or pooled per team? | Per subscription / pooled | CB-48, CB-49 | Product | No service plan includes an allowance today; transfer 1 TB per server is unmeasured |
-| D-23 | Storage unit: GB (10⁹) or GiB (2³⁰)? | GB / GiB | CB-47 | Product | Code computes GiB, labels GB |
-| D-24 | A day with no storage reading: bill nothing, or the previous day's size? | Nothing / previous day, marked estimated | CB-48 | Finance | — |

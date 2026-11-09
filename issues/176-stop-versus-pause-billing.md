@@ -4,7 +4,9 @@
 **Area:** `central/billing/catalog/subscriptions.py`, `central/billing/revenue/invoicing/lines.py`, `central/infrastructure/doctype/virtual_machine/virtual_machine.py`, `dashboard/src/components/billing/StopAllServersRow.vue`, `dashboard/src/components/billing/SubscriptionRowActions.vue`, server Stop dialog, `docs/content/billing/index.md`
 **Source:** [CB-35](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **Decided (9 Nov 2026):** D-16, a stopped server bills for its disk only. D-17, Pause billing stays its own action.
+> **Decided (9 Nov 2026):** D-16, a stopped server bills for its disk only. D-17, Pause billing stays its own action. D-19, a server stopped by dunning bills nothing while suspended.
+>
+> **Open:** D-25, whether Stop also offers "snapshot and release disk" and bills the snapshot instead of the disk.
 
 ## Problem
 
@@ -41,7 +43,7 @@ A. It keeps Subscription Change as the one billing ledger (ADR 0010), shows on t
 
 - [ ] A server stopped mid-day bills its full rate for the hours it ran and the disk-only rate for the rest of the day; whole stopped days bill disk only.
 - [ ] Start returns to the full locked rate, not a re-priced one.
-- [ ] Stop on the server page, Stop all, and dunning suspension all use the same rule (suspension under D-16 too: confirm with finance).
+- [ ] Stop on the server page and Stop all use the same rule. A server stopped by dunning bills nothing while suspended (D-19).
 - [ ] The invoice shows the stopped period as its own line, for example "acme-prod, stopped: 40 GB disk, 12 days".
 - [ ] Stop and Stop all say: "A stopped server is billed for its disk only ({rate}/month). Start it to return to {full}/month."
 - [ ] `docs/content/billing/index.md` and `docs/content/servers/lifecycle.md` describe the rule.
@@ -50,4 +52,4 @@ A. It keeps Subscription Change as the one billing ledger (ADR 0010), shows on t
 
 ## Dependencies
 
-#175 (pause segments) first, since both add non-rate change types to rating.
+#175 (pause segments) first, since both add non-rate change types to rating. D-25 for the snapshot choice in the Stop dialog; the disk-only rule does not wait for it.

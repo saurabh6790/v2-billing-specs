@@ -35,11 +35,12 @@ Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorm
 
 ## Recommended approach
 
-A. It keeps the history readable and matches ADR 0010. Ship with the terminate fix. D-17 (9 Nov 2026) keeps Pause billing as its own action. D-18 decides whether a paused server bills its disk like a stopped one (#176); until then follow the dialog's promise: nothing.
+A. It keeps the history readable and matches ADR 0010. Ship with the terminate fix. D-17 (9 Nov 2026) keeps Pause billing as its own action. D-18 (9 Nov 2026): a paused server bills nothing, disk included.
 
 ## Acceptance criteria
 
 - [ ] A subscription paused mid-day bills the hours before the pause on that date and nothing after it until resumed.
+- [ ] Nothing is billed for a paused server: no compute, disk, IPv4 or other line for it.
 - [ ] Resume opens billing at the locked rate from before the pause.
 - [ ] Terminating a server with a paused subscription records `Cancelled` and closes billing.
 - [ ] Readiness S3 flags any terminated server whose subscription still has an open segment, whatever `enabled` is.
@@ -49,4 +50,4 @@ A. It keeps the history readable and matches ADR 0010. Ship with the terminate f
 
 ## Dependencies
 
-None for the engine fix. D-18 for disk while paused. Ship before or with #176.
+None. Ship before or with #176.
