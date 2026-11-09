@@ -24,12 +24,15 @@ measurement: [roadmap stage A](10-final-assessment/prioritized-roadmap.md#stage-
 
 | Checkpoint | Scope | Status | Evidence |
 |---|---|---|---|
-| 1 | D1 billing setup and payment methods; D2 invoices and collection | **Done, waiting for review** | E2 (code) + E4 (production backup counts) |
-| 2+ | D3 cost and limits, D4 wallet, D5 subscriptions, D6 purchase, D7 operator back office | Not started | — |
+| 1 | D1 billing setup and payment methods; D2 invoices and collection | Done, reviewed 9 Nov 2026 | E2 + E4 |
+| 2 | D3 cost visibility and limits; D4 wallet and credits | **Done, waiting for review** | E2 + E4 + Seen (demo, 1440 px) |
+| 3+ | D5 subscriptions and projects, D6 purchase-time billing, D7 operator back office | Not started | — |
 
-Checkpoint 1 output: 22 problems (CB-01 to CB-22), 3 hypotheses, 2 suggestions,
-16 strengths, 9 missing capabilities, 11 decisions, 22 issue drafts (unpublished).
-Browser pass not done: session hand-off failed (D-09).
+Output so far: 33 problems (CB-01 to CB-33; CB-22 deferred by decision), 4
+hypotheses, 2 suggestions, 25 strengths, 14 missing capabilities, 15 decisions
+(3 decided), 29 issues in `issues/146`–`174`.
+Browser pass done at 1440 px on `demo-billing.localhost` with a test user created
+there. Not done: phone width, screen reader, Pay and add-method end to end.
 
 ## What was read
 

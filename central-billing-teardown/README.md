@@ -43,8 +43,9 @@ Three rules govern every finding.
 - Every finding cites `path:line` at that commit. Paths start at the central repo
   root (`dashboard/src/...`, `central/billing/...`).
 - **Verified** = read in code and follows from it. **Inferred** = follows from code,
-  not seen running. Nothing was checked in a browser. From checkpoint 1 of the
-  product teardown, frequencies are counted read-only on the production backup.
+  not seen running. The first pass used no browser. The product teardown counts
+  frequencies read-only on the production backup and, from checkpoint 2, checks
+  screens in a browser on the demo site.
 
 ## Layout
 
@@ -68,15 +69,19 @@ folders share number prefixes with the first pass; they sit beside them.
 
 | Folder | Files |
 |---|---|
-| [03-ui-ux](03-ui-ux/) | [screen-inventory.md](03-ui-ux/screen-inventory.md), [navigation-audit.md](03-ui-ux/navigation-audit.md), [workflow-ux-audit.md](03-ui-ux/workflow-ux-audit.md), [visual-consistency-review.md](03-ui-ux/visual-consistency-review.md), [accessibility-review.md](03-ui-ux/accessibility-review.md), [ux-findings.md](03-ui-ux/ux-findings.md) |
-| [04-problem-discovery](04-problem-discovery/) | [problem-register.md](04-problem-discovery/problem-register.md), [strengths-register.md](04-problem-discovery/strengths-register.md), [missing-capabilities.md](04-problem-discovery/missing-capabilities.md), plus [capability-teardown.md](04-problem-discovery/capability-teardown.md) (Workstream A) and [measurements.md](04-problem-discovery/measurements.md) (production backup counts) |
-| [05-brainstorming](05-brainstorming/) | [solution-alternatives.md](05-brainstorming/solution-alternatives.md), [product-decisions-required.md](05-brainstorming/product-decisions-required.md) |
-| [06-github-backlog](06-github-backlog/) | [issue-index.md](06-github-backlog/issue-index.md), [duplicate-analysis.md](06-github-backlog/duplicate-analysis.md), [issue-drafts/](06-github-backlog/issue-drafts/) (22 drafts, unpublished) |
-| [07-roadmap](07-roadmap/) | [prioritized-backlog.md](07-roadmap/prioritized-backlog.md), [quick-wins.md](07-roadmap/quick-wins.md), [strategic-improvements.md](07-roadmap/strategic-improvements.md) |
+| [11-ui-ux](11-ui-ux/) | [screen-inventory.md](11-ui-ux/screen-inventory.md), [navigation-audit.md](11-ui-ux/navigation-audit.md), [workflow-ux-audit.md](11-ui-ux/workflow-ux-audit.md), [visual-consistency-review.md](11-ui-ux/visual-consistency-review.md), [accessibility-review.md](11-ui-ux/accessibility-review.md), [ux-findings.md](11-ui-ux/ux-findings.md) |
+| [12-problem-discovery](12-problem-discovery/) | [problem-register.md](12-problem-discovery/problem-register.md), [strengths-register.md](12-problem-discovery/strengths-register.md), [missing-capabilities.md](12-problem-discovery/missing-capabilities.md), plus [capability-teardown.md](12-problem-discovery/capability-teardown.md) (Workstream A) and [measurements.md](12-problem-discovery/measurements.md) (production backup counts) |
+| [13-brainstorming](13-brainstorming/) | [solution-alternatives.md](13-brainstorming/solution-alternatives.md), [product-decisions-required.md](13-brainstorming/product-decisions-required.md) |
+| [14-github-backlog](14-github-backlog/) | [issue-index.md](14-github-backlog/issue-index.md), [duplicate-analysis.md](14-github-backlog/duplicate-analysis.md). The issues themselves are in [`issues/146`–`174`](../issues/README.md#teardown-td) (milestone TD) |
+| [15-roadmap](15-roadmap/) | [prioritized-backlog.md](15-roadmap/prioritized-backlog.md), [quick-wins.md](15-roadmap/quick-wins.md), [strategic-improvements.md](15-roadmap/strategic-improvements.md) |
 
 Checkpoint 1 covers D1 (billing setup and payment methods) and D2 (invoices and
-collection). Problem IDs are `CB-nn`. Production frequencies come from read-only
-counts on the production backup `prod-central-bck.local` (E4, data as of 3 Nov 2026).
+collection); checkpoint 2 covers D3 (cost visibility and limits) and D4 (wallet and
+credits). Problem IDs are `CB-nn`. Production frequencies come from read-only counts
+on the production backup `prod-central-bck.local` (E4, data as of 3 Nov 2026).
+Checkpoint 2 added a browser pass on `demo-billing.localhost` at 1440 px (marked
+**Seen**). Product decisions of 9 Nov 2026 (Prepaid, held invoices) are recorded in
+[product-decisions-required.md](13-brainstorming/product-decisions-required.md).
 
 Four files sit beside the requested ones because they carry the UX work:
 `screen-map.md`, `screen-teardown.md`, `duplicated-and-low-value-data.md` and
