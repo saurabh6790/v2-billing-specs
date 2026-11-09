@@ -66,7 +66,7 @@ control ships before its endpoint, and a saved setting has a reader.
 
 **Issues.** #175, #176. **Decided.** D-16 stopped servers bill disk only; D-17 Pause
 billing stays its own action and bills nothing (D-18); dunning stops bill nothing
-(D-19). **Open.** D-25 (snapshot instead of disk).
+(D-19). D-25 (provisional): Stop also offers Snapshot and release.
 
 Pause, stop, resume and terminate each have one stated effect on the bill, the
 engine applies it through Subscription Change rows, and a readiness check proves no

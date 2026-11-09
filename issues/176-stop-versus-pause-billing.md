@@ -6,7 +6,7 @@
 
 > **Decided (9 Nov 2026):** D-16, a stopped server bills for its disk only. D-17, Pause billing stays its own action. D-19, a server stopped by dunning bills nothing while suspended.
 >
-> **Open:** D-25, whether Stop also offers "snapshot and release disk" and bills the snapshot instead of the disk.
+> **Decided (provisional, business not final):** D-25, the Stop dialog offers **Stop** (keeps the disk, bills disk only) and **Snapshot and release** (snapshot, delete the server and disk, bill the snapshot; restore creates a new server with a new IP).
 
 ## Problem
 
@@ -41,6 +41,9 @@ A. It keeps Subscription Change as the one billing ledger (ADR 0010), shows on t
 
 ## Acceptance criteria
 
+- [ ] The Stop dialog offers Stop and Snapshot and release, each with its monthly cost, and says that a restore creates a new server with a new IP.
+- [ ] Snapshot and release takes the snapshot, waits for it to finish, then deletes the server; billing moves from the server to the snapshot subscription with no gap and no overlap.
+- [ ] A server stopped for 7 days shows a suggestion to snapshot and release, with the saving.
 - [ ] A server stopped mid-day bills its full rate for the hours it ran and the disk-only rate for the rest of the day; whole stopped days bill disk only.
 - [ ] Start returns to the full locked rate, not a re-priced one.
 - [ ] Stop on the server page and Stop all use the same rule. A server stopped by dunning bills nothing while suspended (D-19).
@@ -52,4 +55,4 @@ A. It keeps Subscription Change as the one billing ledger (ADR 0010), shows on t
 
 ## Dependencies
 
-#175 (pause segments) first, since both add non-rate change types to rating. D-25 for the snapshot choice in the Stop dialog; the disk-only rule does not wait for it.
+#175 (pause segments) first, since both add non-rate change types to rating. D-25 is provisional: build the disk-only rule first and the snapshot choice after.

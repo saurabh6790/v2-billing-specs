@@ -1,12 +1,10 @@
 # 146 — Payment-method setups and top-ups that fail or are abandoned leave no end state and nothing the customer can see
 
-**Type:** HITL · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:reliability` `type:ux` `priority:p1` `area:billing-setup`
+**Type:** AFK · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:reliability` `type:ux` `priority:p1` `area:billing-setup`
 **Area:** `dashboard/src/components/billing/`, `dashboard/src/components/AddMethodDialog.vue`, `central/billing/api/dashboard/`, `central/billing/payments/`
 **Source:** [CB-21](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **Decided (9 Nov 2026):** D-04, an unfinished setup expires after 24 hours, and the customer is told.
->
-> **HITL:** D-05 direction given (escalating lockout); confirm the details in [decision-briefs.md](../central-billing-teardown/13-brainstorming/decision-briefs.md) before building the lockout.
+> **Decided (9 Nov 2026):** D-04, an unfinished setup expires after 24 hours and the customer is told; closing the bank's window never blocks a retry. D-05, escalating lockout on failed setups: after failures 1–4 no wait; after the 5th and 6th 10 min; 7th 30 min; 8th 2 h; 9th 6 h; 10th and after 24 h. Counted per team and per signed-in user, not per card. Only bank declines and failed bank verification count; closing the bank's window does not. The count resets on a successful setup or after 7 days with no failure. The wait is shown; the 10th failure alerts billing operators; only a billing operator can clear a lock. Enforced on the server and applied to wallet top-ups too.
 
 ## Problem
 
@@ -44,8 +42,12 @@ Build on existing issue 125 (record why adding a payment method failed: `Payment
 
 ## Acceptance criteria
 
-- [ ] (D-05, after the details are confirmed) Failed setups lock further attempts for the team on an escalating schedule: after the 5th failure 10 min, then 30 min, 2 h, 6 h, and 24 h from the 10th consecutive failure; the wait is shown; a success resets the count; the 10th failure alerts billing operators.
-- [ ] A setup not finished in 24 hours is marked Expired.
+- [ ] Failed setups lock further attempts for the team and user on the D-05 schedule (10 min after the 5th and 6th failure, 30 min, 2 h, 6 h, then 24 h from the 10th); the wait is shown as "Too many failed attempts. Try again in 28 minutes."
+- [ ] Only bank declines and failed bank verification count; closing the bank's window, cancelling, or an expired setup does not.
+- [ ] The count resets on a successful setup or after 7 days with no failure; the 10th failure alerts billing operators; a billing operator can clear the lock.
+- [ ] The lock is checked on the server for payment-method setup and wallet top-up.
+- [ ] A customer who closes the bank's window can start a new setup at once; an unfinished setup never blocks a new one.
+- [ ] A setup not finished in 24 hours is marked Expired. No expiry notice is sent if the team has since added a method successfully.
 - [ ] When a setup expires, the team's billing contacts get an email and an in-app notice: "Your card or UPI setup was not finished, so it was not saved. Add it again from Billing."
 - [ ] A Razorpay `payment.failed` or Stripe `setup_intent.setup_failed` for a pending method sets it to Failed with the gateway reason.
 - [ ] Payments lists unfinished and failed setups from the last N days with the reason and a Retry that reopens the same instrument.
@@ -55,4 +57,4 @@ Build on existing issue 125 (record why adding a payment method failed: `Payment
 
 ## Dependencies
 
-Issue 125 (failure recording) first or together. D-04 decided (24 h, notify). D-05 direction given; details to confirm. Measurement step above.
+Issue 125 (failure recording) first or together. D-04 and D-05 decided. Measurement step above.

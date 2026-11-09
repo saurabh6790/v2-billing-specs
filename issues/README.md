@@ -317,7 +317,7 @@ Decisions already made (9 Nov 2026): Prepaid = the wallet pays first, the saved 
 
 | # | Slice | Type | Priority | Size | Problem |
 |---|-------|------|----------|------|---------|
-| [146](146-unfinished-payment-method-setups.md) | Payment-method setups and top-ups that fail or are abandoned leave no end state and nothing the customer can see | HITL | P1 | M | CB-21 |
+| [146](146-unfinished-payment-method-setups.md) | Payment-method setups and top-ups that fail or are abandoned leave no end state and nothing the customer can see | AFK | P1 | M | CB-21 |
 | [147](147-spending-limit-one-figure.md) | The spending limit is compared with three figures on screen, and none is the one the server-create gate uses | AFK | P1 | M | CB-25 |
 | [148](148-show-and-change-how-you-pay.md) | Customers cannot see or change how they pay, and making a card primary silently changes it | AFK | P1 | M | CB-03 |
 | [149](149-team-billing-view-for-support.md) | Support has no single view of a team's billing | AFK | P1 | M | CB-18 |
