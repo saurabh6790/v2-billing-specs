@@ -87,7 +87,16 @@ counted, so tier limits can be tuned from data.
 Billing home opens with what needs attention and a team search; numbers exclude
 internal teams; open alerts are a list, not only a channel message.
 
-## 10. Remaining verification
+## 10. Metered services on a daily ledger
+
+**Issues.** #187, #186, #188, #189. **Open.** D-20 to D-24.
+
+Every metered service writes one row per subject and day; the month is the sum of
+its days, compared with what the plan includes, and the same rows feed the
+customer's usage chart. AI is billed from Grove's landed usage, storage from daily
+samples. Design: [daily-usage-store.md](../13-brainstorming/daily-usage-store.md).
+
+## 11. Remaining verification
 
 Phone width, keyboard-only and screen-reader passes; the Pay and add-method flows
 and the New server page end to end on a demo site migrated to the current code;

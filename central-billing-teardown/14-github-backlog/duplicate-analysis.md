@@ -67,4 +67,6 @@ earlier pass. Issue numbers refer to `billing-specs/issues/` (146–174).
 | **145** Send billing operator alerts to Raven (built: settings, `notify_operators`, test button) | CB-42 alert delivery | **#182 is scoped** to the Desk list of open alerts, which 145 does not cover |
 | 86 / ADR 0010 price lock folded into Subscription Change | CB-34 pause segments | ADR 0010 says stop/start carries the locked rate; #175 implements that for Pause. No open issue covers it |
 
+| ADR 0025 metered services platform (design branch `docs/metered-services-platform`, not built) | CB-46, CB-48 | #186 and #187 are the billing slices of it, scoped to what Grove and Cargo expose today. Its Service registry and signed reports are not required for them |
+
 No other open issue matches a draft. Check again before publishing.

@@ -315,3 +315,34 @@ requested set: Workstream A had no named file.
 Listed, not reviewed in depth at this checkpoint: Plan Configurator, Billing
 Simulator, 41 reports. A review needs report runs on a migrated demo site, not on
 the production backup.
+
+## D8 Metered services (open-points pass)
+
+### H1. Object storage (Cargo)
+
+1. **Purpose.** Bill storage held per month, over any included amount.
+2. **Users.** Customer; finance.
+3. **Current behaviour.** Cargo reports the current bytes per bucket on request;
+   Central samples daily and adds to one monthly rollup.
+4. **Works well.** Idempotent daily sampling with a sequence cursor; one region
+   failing does not stop the others.
+5. **Inefficient or broken.** No day rows (CB-48); priced at zero; GiB labelled GB
+   (CB-47).
+6. **Missing.** Daily usage view; included amount.
+7. **Impact.** Internal teams only so far.
+8. **Recommend.** #187, #188.
+9. **Evidence.** CB-47, CB-48.
+
+### H2. AI inference (Grove)
+
+1. **Purpose.** Bill AI usage in arrears, wallet first.
+2. **Users.** Customer; finance.
+3. **Current behaviour.** Grove counts, prices (USD) and caps per key per UTC day;
+   Central shows Grove's figures in the console and bills nothing.
+4. **Works well.** Grove's records are per day, idempotent per drain, audited against
+   the gateway, with a landing-window API made for invoicing.
+5. **Inefficient or broken.** Never billed (CB-46).
+6. **Missing.** AI plan, subscription, invoice line, INR handling.
+7. **Impact.** All AI usage since 8 Oct is unbilled; Grove deletes it after 90 days.
+8. **Recommend.** Export Grove's Revenue report now; then #186 on #187.
+9. **Evidence.** CB-46.

@@ -5,7 +5,8 @@ root are merged ([duplicate-analysis.md](../14-github-backlog/duplicate-analysis
 Scope: **D1 Billing setup and payment methods**, **D2 Invoices and collection**
 (checkpoint 1), **D3 Cost visibility and limits**, **D4 Wallet and credits**
 (checkpoint 2), **D5 Subscriptions and projects**, **D6 Purchase-time billing**,
-**D7 Operator back office** (checkpoint 3).
+**D7 Operator back office** (checkpoint 3), **D8 Metered services: Cargo storage and
+Grove AI** (open-points pass).
 
 **Product decisions recorded (9 Nov 2026):**
 - **Prepaid** = credits first. A top-up is an advance that settles invoices; when
@@ -42,6 +43,10 @@ Scope: **D1 Billing setup and payment methods**, **D2 Invoices and collection**
 | CB-25 | The spend limit is compared with three different figures on screen, and none is the one the server-create gate uses | Bug | D3 | Verified | E2 + Seen + E4 | **P1** | F-01 |
 | CB-34 | "Pause billing" stops the server but not the charges; a paused server that is later terminated bills on | Bug (money) | D5 | Verified | E2 + E4 + Seen | **P1** | — |
 | CB-44 | Revenue reports count waived internal invoices as revenue (80 % of the base); economics reports do not | Bug (reporting) | D7 | Verified | E2 + E4 | **P1** | — |
+| CB-46 | AI usage is never billed: Central treats Grove as prepaid, Grove expects Central to bill in arrears; Grove purges after 90 days | Bug (money) | D8 | Verified | E2 + E4 | **P1** | — |
+| CB-48 | Metered usage is not stored per day; one running monthly row per subscription | Design gap | D8 | Verified | E2 + E4 | **P1** | — |
+| CB-47 | Object storage is metered but priced at zero; GiB labelled GB | Bug | D8 | Verified | E2 + E4 | P2 | — |
+| CB-49 | 1 TB transfer per server promised, never measured | Gap | D8 | Verified | E2 | P3 | — |
 | CB-23 | Budget alerts are saved but never sent | Bug | D3 | Verified | E2 + E4 | P2 | — |
 | CB-04 | Console copy and code assume Prepaid is credits only; the decided rule is credits then the method | Bug | D1 | Verified; decision made | E2 | P2 | F-23 |
 | CB-27 | Overview shows "Add your billing details" on every load, even for complete teams | Bug | D3 | Verified | E2 + Seen | P2 | — |
@@ -580,6 +585,43 @@ Amount are off screen.
 
 ### CB-45 Credit expiry has no notice
 See H-04 above and #185.
+
+## D8 Metered services: Cargo and Grove
+
+Full detail and the proposed design: [daily-usage-store.md](../13-brainstorming/daily-usage-store.md).
+
+### CB-46 AI usage is never billed
+- **Observed (E2).** Central: "AI is prepaid at Grove, so it has no subscription
+  here." (`central/services/doctype/team_service/team_service.py:123`). Grove
+  (`grove/billing/README.md`, `e028f25`): AI is postpaid, billed in arrears by Central
+  from `api.usage.usage(pulled_after, pulled_until)`; Grove holds no money.
+  `GroveClient.get_usage` supports that window (`central/integrations/grove.py:150-170`);
+  no billing code calls it. Grove purges Usage Records after 90 days.
+- **Observed (E4).** 8 active AI services (1 external since 30 Oct, 7 internal since 8
+  Oct), 0 AI subscriptions, 0 AI usage rows, no AI plan in the catalog, 51 trial keys.
+- **Correction to earlier notes.** Central's Grove client now matches Grove HEAD
+  (keys, usage, figures); the 19 Oct finding that it called missing endpoints is out
+  of date.
+
+### CB-48 No per-day usage store
+- **Observed (E2).** Cargo keeps only the current reading
+  (`cargo/object_storage/doctype/bucket/bucket.py:226-240`). Central's storage job
+  adds each day's share to one monthly Usage Rollup and keeps no day rows
+  (`central/billing/revenue/storage_usage.py:18-63`); a missed day is billed at the
+  next reading's size.
+- **Observed (E4).** 4 storage rollups, all internal, 2.05 GB-months in October.
+  Remote Storage is Incremental, so the increments add up correctly.
+
+### CB-47 Storage priced at zero; GiB labelled GB
+- **Observed (E4).** Object Storage Plan includes Storage 0 GB; no Storage Catalog
+  Rate; every rollup has locked rate 0.
+- **Observed (E2).** `BYTES_PER_GIB = 1024**3`, "billing names the unit GB"
+  (`storage_usage.py:13-14`).
+
+### CB-49 Transfer is promised but not measured
+- **Observed (E2).** "Every server includes 1 TB of transfer a month."
+  (`PlanGroup.vue:222-226`, Central Settings `included_transfer_gb`); no transfer
+  reading reaches Central.
 
 ## Hypotheses
 

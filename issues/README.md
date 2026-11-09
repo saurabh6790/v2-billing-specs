@@ -357,10 +357,15 @@ Decisions already made (9 Nov 2026): Prepaid = the wallet pays first, the saved 
 | [183](183-revenue-reports-count-waived.md) | Revenue reports count waived internal invoices as revenue; the economics reports do not | AFK | P1 | S | CB-44 |
 | [184](184-invoice-list-phone-width.md) | At phone width the invoice list hides Status and Amount off to the right, and the invoice panel keeps focus behind it | AFK | P2 | S | CB-43 |
 | [185](185-credit-expiry-notice.md) | Promotional credit expires with no notice to the team | AFK | P2 | S | CB-45 |
+| [187](187-usage-day-ledger.md) | Store metered usage per day (Usage Day), and build the monthly figure from the days | AFK | P1 | M | CB-48 |
+| [186](186-bill-ai-usage-from-grove.md) | AI usage is never billed: Central thinks Grove is prepaid, Grove expects Central to bill in arrears | HITL | P1 | M | CB-46 |
+| [188](188-storage-price-and-unit.md) | Object storage is metered but priced at zero, and its GiB figure is labelled GB | HITL | P2 | S | CB-47 |
+| [189](189-bundled-transfer-unmetered.md) | Every server promises 1 TB of transfer a month, and nothing measures transfer | HITL | P3 | S | CB-49 |
 
 - **Quick wins first:** #151, #152, #153, #154, #155, #170 (each under a day, no decision needed).
 - **#146** builds on **#125** (record why setups and top-ups failed).
 - **#150** (Prepaid copy) ships before or with **#148** (how you pay).
+- **Metered services (D8):** #187 (per-day usage store) first, then #186 (bill AI from Grove; export Grove's Revenue report before its 90-day purge), #188, #189. Design: [daily-usage-store.md](../central-billing-teardown/13-brainstorming/daily-usage-store.md).
 - **Checkpoint 3:** #175 (pause keeps charging) is P1 and needs no decision. #176 (stopped servers bill disk only) follows #175. #179 (record refusals) is needed to measure #147.
 
 ## Notes

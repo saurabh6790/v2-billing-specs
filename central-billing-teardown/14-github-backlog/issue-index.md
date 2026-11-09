@@ -1,7 +1,7 @@
 # Issue index
 
 The teardown issues live in the repo's issue folder, where the fixing agent reads
-them: **`issues/146` to `issues/185`**, milestone **TD**
+them: **`issues/146` to `issues/189`**, milestone **TD**
 ([issues/README.md](../../issues/README.md#teardown-td)). They are not opened on
 GitHub. Nobody is assigned.
 
@@ -75,3 +75,7 @@ Size: XS < 0.5 day, S ≤ 2 days, M ≤ 1 week, L > 1 week. Estimated from code 
 | [183](../../issues/183-revenue-reports-count-waived.md) | Revenue reports count waived internal invoices as revenue; the economics reports do not | AFK | P1 | S | CB-44 |
 | [184](../../issues/184-invoice-list-phone-width.md) | At phone width the invoice list hides Status and Amount off to the right, and the invoice panel keeps focus behind it | AFK | P2 | S | CB-43 |
 | [185](../../issues/185-credit-expiry-notice.md) | Promotional credit expires with no notice to the team | AFK | P2 | S | CB-45 |
+| [187](../../issues/187-usage-day-ledger.md) | Store metered usage per day (Usage Day), and build the monthly figure from the days | AFK | P1 | M | CB-48 |
+| [186](../../issues/186-bill-ai-usage-from-grove.md) | AI usage is never billed: Central thinks Grove is prepaid, Grove expects Central to bill in arrears | HITL | P1 | M | CB-46 |
+| [188](../../issues/188-storage-price-and-unit.md) | Object storage is metered but priced at zero, and its GiB figure is labelled GB | HITL | P2 | S | CB-47 |
+| [189](../../issues/189-bundled-transfer-unmetered.md) | Every server promises 1 TB of transfer a month, and nothing measures transfer | HITL | P3 | S | CB-49 |

@@ -15,4 +15,9 @@ recommendation is not a decision; nothing here is applied until you confirm it.
 | D-11 | Remove the last payment method while money is owed? | Replace-only: allow removal once another method is active or nothing is owed | Blocks the one case that strands collection; no measured exposure today | #168 |
 | D-18 | Does a paused server bill disk? | Yes, disk only, same as Stop | Disk is held either way; keeps one rule. Pause then differs from Stop only in intent (billing-led vs server-led) and the dialog must say "you pay only for disk" | #175 |
 | D-19 | Servers stopped by dunning: disk only? | Disk only | Same rule as D-16; the data is kept, so the disk is still used | #176 |
+| D-20 | Who rates AI? | Grove's USD price | Grove already prices and audits every request against the gateway; Central rating needs a Grove API change | #186 |
+| D-21 | AI in INR? | Convert at the invoice date's rate, rate shown on the line | AI revenue is small (1 external team); an INR price book can follow | #186 |
+| D-22 | Bundles: per subscription or pooled? | Per subscription; transfer reworded as fair use until metered | Matches how Plan Includes works today | #187, #189 |
+| D-23 | Storage unit | GB (10⁹) | The unit the customer reads; S3 tools report bytes | #188 |
+| D-24 | Missed storage day | Previous day's size, marked estimated | Nearest to what was held; visible as an estimate | #187 |
 | H-05 | (check, not a decision) Are operator alerts configured in production? | Check Billing Settings on production | The backup shows empty Raven fields, but the row was changed by a local migrate | #182 |

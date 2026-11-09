@@ -80,11 +80,20 @@ quick wins first, so it is not a strict sort by score.
 | 2 | #185 | CB-45 credit expiry notice | 2 | 1 | 1 | 1 | 2 (32 grants) | 2 (S) | 9 | P2 | Wallet-first rule makes expiry a card charge |
 | 3 | #184 | CB-43 phone invoice list | 2 | 0 | 0 | 0 | 2 | 2 (S) | 6 | P2 | — |
 
+### D8 Metered services
+
+| Rank | Issue | Problem | Cust. | Fin. | Ops | Risk | Freq. | Effort | Score | Priority | Why |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | #187 | CB-48 per-day usage store | 1 | 2 | 2 | 3 | 3 (every metered service) | 1 (M) | 12 | **P1** | Foundation for #186 and bundles |
+| 2 | #186 | CB-46 AI never billed | 1 | 3 | 1 | 3 | 2 (8 AI services) | 1 (M) | 11 | **P1** | Unbilled usage; source purged at 90 days |
+| 3 | #188 | CB-47 storage price and unit | 1 | 2 | 0 | 1 | 1 (internal only) | 2 (S) | 7 | P2 | Before the first external bucket |
+| 4 | #189 | CB-49 transfer unmetered | 1 | 1 | 0 | 1 | 1 | 2 (S) | 6 | P3 | — |
+
 ## Buckets
 
 | Bucket | Issues |
 |---|---|
-| **Must fix first** | #183, #175, #146, #147, #148 (with #150), #149 |
+| **Must fix first** | #187, #186, #183, #175, #146, #147, #148 (with #150), #149 |
 | **High-value** | #156, #158, #160, #159, #163, #167, #177, #178, #179, #181, #182 |
 | **Quick wins** | #151, #152, #153, #154, #155, #157, #170, #172 — see [quick-wins.md](quick-wins.md) |
 | **Strategic** | collection model (#148, #150, #171), limit model (#147, #162), support console (#149, #167, with #125), error model (#163), payment outcome loop (#146, #165, #164) — see [strategic-improvements.md](strategic-improvements.md) |

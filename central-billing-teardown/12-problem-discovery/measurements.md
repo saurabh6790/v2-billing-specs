@@ -140,6 +140,17 @@ every team once billing runs.
 | Revenue base in revenue reports | ₹69,719.75 over 13 invoices; ₹56,151.78 (11) waived internal | CB-44 |
 | Promotional grants | 32, all expiring, no notice sent | CB-45 |
 
+## D8 Metered services
+
+| Measure | Value | Used in |
+|---|---|---|
+| Team Services | AI: 8 active (1 external since 30 Oct, 7 internal since 8 Oct), 0 with a subscription. Storage: 6 active, all internal, all with a subscription | CB-46, CB-47 |
+| Usage Rollups | 4, all Storage, all internal, 2.05 GB-months total, locked rate 0, allowance 0 | CB-47, CB-48 |
+| AI usage rows in Central | 0 | CB-46 |
+| AI trial keys | 51 since 29 Oct | CB-46 |
+| Metered categories | AI Tokens, Emails, PDF Generation: Authoritative, Postpaid Overage, no plan. Remote Storage: Incremental, one plan, 0 GB included | CB-46, CB-47 |
+| Grove retention | Usage Records purged after 90 days (`usage_record.py:13`) | CB-46 |
+
 ## How the measurements changed priorities
 
 | Problem | Before measuring | After | Why |

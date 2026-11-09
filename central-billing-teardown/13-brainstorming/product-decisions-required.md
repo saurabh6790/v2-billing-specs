@@ -26,3 +26,8 @@ suggestion; nobody is assigned.
 | D-19 | When dunning stops a team's servers, do they bill disk only (D-16) or nothing? | Disk only / nothing / full | CB-35 | Finance | Suspension uses the same stop path (`subscriptions.py:1189-1211`) |
 
 Recommendations for each open decision: [decision-briefs.md](decision-briefs.md).
+| D-20 | Who rates AI: Grove's USD price, or Central's catalog rates per token counter? | Grove / Central | CB-46 | Product + finance | Grove's invoice API returns cost per model and day, not per counter |
+| D-21 | AI for INR teams: convert Grove's USD, or an INR price book? | Convert at invoice date / INR price book | CB-46 | Finance | — |
+| D-22 | What is bundled with a service or server, and is it per subscription or pooled per team? | Per subscription / pooled | CB-48, CB-49 | Product | No service plan includes an allowance today; transfer 1 TB per server is unmeasured |
+| D-23 | Storage unit: GB (10⁹) or GiB (2³⁰)? | GB / GiB | CB-47 | Product | Code computes GiB, labels GB |
+| D-24 | A day with no storage reading: bill nothing, or the previous day's size? | Nothing / previous day, marked estimated | CB-48 | Finance | — |
