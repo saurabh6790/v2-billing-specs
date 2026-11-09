@@ -15,9 +15,9 @@ next? Paths are at central `a95b491e`.
 - Gateway failures are wrapped: the customer sees "We could not reach the payment
   provider. Try again in a few minutes." or "The payment provider could not process
   this request. Contact support if this keeps happening." and the raw gateway text
-  goes to the Error Log (`gateways/base.py:130-143`). Good.
+  goes to the Error Log (`gateways/base.py:130-143`).
 - Card declines are mapped to "{reason}. Try another card, or add credit to your
-  account instead." (`payments/decline.py:160-163`). Good.
+  account instead." (`payments/decline.py:160-163`).
 
 ## The standard used
 
@@ -38,6 +38,10 @@ concept the customer has never seen on screen.
 | "This plan has no price in {0} for this region. Choose another plan." | `catalog/subscriptions.py:382` |
 
 ## Messages a customer can reach that need rewriting
+
+Reachability is judged from code (the message is raised on a path an `api/dashboard`
+or pilot endpoint calls). Which messages customers actually see, and how often, is
+not measured (roadmap A15). Rewrites are proposals, on hold until then.
 
 | Message today | File | Problem | Rewrite |
 |---|---|---|---|

@@ -9,12 +9,12 @@ they overlap. No exploit detail is given (this repository is public).
 
 | Layer | Implementation | Evidence | Assessment |
 |---|---|---|---|
-| Customer reads and actions | Capability checks per team: `billing:view`, `billing:manage` | `authz.py:49-72`; `_require_manage` / `_resolve_team` in `api/dashboard/*` | Sound; every customer endpoint reviewed calls one |
+| Customer reads and actions | Capability checks per team: `billing:view`, `billing:manage` | `authz.py:49-72`; `_require_manage` / `_resolve_team` in `api/dashboard/*` | Every customer endpoint reviewed calls one (E2) |
 | Operator | System Manager through `iam.user_has_operator_bypass` | `authz.py:29-31,74` | One role does everything: catalog, refunds, credits, settings |
 | DocType permissions | Only System Manager on every billing DocType | DocType JSON | Customers have no Desk access to billing |
 | Row-level permission hooks | None for billing DocTypes (`permission_query_conditions` / `has_permission`) | `central/hooks.py` | Defence in depth missing; any future generic read path is unscoped (issue 140) |
 | `ignore_permissions=True` | 128 uses outside tests | grep | Expected given the API-only model; each is a place a missed check becomes a leak |
-| Money records | Manual edit/delete refused for 9 DocTypes, Administrator included | `platform/records.py`; `central/hooks.py:215-230` | Strong |
+| Money records | Manual edit/delete refused for 9 DocTypes, Administrator included | `platform/records.py`; `central/hooks.py:215-230` | Present in code (E2); no test or Version check done |
 
 ## Public endpoints
 
@@ -43,10 +43,10 @@ There is no finance role separate from System Manager (issue 137).
 
 | Data | Where | Handling |
 |---|---|---|
-| Gateway keys and webhook secrets | `Payment Gateway` Password fields; read through `get_credential` | Good |
+| Gateway keys and webhook secrets | `Payment Gateway` Password fields; read through `get_credential` | Present in code (E2) |
 | Raven bot API key | `Billing Settings.raven_api_key` is **Data**; the secret is Password | Key visible to anyone who can read Billing Settings; low impact alone |
-| ERPNext API key/secret | Site config (`ingester/connection.py:23-28`) | Good |
-| Card data | Never touches Central (Stripe Elements, gateway pages) | Good (`AddMethodDialog.vue` copy states it) |
+| ERPNext API key/secret | Site config (`ingester/connection.py:23-28`) | Present in code (E2) |
+| Card data | Never touches Central (Stripe Elements, gateway pages) | By design: card entry is in gateway-hosted fields (E2) |
 | Gateway responses | `Payment Attempt.gateway_response` (JSON) | Pruned on retention; may hold card brand/last4 and customer ids. Retention floor is issue 139 |
 | Customer GSTIN, address, phone | Billing Profile | Shown back to the team only |
 | Gateway error text | Error Log only, never to customer | `gateways/base.py:130-143` |

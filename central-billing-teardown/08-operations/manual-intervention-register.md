@@ -1,10 +1,10 @@
 # Manual intervention register
 
 Every place where billing needs a person, at `a95b491e`. "Console" means a bench
-console or `bench execute` by an engineer. Frequency is estimated from code paths
-only; no production data was read.
+console or `bench execute` by an engineer. Frequency is a guess from code paths
+only, labelled "not measured"; no production data was read. Roadmap A13 measures it.
 
-| ID | Task | Trigger | Who | Tool | Est. frequency | Complexity | Risk if not done | Recommendation |
+| ID | Task | Trigger | Who | Tool | Frequency (not measured) | Complexity | Risk if not done | Proposed change (on hold) |
 |---|---|---|---|---|---|---|---|---|
 | M-01 | Replay a webhook that failed 5 times | Operator alert: failed webhooks | Engineer | Console | Rare; spikes with gateway incidents | High | Captured payment never settles the invoice; customer may be dunned | Desk "Reprocess" action (issue 131) |
 | M-02 | Re-push an invoice to ERPNext after 3 failed syncs | Operator alert: failed accounting syncs | Engineer | Console `sync_invoice` | Every ERPNext outage over ~3 h; per invoice | High | No tax invoice for a paid customer | Long-tail auto retry + button + bulk action |

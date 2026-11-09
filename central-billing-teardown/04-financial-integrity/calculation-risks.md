@@ -1,9 +1,11 @@
 # Calculation risks
 
-Snapshot `a95b491e`. Each risk: what can go wrong, evidence, likelihood, impact, fix.
-Severity follows the README scale.
+Snapshot `a95b491e`. Each risk: what can go wrong, evidence, likelihood, impact, proposed change.
+Severity follows the README scale. Likelihood is judged from code; no invoice data
+was read. "Certain" means the code always behaves this way, not that harm has been
+observed. Proposed changes are on hold until the risk is measured.
 
-| ID | Risk | Evidence | Likelihood | Impact | Severity | Fix |
+| ID | Risk | Evidence | Likelihood | Impact | Severity | Proposed change (on hold) |
 |---|---|---|---|---|---|---|
 | R-01 | **Two tax computations.** Central charges `total = base + round(base × 18%, 2)`. ERPNext builds the tax invoice from its template rows (CGST 9% + SGST 9%, each rounded by ERPNext). The legal invoice and the amount charged can differ by a paisa. The payment entry posts `min(attempt.amount, outstanding)`, which hides the gap instead of flagging it. | `revenue/tax.py:86`; `ingester/erpnext_sync.py:166-168,323`; `ingester/gst.py:47-56` | Medium: happens on bases where the two half-rates round differently | A Sales Invoice left with ₹0.01 outstanding, or a paisa over-collected; reconciliation noise for finance | P2 | Send Central's tax amounts to ERPNext as `Actual` rows, or split CGST/SGST in Central with the same rounding, and add an invariant comparing the two totals |
 | R-02 | **Per-line rounding before sum.** Each line is rounded to 2 dp, then summed. A team with many small hourly segments accumulates rounding. | `lines.py:349,390`; `generate.py:197` | High that it happens, low size (≤ ₹0.005 × lines) | Totals differ from "rate × usage" by paise; hard to explain if a customer recomputes | P3 | Keep unrounded amounts on lines, round once at subtotal; or document the rule on the invoice |

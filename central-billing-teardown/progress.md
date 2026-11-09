@@ -2,6 +2,9 @@
 
 Snapshot: central `upstream/develop` at `a95b491e`, 9 Nov 2026.
 
+Evidence reached: E1–E2 (code). No phase reached E4 (operational). The next stage is
+measurement: [roadmap stage A](10-final-assessment/prioritized-roadmap.md#stage-a-verify-and-measure-read-only).
+
 ## Phases
 
 | Phase | Status | Deliverables | Next targets it raised |

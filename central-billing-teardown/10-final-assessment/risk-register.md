@@ -3,7 +3,10 @@
 Risks that follow from the findings, scored for planning. Likelihood and impact are
 1 (low) to 3 (high); score = likelihood × impact. Snapshot `a95b491e`.
 
-| ID | Risk | Findings | Likelihood | Impact | Score | Owner (suggested) | Mitigation |
+Likelihood here is a judgement from code, not a measured rate. Roadmap stage A
+replaces it with counts; re-score each risk then. Mitigations are on hold until that.
+
+| ID | Risk | Findings | Likelihood | Impact | Score | Owner (suggested) | Proposed mitigation (on hold) |
 |---|---|---|---|---|---|---|---|
 | RK-01 | Customer suspended after removing their only card or misreading Prepaid | F-02, F-23, F-05 | 2 | 3 | 6 | Billing product | Warn on removal; fix Prepaid meaning; mode control |
 | RK-02 | Paid invoices without tax invoices after an ERPNext outage, cleared only by engineers | F-25, IR-02 | 2 | 3 | 6 | Billing eng | Long-tail retry, button, bulk action |

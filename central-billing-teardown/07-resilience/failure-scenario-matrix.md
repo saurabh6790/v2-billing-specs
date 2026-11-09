@@ -3,7 +3,11 @@
 The 15 scenarios from the source prompt, answered from code at `a95b491e`. No
 destructive test was run. Paths under `central/billing/`.
 
-| # | Scenario | Can it occur? | What prevents harm | How detected | State left | Auto recovery | Manual work | Impact |
+"What prevents harm" and "Auto recovery" describe what the code does (E1–E2). They
+do not show that the mechanism has worked in production: for that, check the
+unique indexes, job run history and the rows each job has resolved (roadmap A11–A12).
+
+| # | Scenario | Can it occur? | What prevents harm | How detected | State left | Auto recovery in code | Manual work | Impact |
 |---|---|---|---|---|---|---|---|---|
 | 1 | Duplicate payment callback | Yes (gateways retry) | `Webhook Event.gateway_event_id` unique; duplicate insert treated as stored; `already_applied` in handler | Event row | One Processed event | Yes | None | None |
 | 2 | Delayed payment callback | Yes | Attempt stays Initiated and holds the invoice (no second charge); reconciliation asks the gateway hourly; checkout attempts failed after 24 h; late capture on a Paid invoice is refunded; on Cancelled/Waived goes to wallet | Hourly reconciliation; stale-attempt alert; `check_no_stuck_attempts` | Attempt Initiated until resolved | Yes | Operator told on Cancelled/Waived capture | Customer sees "Payment processing since…"; dunning holds Overdue while a charge is in flight |

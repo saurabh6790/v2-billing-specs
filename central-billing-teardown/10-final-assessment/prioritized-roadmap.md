@@ -1,73 +1,74 @@
 # Prioritized roadmap
 
-Ordered by customer harm first, then operator time, then polish. Each step is small
-enough for one branch. Sizes: S under a day, M days, L a week or more.
+Rule 3 orders this roadmap: first establish what is broken, why, how often and at
+what cost; only then change anything. So the roadmap has three stages, and a change
+in stage C starts only when its stage A measurement and stage B decision are done.
 
-## Step 1: stop misleading customers about money (1 week)
+No code was changed during the teardown.
 
-| # | Change | Findings | Size |
+## Stage A: verify and measure (read-only)
+
+Run these against production (or a recent copy) as read-only queries or log searches.
+Each row upgrades a finding from E1–E2 toward E4 and fills its frequency and cost.
+
+| Order | Finding | Verify (is it real?) | Measure (how often, what cost) |
 |---|---|---|---|
-| 1 | Check `.error` after every `submit()` in `usePayingFor` and `useProjects`; add a lint rule for the pattern | F-03 | S |
-| 2 | Warn before removing the last chargeable method; offer "Add a new card first" | F-02 | S |
-| 3 | Decide what Prepaid means (ADR), then align the Action Required copy, Payments card and backend | F-23 | S / M |
-| 4 | Card check copy shown before submit; trial banner leads | F-04 | S |
-| 5 | "Servers start again automatically once paid" | F-22 | S |
-| 6 | Outstanding banner opens the invoice it names | F-20 | S |
-| 7 | Per-currency top-up presets | F-07 | S |
-| 8 | Remove the Auto-recharge switch and Email invoice button | F-13 | S |
+| A1 | F-03 | Read `useCall.submit` in the installed frappe-ui; reproduce a refused pause on a test site | Failed `pause_subscription` / `resume_subscription` / `set_project_enabled` requests in web logs |
+| A2 | F-24 | Read the installed `razorpay` SDK for a default timeout | Billing job timeouts in Error Log; Razorpay attempts taking over 60 s |
+| A3 | F-25 | — (E2 is enough to know the path exists) | Count and age of `Webhook Event` Failed with `retry_count >= 5`; `Invoice.erpnext_sync_status = Failed`; who cleared past ones (Version history) |
+| A4 | F-02 | — | `Deleted Document` for Payment Method → teams left with zero Active methods and an Outstanding invoice → how many reached Overdue / Suspended |
+| A5 | F-23 | Confirm intended meaning with product (no ADR found) | Off-session attempts for teams whose mode was Prepaid at the time |
+| A6 | F-01 | — | Teams where a card shows headroom but `remaining_headroom` < cheapest plan; "limit" tickets |
+| A7 | F-26 | — | `Invoice.total` vs ERPNext `grand_total` for every synced invoice: count and sum of differences |
+| A8 | F-27 | — | `Billing Run Failure` Error Logs mentioning unpriced metered usage |
+| A9 | F-28 | — | Usage Rollups created after their period's invoice |
+| A10 | F-21 | — | Teams with mixed `account_standing` across subscriptions |
+| A11 | All unique-key controls | `SHOW INDEX` on Invoice, Payment Attempt, Webhook Event, Usage Rollup, Credit Ledger Entry | Duplicate counts on each key column |
+| A12 | Reconciliation, invariant audit, alerts | Scheduler run history for each job | Rows resolved by reconciliation; invariant violations raised and closed; alert-to-action time |
+| A13 | F-12 | Ask ops which console snippets they run | Version rows on money DocTypes authored by Administrator from a console |
+| A14 | F-08, F-05, F-06, F-07, F-20 | — | Product analytics or a 5-person usability test on the Overview and Payments pages |
+| A15 | F-09 | — | Error messages shown to customers, by text, from web logs over 90 days |
 
-## Step 2: one truth on the Overview (2 weeks)
+Output of stage A: each finding updated with level, frequency and cost; severities
+confirmed, raised or lowered; findings that did not reproduce closed.
 
-| # | Change | Findings | Size |
-|---|---|---|---|
-| 9 | Server returns `limit_used` from the gate's function; every card and the plan menu use it; tier text says run-rate | F-01 | M |
-| 10 | Overview redesign: one headline (amount, charge date, method), one attention slot, Projects and Stop all moved out, one overview endpoint | F-08, F-11, F-18 | L |
-| 11 | "How you pay" control on Payments; confirm before a card change flips the mode | F-05 | M |
-| 12 | Allow choosing the first card while credit exists; wallet labelled "Used first" | F-06 | S |
-| 13 | Return money figures from the API (top-up total, outstanding, coverage) | F-17 | M |
+## Stage B: decide
 
-## Step 3: recover without engineers (2 weeks)
+Product and finance decisions the changes depend on. See [open-questions.md](open-questions.md).
 
-| # | Change | Findings | Size |
-|---|---|---|---|
-| 14 | Razorpay client timeout | F-24 | S |
-| 15 | Long-tail retry for Failed webhooks and Failed ERPNext syncs; Desk "Reprocess" and "Retry accounting sync" with bulk action | F-25 | M |
-| 16 | Invoice buttons: Reissue, Defer dunning, Charge now; Rerating page with preview; rollup correction button | F-12 | M |
-| 17 | Alert owner and runbook per alert kind; restore-failure alert | AP-04, O-07 | S |
+| Decision | Blocks |
+|---|---|
+| What Prepaid means (Q-01) | F-23, F-05 |
+| What the limit caps: run-rate or monthly spend (Q-06) | F-01 |
+| Late usage policy (Q-04) | F-28 |
+| Remove last method while owed: warn or block (Q-05) | F-02 |
+| Second approval threshold for credits and refunds (Q-11) | F-29 |
+| Manual Checkout for USD and sub-threshold INR teams (Q-12) | F-05, F-10 |
 
-## Step 4: errors people can act on (1 week)
+## Stage C: change (on hold until A and B)
 
-| # | Change | Findings | Size |
-|---|---|---|---|
-| 18 | Typed domain errors mapped to customer sentences in `api/dashboard`; catch `InvalidTransition` | F-09 | M |
-| 19 | Guard rule: `_()` on every throw; banned internal words in customer paths | F-09 | S |
-| 20 | Error reference in the customer error banner; correlation id across a payment | F-32 | M |
+Proposed order **if stage A confirms frequency and cost**. Sizes: S under a day, M days,
+L a week or more.
 
-## Step 5: financial and data hygiene (2–3 weeks)
+| Order | Change | Finding | Gate | Size |
+|---|---|---|---|---|
+| C1 | Check `.error` after `submit()`; lint rule | F-03 | A1 confirms resolve behaviour | S |
+| C2 | Razorpay session timeout | F-24 | A2 shows no SDK default | S |
+| C3 | Last-method warning (or block) | F-02 | A4 count, decision Q-05 | S |
+| C4 | Align Prepaid copy and/or behaviour | F-23 | Q-01 | S/M |
+| C5 | Long-tail retries and Desk actions for failed webhooks and syncs | F-25 | A3 counts non-zero | M |
+| C6 | One server-computed `limit_used` | F-01 | A6, Q-06 | M |
+| C7 | Copy fixes: card check, auto-restart, banner link, presets, fake controls | F-04, F-22, F-20, F-07, F-13 | None needed: behaviour fully determined by code; low risk | S each |
+| C8 | Collection mode control | F-05 | Q-01, Q-12 | M |
+| C9 | Customer error sentences and error reference | F-09, F-32 | A15 picks the messages that matter | M |
+| C10 | Desk actions for console tasks | F-12 | A13 ranks them by use | M |
+| C11 | Send tax rows to ERPNext; cross-system check | F-26 | A7 shows drift | M |
+| C12 | Partial invoice when a meter is unpriced | F-27 | A8 non-zero | M |
+| C13 | Team standing on Billing Profile | F-21 | A10 non-zero | M |
+| C14 | Overview redesign | F-08, F-11, F-18 | A14 research | L |
+| C15 | Finance role, reason, approval | F-29 | Q-11 | M |
+| C16 | Permission hooks | F-30 | Q-10 | M |
+| C17 | Polish and cleanup | F-14, F-15, F-16, F-17, F-19, F-31, F-33, F-10 | None (F-17 after its check) | S–M |
 
-| # | Change | Findings | Size |
-|---|---|---|---|
-| 21 | Send Central's tax amounts to ERPNext; daily Central vs ERPNext total and advance check | F-26 | M |
-| 22 | Bill priced lines when one meter is unpriced; hold and alert | F-27 | M |
-| 23 | Late-usage policy, documented and enforced | F-28 | M |
-| 24 | Team standing on Billing Profile; one reader | F-21 | M |
-| 25 | Finance role, reason required in credit API, threshold approval | F-29 | M |
-| 26 | Permission hooks on team-scoped billing DocTypes (issue 140) | F-30 | M |
-| 27 | Remove Entitlement Token code; fix field types; delete `MeteredServicesCard` | F-31, F-14 | M |
-
-## Step 6: polish
-
-F-15, F-16, F-19, F-33, F-10 (latent; do it with the Manual Checkout work in step 2).
-
-## Top 10 if only ten things ship
-
-1. F-03 false success (S)
-2. F-02 last-method warning (S)
-3. F-23 Prepaid meaning (S/M)
-4. F-24 Razorpay timeout (S)
-5. F-25 retry exhaustion → Desk recovery (M)
-6. F-01 one limit figure (M)
-7. F-05 collection mode control (M)
-8. F-09 customer error sentences (M)
-9. F-08 Overview simplification (L)
-10. F-12 operator Desk actions (M)
+C7 and C17 are the only changes that need no measurement: the code fully determines
+the behaviour, and the change is copy or removal of dead UI.

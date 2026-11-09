@@ -19,7 +19,7 @@ Snapshot `a95b491e`.
 
 ## Gaps
 
-| ID | Gap | Impact | Severity | Recommendation |
+| ID | Gap | Impact | Severity | Proposed change (on hold) |
 |---|---|---|---|---|
 | O-01 | No tracing across a payment (console click → attempt → gateway → webhook → invoice → ERPNext). Each hop is a separate record. | Support needs 4–5 lookups per "charged but unpaid" case | P2 | Put a correlation id (the attempt name already flows as the gateway receipt) on every related Billing Event and log line, and a Desk view that follows it |
 | O-02 | Few jobs emit metrics (dunning, reconciliation, mandates, ERPNext sync, expiry do not) | No baseline for "normal" job duration or volume | P3 | Wrap each scheduled entry point in `metrics.timed` |

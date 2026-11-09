@@ -4,6 +4,10 @@ Billing jobs from `central/hooks.py` `scheduler_events` at `a95b491e`. Paths und
 `central/billing/`. "Isolated" means the job runs each row through
 `platform/jobs.each_isolated` (savepoint and commit per row, failure logged, rest go on).
 
+This lists what is scheduled in code. Whether each job runs on time in production,
+how long it takes and how many rows it handles was not checked (no scheduler logs
+were read).
+
 ## Scheduled
 
 | Cadence | Job | Input | Output | Isolated | Duplicate protection | Monitoring |

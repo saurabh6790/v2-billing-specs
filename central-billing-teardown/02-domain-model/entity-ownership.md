@@ -40,7 +40,7 @@ subscriptions reading it.
 
 ## Duplicated or inconsistent representations
 
-| # | Duplication | Risk | Recommendation |
+| # | Duplication | Risk | Proposed change (on hold) |
 |---|---|---|---|
 | D-1 | Invoice amounts in Central and in ERPNext, tax computed by each | Paise drift between amount charged and tax invoice | Push Central's tax rows to ERPNext as actual amounts, or read ERPNext's back before charging |
 | D-2 | Wallet balance in ledger, wallet row, running balance and ERPNext advances | Drift (the 3 Nov commit "book the missing credit of a wallet above its ledger" shows it has happened) | Keep the audit; make the wallet row a pure cache rebuilt from the ledger |

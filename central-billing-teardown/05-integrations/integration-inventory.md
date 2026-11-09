@@ -1,6 +1,8 @@
 # Integration inventory
 
 Snapshot `a95b491e`. No secret values are reproduced; only where they are read from.
+Timeouts, retries and idempotency are as written in code (E1–E2); none was observed
+working in production.
 Paths are under `central/billing/`.
 
 ## Summary

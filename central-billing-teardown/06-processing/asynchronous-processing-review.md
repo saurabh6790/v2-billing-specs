@@ -2,7 +2,7 @@
 
 Snapshot `a95b491e`.
 
-## What is done well
+## Practices present in code (not confirmed in operation)
 
 | Practice | Evidence |
 |---|---|
@@ -17,7 +17,7 @@ Snapshot `a95b491e`.
 
 ## Weak points
 
-| ID | Issue | Evidence | Severity | Recommendation |
+| ID | Issue | Evidence | Severity | Proposed change (on hold) |
 |---|---|---|---|---|
 | AP-01 | **Retry exhaustion ends in a console session.** ERPNext sync (3 tries), webhooks (5 tries) and Billing Run failures each end in a Failed state with an alert, but only Billing Run failures are retried again automatically. Two of three need an engineer. | `ingester/erpnext_sync.py:100-131`; `payments/webhooks.py:217-237` | P1 | Long-tail automatic retry and a Desk action for each |
 | AP-02 | **The billing worker count is the gateway rate limit.** There is no token bucket; doubling workers doubles charge rate. A Razorpay call with no timeout (IR-01) removes a worker for up to 3,000 s. | ARCHITECTURE §3; `gateways/razorpay_adapter.py:65` | P2 | Add a timeout; add a per-gateway rate limiter before raising worker counts |

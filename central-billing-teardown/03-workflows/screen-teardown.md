@@ -1,6 +1,9 @@
 # Screen-by-screen teardown
 
 Each screen: what the customer comes to do, what works, what gets in the way.
+Every observation is E2: read in the component code, which fixes the copy and the
+logic. No customer was observed using these screens, so how much each problem
+matters is not measured (roadmap A14).
 `F-nn` points to [findings-register.md](../10-final-assessment/findings-register.md).
 Paths are at central `a95b491e`.
 

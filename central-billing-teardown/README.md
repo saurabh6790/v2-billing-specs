@@ -7,6 +7,31 @@ adds nothing, and whether errors tell people what to do next.
 
 Start with [10-final-assessment/executive-summary.md](10-final-assessment/executive-summary.md).
 
+## Rules
+
+Three rules govern every finding.
+
+1. **Evidence before conclusions.** A finding states what was observed and where
+   (`path:line`), then the mechanism, then how to verify it. Verdicts such as
+   "unreliable" or "strong" are not findings.
+2. **Code is not operation.** A retry function, a unique key or an audit job existing
+   in code does not prove it works in production. Each finding and each control
+   carries an evidence level:
+
+   | Level | Meaning |
+   |---|---|
+   | E1 | Code present: found by search, not traced end to end |
+   | E2 | Code traced: full path read; the behaviour follows from the code |
+   | E3 | Test-backed: an existing automated test asserts it |
+   | E4 | Operational: seen in production data, logs or a running system |
+
+   This pass reached E1–E2 only.
+3. **Measure before changing.** The teardown changes no code. For each finding it
+   records what is not yet known (how often, what it costs) and a read-only way to
+   find out. Proposed changes are on hold until then; severities are provisional.
+   The [roadmap](10-final-assessment/prioritized-roadmap.md) runs measure, decide,
+   change in that order.
+
 ## Method
 
 - Code read at central `upstream/develop`, commit `a95b491e` (9 Nov 2026), from a
@@ -43,7 +68,7 @@ Four files sit beside the requested ones because they carry the UX work:
 
 | Level | Meaning |
 |---|---|
-| P0 | Money taken or lost wrongly, data loss, or a security hole. None found. |
+| P0 | Money taken or lost wrongly, data loss, or a security hole. None observed in code; not ruled out in operation. |
 | P1 | Customer misled about money or service, or a failure only an engineer can clear. |
 | P2 | A task is hard, screens contradict each other, or support load rises. |
 | P3 | Polish, noise, dead code. |
