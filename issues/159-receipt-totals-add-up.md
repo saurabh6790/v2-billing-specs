@@ -13,6 +13,7 @@ When credits, top-up GST or TDS apply, the receipt's figures do not add up and t
 - Panel order: Subtotal, Tax, −Credits applied, −GST paid with top-ups, **Total** (= `total`, before deductions) (`BillingInvoicesPage.vue:243-295`).
 - Button: "Pay {expected_collection} now" (`:400`); `expected_collection = total − tds_amount`, credits at open (`central/billing/revenue/invoicing/generate.py:205-208`). No TDS line.
 - No affected invoices yet in production.
+- Seen on central.local: Subtotal $25.00, Credits applied −$5.00, Total $25.00.
 
 ## What we want
 

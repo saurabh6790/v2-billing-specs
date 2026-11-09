@@ -131,6 +131,15 @@ every team once billing runs.
 | Raven fields, alert emails | Empty in the backup; settings row modified by the local migrate (6 Nov) | H-05 |
 | Error Log | 1,623 rows, 1–15 Oct; 0 "Billing operator alert" rows | H-05 |
 
+## Open-points pass (9 Nov 2026)
+
+| Measure | Value | Used in |
+|---|---|---|
+| Stripe setup webhooks | 7 created, 8 requires_action, 3 succeeded, 1 setup_failed | CB-21 |
+| Payment Gateway webhook registration | Stripe and Razorpay: no endpoint recorded, `is_webhook_active = 0`; events still arrive | CB-21 |
+| Revenue base in revenue reports | ₹69,719.75 over 13 invoices; ₹56,151.78 (11) waived internal | CB-44 |
+| Promotional grants | 32, all expiring, no notice sent | CB-45 |
+
 ## How the measurements changed priorities
 
 | Problem | Before measuring | After | Why |

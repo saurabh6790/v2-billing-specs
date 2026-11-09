@@ -28,13 +28,16 @@ measurement: [roadmap stage A](10-final-assessment/prioritized-roadmap.md#stage-
 | 2 | D3 cost visibility and limits; D4 wallet and credits | Done, reviewed 9 Nov 2026 (D-12 to D-15 decided) | E2 + E4 + Seen (demo, 1440 px) |
 | 3 | D5 subscriptions and projects, D6 purchase-time billing, D7 operator back office | **Done, waiting for review** | E2 + E4 + Seen (demo: Subscriptions card, Desk home) |
 
-Output so far: 41 problems (CB-01 to CB-42; CB-22 deferred by decision), 5
-hypotheses, 2 suggestions, 32 strengths, 18 missing capabilities, 17 decisions
-(7 decided), 37 issues in `issues/146`–`182`.
+Output so far: 44 problems (CB-01 to CB-45; CB-22 deferred by decision), 5
+hypotheses (2 refuted, 2 confirmed, 1 open), 2 suggestions, 35 strengths, 18
+missing capabilities, 19 decisions (9 decided; briefs for the rest), 40 issues in
+`issues/146`–`185`.
 Browser pass done at 1440 px on `demo-billing.localhost` with a test user created
-there, plus an operator test user for Desk. Not done: phone width, screen reader,
-Pay and add-method end to end, the New server page (the demo site cannot load
-plans), Plan Configurator, Billing Simulator and report numbers.
+there, plus an operator test user for Desk. Open-points pass on central.local:
+add-method end to end in Stripe test mode (success and abandoned authentication),
+phone width via a 390 px frame. Still not done: screen reader, Pay end to end (no
+open invoice on the test teams), the New server page (neither test site has
+tiers and images), Plan Configurator in depth.
 
 ## What was read
 

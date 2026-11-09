@@ -11,6 +11,7 @@ Customers read terms like gateway, Billable and Cost Report.
 ## Current behaviour
 
 - Examples in [problem-register.md](../central-billing-teardown/12-problem-discovery/problem-register.md) §CB-14 (panel subtitle, add row, pay toasts).
+- Seen: the method picker says "Authorised on your bank's page. We never see your card details." and the next step is a Stripe card field inside the dialog.
 - Seen: "90,000 Nos used", "0 Nos" (catalog unit) and internal VM ids on the invoice receipt.
 
 ## What we want

@@ -35,7 +35,7 @@ Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorm
 
 ## Recommended approach
 
-A. It keeps the history readable and matches ADR 0010. Ship with the terminate fix. If D-17 removes "Pause billing", A still applies to the existing paused row.
+A. It keeps the history readable and matches ADR 0010. Ship with the terminate fix. D-17 (9 Nov 2026) keeps Pause billing as its own action. D-18 decides whether a paused server bills its disk like a stopped one (#176); until then follow the dialog's promise: nothing.
 
 ## Acceptance criteria
 
@@ -49,4 +49,4 @@ A. It keeps the history readable and matches ADR 0010. Ship with the terminate f
 
 ## Dependencies
 
-None for the engine fix. #176 decides whether Pause stays a separate action.
+None for the engine fix. D-18 for disk while paused. Ship before or with #176.

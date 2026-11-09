@@ -17,6 +17,8 @@ Most teams that start adding a payment method end with no usable method and no r
 - `apply_payment_method_event` marks non-card-failure events Ignored (`central/billing/payments/payments.py:395-417`); 4 Razorpay `payment.failed` events for pending UPI setups were Ignored.
 - No job expires old pending rows.
 - The only Top-up Order in production is `Created` (₹25,000) and never completed; nothing shows it to the customer.
+- Measured: Stripe setup webhooks in production are 7 created, 8 `requires_action`, 3 succeeded, 1 failed. Most card setups stop at bank authentication.
+- Reproduced on central.local (Stripe test mode): cancelling authentication leaves a hidden `Pending Validation` row, and the dialog shows Stripe's "…choose a different payment method" although retrying the same card works.
 
 ## What we want
 
@@ -44,6 +46,7 @@ Build on existing issue 125 (record why adding a payment method failed: `Payment
 - [ ] Payments lists unfinished and failed setups from the last N days with the reason and a Retry that reopens the same instrument.
 - [ ] Pending rows older than N days move to an expired state and stop showing.
 - [ ] Tests cover each failure event per gateway; no test calls a gateway.
+- [ ] After a cancelled authentication the dialog says "Your bank didn't confirm the card. Try again, or use another card." with Try again first.
 
 ## Dependencies
 

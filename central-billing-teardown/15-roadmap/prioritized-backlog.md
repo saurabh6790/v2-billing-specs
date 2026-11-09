@@ -69,14 +69,22 @@ quick wins first, so it is not a strict sort by score.
 | 4 | #177 | CB-38 purchase price basis | 2 | 1 | 1 | 1 | 3 (every create) | 2 (S) | 10 | P2 | First invoice above the quoted price for INR |
 | 5 | #181 | CB-41 Desk home | 0 | 0 | 2 | 1 | 3 (every visit) | 2 (S) | 8 | P2 | With #149 |
 | 6 | #182 | CB-42 alerts list | 0 | 1 | 2 | 2 | 1 | 2 (S) | 8 | P2 | Confirm H-05 first |
-| 7 | #176 | CB-35 stop vs pause | 2 | 1 | 1 | 1 | 0 (no external case) | 2 (S) | 7 | P2 | Needs D-16, D-17 |
+| 7 | #176 | CB-35 stopped = disk only | 2 | 2 | 1 | 1 | 0 (no external case) | 1 (M) | 7 | P2 | D-16, D-17 decided; after #175 |
 | 8 | #180 | CB-36 project limit | 1 | 0 | 0 | 1 | 0 (no limits set) | 2 (S) | 4 | P3 | — |
+
+### Open-points pass
+
+| Rank | Issue | Problem | Cust. | Fin. | Ops | Risk | Freq. | Effort | Score | Priority | Why |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | #183 | CB-44 revenue counts waived | 0 | 3 | 2 | 3 | 3 (80 % of the base) | 2 (S) | 13 | **P1** | MRR overstated about 5× |
+| 2 | #185 | CB-45 credit expiry notice | 2 | 1 | 1 | 1 | 2 (32 grants) | 2 (S) | 9 | P2 | Wallet-first rule makes expiry a card charge |
+| 3 | #184 | CB-43 phone invoice list | 2 | 0 | 0 | 0 | 2 | 2 (S) | 6 | P2 | — |
 
 ## Buckets
 
 | Bucket | Issues |
 |---|---|
-| **Must fix first** | #175, #146, #147, #148 (with #150), #149 |
+| **Must fix first** | #183, #175, #146, #147, #148 (with #150), #149 |
 | **High-value** | #156, #158, #160, #159, #163, #167, #177, #178, #179, #181, #182 |
 | **Quick wins** | #151, #152, #153, #154, #155, #157, #170, #172 — see [quick-wins.md](quick-wins.md) |
 | **Strategic** | collection model (#148, #150, #171), limit model (#147, #162), support console (#149, #167, with #125), error model (#163), payment outcome loop (#146, #165, #164) — see [strategic-improvements.md](strategic-improvements.md) |

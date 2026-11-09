@@ -347,18 +347,21 @@ Decisions already made (9 Nov 2026): Prepaid = the wallet pays first, the saved 
 | [173](173-billing-details-form-polish.md) | Billing details form: country editable after currency lock, vague lock text, address field order | AFK | P3 | XS | CB-13 |
 | [174](174-customer-copy-glossary.md) | Customer copy in payment and invoice screens uses internal words | AFK | P3 | S | CB-14 |
 | [175](175-pause-billing-keeps-charging.md) | "Pause billing" stops the server but not the charges, and a paused server that is later terminated bills on | AFK | P1 | M | CB-34 |
-| [176](176-stop-versus-pause-billing.md) | Stopping a server keeps full billing, while the docs say billing follows the hours it ran, and "Stop" and "Pause billing" look like the same action | HITL | P2 | S | CB-35 |
+| [176](176-stop-versus-pause-billing.md) | A stopped server should bill for its disk only; today it bills in full and nothing tells the customer | AFK | P2 | M | CB-35 |
 | [178](178-purchase-payment-gate-mismatch.md) | The New server page says no payment method is needed when the team has any credit, then the server refuses the create | AFK | P2 | S | CB-39 |
 | [177](177-purchase-price-basis.md) | The server price at purchase does not say it is before tax, leaves out the IPv4 charge, and says servers are billed to the payment method | AFK | P2 | S | CB-38 |
 | [179](179-record-purchase-refusals.md) | Refused server creates and resizes leave no record, so nobody can see how often customers hit the spending limit | AFK | P2 | S | CB-40 |
 | [181](181-desk-billing-home-for-support.md) | The Desk billing home counts internal teams as customers and has nothing for support work | AFK | P2 | S | CB-41 |
 | [182](182-operator-alerts-desk-queue.md) | Open operator alerts are visible only in Raven or email, with no list in Desk | AFK | P2 | S | CB-42 |
 | [180](180-project-limit-gaps.md) | A project's spending limit is checked only when a server is tagged, and its errors show internal ids | AFK | P3 | S | CB-36 |
+| [183](183-revenue-reports-count-waived.md) | Revenue reports count waived internal invoices as revenue; the economics reports do not | AFK | P1 | S | CB-44 |
+| [184](184-invoice-list-phone-width.md) | At phone width the invoice list hides Status and Amount off to the right, and the invoice panel keeps focus behind it | AFK | P2 | S | CB-43 |
+| [185](185-credit-expiry-notice.md) | Promotional credit expires with no notice to the team | AFK | P2 | S | CB-45 |
 
 - **Quick wins first:** #151, #152, #153, #154, #155, #170 (each under a day, no decision needed).
 - **#146** builds on **#125** (record why setups and top-ups failed).
 - **#150** (Prepaid copy) ships before or with **#148** (how you pay).
-- **Checkpoint 3:** #175 (pause keeps charging) is P1 and needs no decision. #176 waits for D-16 and D-17. #179 (record refusals) is needed to measure #147.
+- **Checkpoint 3:** #175 (pause keeps charging) is P1 and needs no decision. #176 (stopped servers bill disk only) follows #175. #179 (record refusals) is needed to measure #147.
 
 ## Notes
 

@@ -1,7 +1,7 @@
 # Issue index
 
 The teardown issues live in the repo's issue folder, where the fixing agent reads
-them: **`issues/146` to `issues/182`**, milestone **TD**
+them: **`issues/146` to `issues/185`**, milestone **TD**
 ([issues/README.md](../../issues/README.md#teardown-td)). They are not opened on
 GitHub. Nobody is assigned.
 
@@ -65,10 +65,13 @@ Size: XS < 0.5 day, S ≤ 2 days, M ≤ 1 week, L > 1 week. Estimated from code 
 | [173](../../issues/173-billing-details-form-polish.md) | Billing details form: country editable after currency lock, vague lock text, address field order | AFK | P3 | XS | CB-13 |
 | [174](../../issues/174-customer-copy-glossary.md) | Customer copy in payment and invoice screens uses internal words | AFK | P3 | S | CB-14 |
 | [175](../../issues/175-pause-billing-keeps-charging.md) | "Pause billing" stops the server but not the charges, and a paused server that is later terminated bills on | AFK | P1 | M | CB-34 |
-| [176](../../issues/176-stop-versus-pause-billing.md) | Stopping a server keeps full billing, while the docs say billing follows the hours it ran, and "Stop" and "Pause billing" look like the same action | HITL | P2 | S | CB-35 |
+| [176](../../issues/176-stop-versus-pause-billing.md) | A stopped server should bill for its disk only; today it bills in full and nothing tells the customer | AFK | P2 | M | CB-35 |
 | [178](../../issues/178-purchase-payment-gate-mismatch.md) | The New server page says no payment method is needed when the team has any credit, then the server refuses the create | AFK | P2 | S | CB-39 |
 | [177](../../issues/177-purchase-price-basis.md) | The server price at purchase does not say it is before tax, leaves out the IPv4 charge, and says servers are billed to the payment method | AFK | P2 | S | CB-38 |
 | [179](../../issues/179-record-purchase-refusals.md) | Refused server creates and resizes leave no record, so nobody can see how often customers hit the spending limit | AFK | P2 | S | CB-40 |
 | [181](../../issues/181-desk-billing-home-for-support.md) | The Desk billing home counts internal teams as customers and has nothing for support work | AFK | P2 | S | CB-41 |
 | [182](../../issues/182-operator-alerts-desk-queue.md) | Open operator alerts are visible only in Raven or email, with no list in Desk | AFK | P2 | S | CB-42 |
 | [180](../../issues/180-project-limit-gaps.md) | A project's spending limit is checked only when a server is tagged, and its errors show internal ids | AFK | P3 | S | CB-36 |
+| [183](../../issues/183-revenue-reports-count-waived.md) | Revenue reports count waived internal invoices as revenue; the economics reports do not | AFK | P1 | S | CB-44 |
+| [184](../../issues/184-invoice-list-phone-width.md) | At phone width the invoice list hides Status and Amount off to the right, and the invoice panel keeps focus behind it | AFK | P2 | S | CB-43 |
+| [185](../../issues/185-credit-expiry-notice.md) | Promotional credit expires with no notice to the team | AFK | P2 | S | CB-45 |

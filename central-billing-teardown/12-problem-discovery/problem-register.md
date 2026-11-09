@@ -13,6 +13,7 @@ Scope: **D1 Billing setup and payment methods**, **D2 Invoices and collection**
   for the rest. The engine already does this (`central/billing/payments/collection_mode.py:105-112`).
 - **Held invoices** are expected: they wait until the accounting integration and
   accounts are finalised. CB-22 is deferred to that work.
+- **Stopped servers bill disk only** (D-16); **Pause billing stays its own action** (D-17).
 - **Prepaid stays a separate mode** (D-12): the wallet pays dues; only when the
   wallet is short is the alternative method (card or UPI) charged.
 - **The spending limit is checked against base cost before tax** (D-13), which is
@@ -40,6 +41,7 @@ Scope: **D1 Billing setup and payment methods**, **D2 Invoices and collection**
 | CB-18 | Support has no single view of a team's billing | Operational | D1/D2 | Verified | E2 | **P1** | — |
 | CB-25 | The spend limit is compared with three different figures on screen, and none is the one the server-create gate uses | Bug | D3 | Verified | E2 + Seen + E4 | **P1** | F-01 |
 | CB-34 | "Pause billing" stops the server but not the charges; a paused server that is later terminated bills on | Bug (money) | D5 | Verified | E2 + E4 + Seen | **P1** | — |
+| CB-44 | Revenue reports count waived internal invoices as revenue (80 % of the base); economics reports do not | Bug (reporting) | D7 | Verified | E2 + E4 | **P1** | — |
 | CB-23 | Budget alerts are saved but never sent | Bug | D3 | Verified | E2 + E4 | P2 | — |
 | CB-04 | Console copy and code assume Prepaid is credits only; the decided rule is credits then the method | Bug | D1 | Verified; decision made | E2 | P2 | F-23 |
 | CB-27 | Overview shows "Add your billing details" on every load, even for complete teams | Bug | D3 | Verified | E2 + Seen | P2 | — |
@@ -75,11 +77,13 @@ Scope: **D1 Billing setup and payment methods**, **D2 Invoices and collection**
 | CB-41 | Desk billing home counts internal teams and has nothing for support | Operational | D7 | Verified | E2 + E4 + Seen | P2 | — |
 | CB-42 | Open operator alerts have no Desk list | Operational | D7 | Verified | E2 | P2 | — |
 | CB-36 | Project spending limit checked only on tagging; errors show internal ids | Bug / UX | D5 | Verified | E2 + E4 | P3 | — |
+| CB-43 | At phone width the invoice list puts Status and Amount off screen; panel keeps focus behind it | UX (a11y) | D2 | Verified | Seen (390 px) + E2 | P2 | — |
+| CB-45 | Promotional credit expires with no notice | Missing notice | D4 | Verified | E2 + E4 | P2 | — |
 | CB-22 | Owed invoices held for accounting sync show no date | Operational | D2 | **Expected (decision)** | E4 | Deferred | F-25 related |
-| H-01 | A failed Pay call may show the previous call's "Payment initiated" toast | Bug | D2 | Hypothesis | — | — | — |
-| H-02 | Manual Checkout says "We email you each bill"; sending not traced | UX | D1 | Hypothesis | — | — | — |
-| H-03 | Side panel at phone width covers the list with no focus move or Escape | UX (a11y) | D2 | Hypothesis | — | — | — |
-| H-04 | Prepaid teams are not warned before promotional credit expires | UX | D4 | Hypothesis | — | — | — |
+| H-01 | A failed Pay call may show the previous call's "Payment initiated" toast | Bug | D2 | **Refuted** | E2 (frappe-ui) | — | — |
+| H-02 | Manual Checkout says "We email you each bill"; sending not traced | UX | D1 | **Refuted** | E2 | — | — |
+| H-03 | Side panel at phone width covers the list with no focus move or Escape | UX (a11y) | D2 | **Partly confirmed → CB-43** | Seen | — | — |
+| H-04 | Prepaid teams are not warned before promotional credit expires | UX | D4 | **Confirmed → CB-45** | E2 | — | — |
 | H-05 | Operator alerts reach no one in production (Raven and email unset) | Operational | D7 | Hypothesis | E4 (backup, settings touched by local migrate) | — | — |
 | S-01 | Warn before a saved card expires | Suggestion | D1 | — | — | — | — |
 | S-02 | Extra invoice recipients (accounts team) | Suggestion | D2 | — | — | — | — |
@@ -456,7 +460,8 @@ model fix in the console.
   word on charges (`StopAllServersRow.vue:69-97`).
 - **Observed (E4).** No external team has a stopped server with an open subscription
   today; the 10 external stopped servers are free trials.
-- **Open.** D-16 (is a stopped server billed?), D-17 (keep Pause separate?).
+- **Decided (D-16, D-17, 9 Nov 2026).** A stopped server bills for its disk only.
+  Pause billing stays its own action. Open: D-18, whether a paused server bills disk.
 
 ### CB-36 Project limit checked only on tagging
 - **Observed (E2).** `validate_project` runs the limit only when the subscription is
@@ -519,6 +524,62 @@ model fix in the console.
 ### Not reviewed in depth
 Plan Configurator, Billing Simulator, the 41 reports' numbers, the resize and
 trial-upgrade dialogs (read for billing calls only).
+
+## Open-points pass (9 Nov 2026)
+
+### Hypothesis results
+- **H-01 refuted (E2).** frappe-ui 1.0.1 `useCall.submit()` throws when the call
+  fails (`useCall.ts:276-289`), so `usePayInvoice.run` never reaches the success
+  toast; `onError` shows the error once.
+- **H-02 refuted (E2).** Every opened invoice with an amount due sends
+  `payment_scheduled` (`payments/payment_notices.py:15-29`, called from
+  `lifecycle.open_and_collect`), and `payment_reminder` goes the day before the
+  payment date (`payment_notices.py:171-215`). Both are email-capable event types
+  (`central/fixtures/notification_event_type.json`). Manual Checkout teams get them.
+- **H-03 partly confirmed → CB-43.** Seen at 390 px: the panel covers the list but has
+  a visible Close button. Focus stays behind it and Escape does not close it.
+- **H-04 confirmed → CB-45.** No credit-expiry event type exists; `run_credit_expiry`
+  sends nothing.
+- **H-05 open.** Needs a look at production Billing Settings.
+
+### CB-21 measured and reproduced
+- **E4.** Production Stripe webhook events: 7 `setup_intent.created`, 8
+  `setup_intent.requires_action`, 3 `setup_intent.succeeded`, 1
+  `setup_intent.setup_failed`. Most card setups stop at the bank authentication
+  step. Razorpay: 4 `payment.failed` for UPI setups (already known). Webhooks do
+  arrive, although Central's Payment Gateway rows show no registered endpoint
+  (`is_webhook_active = 0` for both): the endpoints were set up in the gateway
+  dashboards, so the Payment Gateway form misreports their state.
+- **Reproduced (central.local, Stripe test mode).** Card 4000 0025 0000 3155,
+  authentication cancelled: the dialog shows Stripe's "We are unable to authenticate
+  your payment method. Please choose a different payment method and try again." A
+  `Pending Validation` row is left, hidden from the Payments page. Retrying the same
+  card is possible, but the text tells the customer to choose another.
+- **Happy path works.** Card 4242: saved and shown as "Visa ···· 4242 · expires
+  12/2034 · Fallback 1" in about 15 seconds, no reload.
+
+### Other items seen on central.local
+- **CB-01 seen.** Receipt: Subtotal $25.00, Credits applied −$5.00, **Total $25.00**.
+- **CB-11 seen.** The refunded check charge is disclosed only after "Add card".
+- **Copy.** The picker says "Authorised on your bank's page. We never see your card
+  details." and the next step is a Stripe field inside the dialog (added to #174).
+- **Environment.** `central.local` has no trust tiers configured, so the plan menu
+  returns no plans for any team, and images fail on a tenant-ID data error. The New
+  server page could not be exercised on either test site.
+
+### CB-43 Invoice list at phone width
+See #184. The list is 720 px wide in a 362 px scroller at 390 px; Status and
+Amount are off screen.
+
+### CB-44 Revenue reports count waived invoices
+- **E2.** `billable_line_items` keeps every non-cancelled Billable invoice
+  (`central/billing/report/_revenue.py:20-40`), so MRR and YTD Revenue, Cluster-wise,
+  Services and Atlas-based Revenue include Waived. `_economics.py:73-83` sets Waived
+  revenue to 0.
+- **E4.** Revenue base ₹69,719.75; ₹56,151.78 (80 %) is waived internal usage.
+
+### CB-45 Credit expiry has no notice
+See H-04 above and #185.
 
 ## Hypotheses
 

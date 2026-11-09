@@ -20,5 +20,9 @@ suggestion; nobody is assigned.
 | D-13 | ~~What figure is the spending limit checked against?~~ **Decided 9 Nov 2026:** the base cost before tax (today's gate: monthly run-rate of what runs). Because the Overview shows cost with tax, every limit surface must say taxes are added on top | — | CB-25, CB-26 | User | Gate sums `locked_rate`, pre-tax (`subscriptions.py:1036-1041,1072`) |
 | D-14 | ~~Auto-recharge: build or remove?~~ **Decided 9 Nov 2026:** do not build it. Remove the switch | — | CB-15 | User | Inert switch (`WalletHistoryPanel.vue:25-31,51-57`) |
 | D-15 | ~~Ship or hide budget alerts?~~ **Decided 9 Nov 2026:** budget alerts are needed. Build the sender; do not hide the setting | — | CB-23 | User | Never sent; 0 teams set one |
-| D-16 | Is a stopped server billed? | Full rate (capacity held) / disk only / not billed | CB-35 | Product + finance | Engine bills in full (no change row on stop); docs say billing follows the hours it ran (`docs/content/billing/index.md:26`) |
-| D-17 | Keep "Pause billing" as an action separate from Stop? | Keep both, each saying its bill effect / merge into Stop | CB-34, CB-35 | Product | Both stop the server; 1 pause in production |
+| D-16 | ~~Is a stopped server billed?~~ **Decided 9 Nov 2026:** a stopped server bills for its disk only | — | CB-35 | User | Engine bills in full today; a per-GB Disk component rate exists (`resolve_component_rate("Disk")`, `subscriptions.py:686-700`) |
+| D-17 | ~~Keep "Pause billing" separate from Stop?~~ **Decided 9 Nov 2026:** keep Pause billing as its own action | — | CB-34, CB-35 | User | — |
+| D-18 | Does a paused server bill its disk, like a stopped one? | No charge (today's promise) / disk only (same as Stop) | CB-34 | Product | With D-16, Pause and Stop differ only in this; the Pause dialog promises "stops charges" |
+| D-19 | When dunning stops a team's servers, do they bill disk only (D-16) or nothing? | Disk only / nothing / full | CB-35 | Finance | Suspension uses the same stop path (`subscriptions.py:1189-1211`) |
+
+Recommendations for each open decision: [decision-briefs.md](decision-briefs.md).

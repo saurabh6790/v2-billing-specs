@@ -48,3 +48,6 @@ screens that lack it.
 | ST-30 | **Stop all asks the team name to confirm** and reports partial failures. | `StopAllServersRow.vue:37-97` | — |
 | ST-31 | **Billing Settings can test itself**: "Send Test Alert" and "Check Accounting Setup". Alerts can be muted per kind while a fix is in progress. | `billing_settings.js`, `alerts.py:437-445` | — |
 | ST-32 | **Suspend states its reason stays internal** ("The owner's email does not include it"). | `team.js:96-100` | Grant and Adjust Credit dialogs (CB-29) |
+| ST-33 | **Adding a card works in place** (seen): test card saved and listed with brand, last four, expiry and its fallback rank within about 15 seconds, no reload. | `AddMethodDialog.vue` | — |
+| ST-34 | **"Invoices use credits first, then payment methods in the order shown."** The Payments header states the decided Prepaid rule (seen). | Payments page | Action-required dialog (#150) |
+| ST-35 | **The Billing Simulator uses the invoicing engine** (`api/admin/projection.*`), so a fix to rating (#175, #176) shows in projections with no second change. | `page/billing_simulator` | — |

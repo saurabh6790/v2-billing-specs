@@ -1,10 +1,10 @@
-# 176 — Stopping a server keeps full billing, while the docs say billing follows the hours it ran, and "Stop" and "Pause billing" look like the same action
+# 176 — A stopped server should bill for its disk only; today it bills in full and nothing tells the customer
 
-**Type:** HITL · **Milestone:** TD · **Priority:** P2 · **Size:** S · **Labels:** `type:ux` `priority:p2` `area:subscriptions`
-**Area:** `dashboard/src/components/billing/StopAllServersRow.vue`, `dashboard/src/components/billing/SubscriptionRowActions.vue`, server Stop dialog, `docs/content/billing/index.md`
+**Type:** AFK · **Milestone:** TD · **Priority:** P2 · **Size:** M · **Labels:** `type:ux` `priority:p2` `area:subscriptions`
+**Area:** `central/billing/catalog/subscriptions.py`, `central/billing/revenue/invoicing/lines.py`, `central/infrastructure/doctype/virtual_machine/virtual_machine.py`, `dashboard/src/components/billing/StopAllServersRow.vue`, `dashboard/src/components/billing/SubscriptionRowActions.vue`, server Stop dialog, `docs/content/billing/index.md`
 **Source:** [CB-35](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **HITL:** needs decision D-16, D-17 in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (9 Nov 2026):** D-16, a stopped server bills for its disk only. D-17, Pause billing stays its own action.
 
 ## Problem
 
@@ -20,30 +20,34 @@ Customers have two ways to turn a server off and are not told that one of them k
 
 ## What we want
 
-Each way of turning a server off says what happens to the bill, and the docs match the engine.
+While a server is stopped, it bills only its disk: disk GB × the region's Disk component rate. Starting it returns to the full locked rate. Stop, Stop all and the docs say this. Pause billing stays a separate action (#175).
 
-**Who it affects:** Customers; support.
+**Who it affects:** Customers; support; finance (revenue from stopped servers drops to disk).
 
-**Why it matters:** A customer who stops servers to save money is billed in full and finds out on the invoice.
+**Why it matters:** Today a customer who stops servers to save money is billed in full, and the docs say otherwise.
 
 ## Options
 
-- A. Stopped servers are billed (capacity is held); say so on Stop and Stop all, fix the docs; keep Pause as the way to stop billing.
-- B. Stopped servers are not billed; merge Pause into Stop.
-- C. Stopped servers bill disk only.
+- A. On a status change to Stopped, write a Subscription Change that opens a disk-only segment (rate = disk GB × Disk rate, locked at that moment); on Running, reopen the full locked rate. Rating reads both.
+- B. Rate stopped hours at disk-only inside the line builder from VM status history, with no new change rows.
 
 Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorming/solution-alternatives.md).
 
 ## Recommended approach
 
-Decide D-16 and D-17 first. A is the smallest change if capacity is reserved while stopped.
+A. It keeps Subscription Change as the one billing ledger (ADR 0010), shows on the invoice as its own line, and needs no status history.
 
 ## Acceptance criteria
 
-- [ ] Stop and Stop all state the billing effect in one sentence.
-- [ ] `docs/content/billing/index.md` describes what stopping does to the bill, matching the engine.
-- [ ] If Pause stays, its row action and dialog say how it differs from Stop.
+- [ ] A server stopped mid-day bills its full rate for the hours it ran and the disk-only rate for the rest of the day; whole stopped days bill disk only.
+- [ ] Start returns to the full locked rate, not a re-priced one.
+- [ ] Stop on the server page, Stop all, and dunning suspension all use the same rule (suspension under D-16 too: confirm with finance).
+- [ ] The invoice shows the stopped period as its own line, for example "acme-prod, stopped: 40 GB disk, 12 days".
+- [ ] Stop and Stop all say: "A stopped server is billed for its disk only ({rate}/month). Start it to return to {full}/month."
+- [ ] `docs/content/billing/index.md` and `docs/content/servers/lifecycle.md` describe the rule.
+- [ ] Headroom counts the disk-only rate while stopped.
+- [ ] Tests cover stop, start, stop across month end, and a resize while stopped.
 
 ## Dependencies
 
-D-16 (is a stopped server billed?), D-17 (keep Pause as a separate action?). #175 first.
+#175 (pause segments) first, since both add non-rate change types to rating.

@@ -11,7 +11,7 @@ The customer is told nothing will be charged, then sees a charge.
 ## Current behaviour
 
 - "No charge today. We save it and check that it works." (`BillingStep.vue:46-47`).
-- "Validating your card with a small temporary charge that's refunded right away." appears only after Add card (`AddMethodDialog.vue:263-268`).
+- "Validating your card with a small temporary charge that's refunded right away." appears only after Add card (`AddMethodDialog.vue:263-268`). Seen on central.local.
 
 ## What we want
 

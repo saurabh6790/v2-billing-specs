@@ -64,7 +64,8 @@ control ships before its endpoint, and a saved setting has a reader.
 
 ## 7. Subscription billing follows the server's life
 
-**Issues.** #175, #176. **Open.** D-16, D-17.
+**Issues.** #175, #176. **Decided.** D-16 stopped servers bill disk only; D-17 Pause
+billing stays its own action. **Open.** D-18 (disk while paused).
 
 Pause, stop, resume and terminate each have one stated effect on the bill, the
 engine applies it through Subscription Change rows, and a readiness check proves no
