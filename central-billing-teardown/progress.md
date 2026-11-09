@@ -20,6 +20,17 @@ measurement: [roadmap stage A](10-final-assessment/prioritized-roadmap.md#stage-
 | 9. Observability and security | Done, structural | 09-security (2 files) | Finance role; permission hooks |
 | 10. Final assessment | Done | 10-final-assessment (5 files) | — |
 
+## Product teardown
+
+| Checkpoint | Scope | Status | Evidence |
+|---|---|---|---|
+| 1 | D1 billing setup and payment methods; D2 invoices and collection | **Done, waiting for review** | E2 (code) + E4 (production backup counts) |
+| 2+ | D3 cost and limits, D4 wallet, D5 subscriptions, D6 purchase, D7 operator back office | Not started | — |
+
+Checkpoint 1 output: 22 problems (CB-01 to CB-22), 3 hypotheses, 2 suggestions,
+16 strengths, 9 missing capabilities, 11 decisions, 22 issue drafts (unpublished).
+Browser pass not done: session hand-off failed (D-09).
+
 ## What was read
 
 | Area | Scope |

@@ -43,7 +43,8 @@ Three rules govern every finding.
 - Every finding cites `path:line` at that commit. Paths start at the central repo
   root (`dashboard/src/...`, `central/billing/...`).
 - **Verified** = read in code and follows from it. **Inferred** = follows from code,
-  not seen running. Nothing was checked in a browser or against production data.
+  not seen running. Nothing was checked in a browser. From checkpoint 1 of the
+  product teardown, frequencies are counted read-only on the production backup.
 
 ## Layout
 
@@ -59,6 +60,23 @@ Three rules govern every finding.
 | [08-operations](08-operations/) | [support-operations-review.md](08-operations/support-operations-review.md), [manual-intervention-register.md](08-operations/manual-intervention-register.md) |
 | [09-security](09-security/) | [security-review.md](09-security/security-review.md), [observability-review.md](09-security/observability-review.md) |
 | [10-final-assessment](10-final-assessment/) | [executive-summary.md](10-final-assessment/executive-summary.md), [findings-register.md](10-final-assessment/findings-register.md), [risk-register.md](10-final-assessment/risk-register.md), [prioritized-roadmap.md](10-final-assessment/prioritized-roadmap.md), [open-questions.md](10-final-assessment/open-questions.md) |
+
+### Product teardown (started 9 Nov 2026)
+
+A second brief adds a product, UX and backlog teardown, domain by domain. Its
+folders share number prefixes with the first pass; they sit beside them.
+
+| Folder | Files |
+|---|---|
+| [03-ui-ux](03-ui-ux/) | [screen-inventory.md](03-ui-ux/screen-inventory.md), [navigation-audit.md](03-ui-ux/navigation-audit.md), [workflow-ux-audit.md](03-ui-ux/workflow-ux-audit.md), [visual-consistency-review.md](03-ui-ux/visual-consistency-review.md), [accessibility-review.md](03-ui-ux/accessibility-review.md), [ux-findings.md](03-ui-ux/ux-findings.md) |
+| [04-problem-discovery](04-problem-discovery/) | [problem-register.md](04-problem-discovery/problem-register.md), [strengths-register.md](04-problem-discovery/strengths-register.md), [missing-capabilities.md](04-problem-discovery/missing-capabilities.md), plus [capability-teardown.md](04-problem-discovery/capability-teardown.md) (Workstream A) and [measurements.md](04-problem-discovery/measurements.md) (production backup counts) |
+| [05-brainstorming](05-brainstorming/) | [solution-alternatives.md](05-brainstorming/solution-alternatives.md), [product-decisions-required.md](05-brainstorming/product-decisions-required.md) |
+| [06-github-backlog](06-github-backlog/) | [issue-index.md](06-github-backlog/issue-index.md), [duplicate-analysis.md](06-github-backlog/duplicate-analysis.md), [issue-drafts/](06-github-backlog/issue-drafts/) (22 drafts, unpublished) |
+| [07-roadmap](07-roadmap/) | [prioritized-backlog.md](07-roadmap/prioritized-backlog.md), [quick-wins.md](07-roadmap/quick-wins.md), [strategic-improvements.md](07-roadmap/strategic-improvements.md) |
+
+Checkpoint 1 covers D1 (billing setup and payment methods) and D2 (invoices and
+collection). Problem IDs are `CB-nn`. Production frequencies come from read-only
+counts on the production backup `prod-central-bck.local` (E4, data as of 3 Nov 2026).
 
 Four files sit beside the requested ones because they carry the UX work:
 `screen-map.md`, `screen-teardown.md`, `duplicated-and-low-value-data.md` and
