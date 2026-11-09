@@ -49,7 +49,7 @@ Three rules govern every finding.
 
 | Folder | Files |
 |---|---|
-| [01-discovery](01-discovery/) | [system-overview.md](01-discovery/system-overview.md), [module-inventory.md](01-discovery/module-inventory.md), [dependency-map.md](01-discovery/dependency-map.md), [screen-map.md](01-discovery/screen-map.md) |
+| [01-discovery](01-discovery/) | [system-overview.md](01-discovery/system-overview.md), [module-inventory.md](01-discovery/module-inventory.md), [dependency-map.md](01-discovery/dependency-map.md), [api-inventory.md](01-discovery/api-inventory.md), [jobs-and-hooks.md](01-discovery/jobs-and-hooks.md), [data-model-map.md](01-discovery/data-model-map.md), [outbound-call-sites.md](01-discovery/outbound-call-sites.md), [workflows.md](01-discovery/workflows.md), [docs-and-tests.md](01-discovery/docs-and-tests.md), [screen-map.md](01-discovery/screen-map.md), [phase-1-summary.md](01-discovery/phase-1-summary.md) |
 | [02-domain-model](02-domain-model/) | [domain-model.md](02-domain-model/domain-model.md), [data-dictionary.md](02-domain-model/data-dictionary.md), [entity-ownership.md](02-domain-model/entity-ownership.md), [duplicated-and-low-value-data.md](02-domain-model/duplicated-and-low-value-data.md) |
 | [03-workflows](03-workflows/) | [workflow-inventory.md](03-workflows/workflow-inventory.md), [customer-to-cash.md](03-workflows/customer-to-cash.md), [lifecycle-diagrams.md](03-workflows/lifecycle-diagrams.md), [screen-teardown.md](03-workflows/screen-teardown.md) |
 | [04-financial-integrity](04-financial-integrity/) | [financial-integrity-review.md](04-financial-integrity/financial-integrity-review.md), [calculation-risks.md](04-financial-integrity/calculation-risks.md) |
