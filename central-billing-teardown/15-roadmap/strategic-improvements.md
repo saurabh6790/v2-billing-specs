@@ -90,7 +90,7 @@ internal teams; open alerts are a list, not only a channel message.
 
 ## 10. Metered services on a daily ledger
 
-**Issues.** #187, #186, #188, #189. **Decided.** D-20 to D-23. **Open.** D-24, D-26.
+**Issues.** #187, #186, #188, #189. **Decided.** D-20 to D-24, D-26, D-27.
 
 Every metered service writes one row per subject and day; the month is the sum of
 its days, compared with what the plan includes, and the same rows feed the

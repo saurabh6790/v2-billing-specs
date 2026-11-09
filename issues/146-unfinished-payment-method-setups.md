@@ -6,7 +6,7 @@
 
 > **Decided (9 Nov 2026):** D-04, an unfinished setup expires after 24 hours, and the customer is told.
 >
-> **HITL:** still needs D-05 (limit on repeated failed setups).
+> **HITL:** D-05 direction given (escalating lockout); confirm the details in [decision-briefs.md](../central-billing-teardown/13-brainstorming/decision-briefs.md) before building the lockout.
 
 ## Problem
 
@@ -44,6 +44,7 @@ Build on existing issue 125 (record why adding a payment method failed: `Payment
 
 ## Acceptance criteria
 
+- [ ] (D-05, after the details are confirmed) Failed setups lock further attempts for the team on an escalating schedule: after the 5th failure 10 min, then 30 min, 2 h, 6 h, and 24 h from the 10th consecutive failure; the wait is shown; a success resets the count; the 10th failure alerts billing operators.
 - [ ] A setup not finished in 24 hours is marked Expired.
 - [ ] When a setup expires, the team's billing contacts get an email and an in-app notice: "Your card or UPI setup was not finished, so it was not saved. Add it again from Billing."
 - [ ] A Razorpay `payment.failed` or Stripe `setup_intent.setup_failed` for a pending method sets it to Failed with the gateway reason.
@@ -54,4 +55,4 @@ Build on existing issue 125 (record why adding a payment method failed: `Payment
 
 ## Dependencies
 
-Issue 125 (failure recording) first or together. D-04 decided (24 h, notify). D-05 (attempt limits) open. Measurement step above.
+Issue 125 (failure recording) first or together. D-04 decided (24 h, notify). D-05 direction given; details to confirm. Measurement step above.

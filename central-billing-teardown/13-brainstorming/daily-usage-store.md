@@ -116,7 +116,7 @@ comes straight from Grove and storage shows nothing per day.
 
 Grove prices in USD and the invoice converts at the billing day's rate (D-21). An
 Overview that converts at each day's rate would change the INR price of the same
-usage from day to day, and would not match the invoice. Recommended (D-26): one
+usage from day to day, and would not match the invoice. Decided (D-26): one
 rate per month.
 
 - On the billing day (the 1st), Central reads the USD to INR rate (ERPNext Currency
@@ -128,8 +128,9 @@ rate per month.
   "Rate for November: ₹84.10 per US$1" next to them.
 - The month's invoice uses the same rate and prints it on the AI line.
 
-Frappe carries one month of rate change on AI revenue. If the rate must be the one
-on the billing day that closes the month, the Overview can show only an estimate.
+Frappe carries one month of rate change on AI revenue: if the rate is 94 on the 1st
+and 96 on the 30th, the month is billed at 94 and Frappe absorbs about 2.1 %; the
+96 becomes next month's rate. No margin is added for now.
 
 ## Decisions
 
@@ -140,12 +141,12 @@ on the billing day that closes the month, the Overview can show only an estimate
 | D-22 | What is bundled? | **Decided:** the plan's base offering, per subscription |
 | D-23 | Storage unit? | **Decided:** GB (10⁹) |
 | D-24 | A day with nothing stored? | **Decided:** bill only what is stored, as S3 does; an empty bucket bills nothing |
-| D-27 | A day the reading job did not run? | Open. Recommended: the last reading, marked estimated |
-| D-26 | How the Overview shows AI in INR | Open. Recommended: one rate per month, above |
+| D-27 | A day the reading job did not run? | **Decided:** the last reading, marked estimated |
+| D-26 | How the Overview shows AI in INR | **Decided:** one rate per month, above |
 
 ## Order
 
 1. Usage Day ledger and storage writing to it (#187).
-2. AI pull into the ledger, then AI subscriptions and billing (#186; needs D-26).
+2. AI pull into the ledger, then AI subscriptions and billing (#186).
 3. Storage price and unit (#188; needs a price from finance).
 4. Bundled transfer (#189).

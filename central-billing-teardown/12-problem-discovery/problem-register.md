@@ -19,7 +19,10 @@ Grove AI** (open-points pass).
   (D-19). Open: offer a snapshot on Stop and bill it instead of the disk (D-25).
 - **AI** is rated at Grove's USD price (D-20), converted for INR at the billing day's
   rate (D-21). **Bundles** are the plan's base offering, per subscription (D-22).
-  **Storage** is billed in GB (D-23).
+  **Storage** is billed in GB (D-23), only for what is stored (D-24); a missed reading
+  bills the last one, estimated (D-27). **AI in INR** uses one rate per month, set on
+  the billing day (D-26). **Profile completion** is low by design: it is asked for when
+  the trial ends (D-08).
 - **Prepaid stays a separate mode** (D-12): the wallet pays dues; only when the
   wallet is short is the alternative method (card or UPI) charged.
 - **The spending limit is checked against base cost before tax** (D-13), which is

@@ -37,8 +37,8 @@ Size: XS < 0.5 day, S ≤ 2 days, M ≤ 1 week, L > 1 week. Estimated from code 
 |---|-------|------|----------|------|---------|
 | [146](../../issues/146-unfinished-payment-method-setups.md) | Payment-method setups and top-ups that fail or are abandoned leave no end state and nothing the customer can see | HITL | P1 | M | CB-21 |
 | [147](../../issues/147-spending-limit-one-figure.md) | The spending limit is compared with three figures on screen, and none is the one the server-create gate uses | HITL | P1 | M | CB-25 |
-| [148](../../issues/148-show-and-change-how-you-pay.md) | Customers cannot see or change how they pay, and making a card primary silently changes it | HITL | P1 | M | CB-03 |
-| [149](../../issues/149-team-billing-view-for-support.md) | Support has no single view of a team's billing | HITL | P1 | M | CB-18 |
+| [148](../../issues/148-show-and-change-how-you-pay.md) | Customers cannot see or change how they pay, and making a card primary silently changes it | AFK | P1 | M | CB-03 |
+| [149](../../issues/149-team-billing-view-for-support.md) | Support has no single view of a team's billing | AFK | P1 | M | CB-18 |
 | [150](../../issues/150-prepaid-meaning-screen-vs-engine.md) | Prepaid copy and console logic assume credits only; the decided rule is credits first, then the saved method | AFK | P2 | S | CB-04 |
 | [151](../../issues/151-overview-setup-banner-flash.md) | Overview shows "Add your billing details" on every load, even for teams with complete details | AFK | P2 | XS | CB-27 |
 | [152](../../issues/152-invoice-list-error-state.md) | Invoice list shows "No invoices yet" when loading fails | AFK | P2 | XS | CB-06 |
@@ -56,8 +56,8 @@ Size: XS < 0.5 day, S ≤ 2 days, M ≤ 1 week, L > 1 week. Estimated from code 
 | [164](../../issues/164-pay-now-names-method.md) | "Pay ₹X now" charges immediately without naming the payment method | AFK | P2 | S | CB-09 |
 | [165](../../issues/165-live-payment-status.md) | After paying, "Waiting for your bank to confirm" never updates without a reload | AFK | P2 | S | CB-07 |
 | [166](../../issues/166-manual-checkout-gateway.md) | Manual Checkout always opens the Razorpay sheet whatever gateway the order was created on | AFK | P2 | S | CB-10 |
-| [167](../../issues/167-operator-invoice-actions.md) | Operators cannot charge again, send a payment link or release a hold from an invoice; Cancel shows no effects | HITL | P2 | M | CB-19 |
-| [168](../../issues/168-last-payment-method-removal.md) | The last payment method can be removed while an invoice is owed, with a warning that does not say so | HITL | P2 | S | CB-02 |
+| [167](../../issues/167-operator-invoice-actions.md) | Operators cannot charge again, send a payment link or release a hold from an invoice; Cancel shows no effects | AFK | P2 | M | CB-19 |
+| [168](../../issues/168-last-payment-method-removal.md) | The last payment method can be removed while an invoice is owed, with a warning that does not say so | AFK | P2 | S | CB-02 |
 | [169](../../issues/169-payment-invoice-accessibility.md) | Accessibility gaps in payment-method and invoice screens | AFK | P2 | S | CB-17 |
 | [170](../../issues/170-remove-disabled-email-invoice.md) | Remove controls that never work: "Email invoice" and the "Auto-recharge" switch | AFK | P3 | XS | CB-15 |
 | [171](../../issues/171-primary-method-controls.md) | "Primary payment method" is disabled without a reason while "Move up" does the same thing | AFK | P3 | XS | CB-05 |
@@ -76,6 +76,6 @@ Size: XS < 0.5 day, S ≤ 2 days, M ≤ 1 week, L > 1 week. Estimated from code 
 | [184](../../issues/184-invoice-list-phone-width.md) | At phone width the invoice list hides Status and Amount off to the right, and the invoice panel keeps focus behind it | AFK | P2 | S | CB-43 |
 | [185](../../issues/185-credit-expiry-notice.md) | Promotional credit expires with no notice to the team | AFK | P2 | S | CB-45 |
 | [187](../../issues/187-usage-day-ledger.md) | Store metered usage per day (Usage Day), and build the monthly figure from the days | AFK | P1 | M | CB-48 |
-| [186](../../issues/186-bill-ai-usage-from-grove.md) | AI usage is never billed: Central thinks Grove is prepaid, Grove expects Central to bill in arrears | HITL | P1 | M | CB-46 |
+| [186](../../issues/186-bill-ai-usage-from-grove.md) | AI usage is never billed: Central thinks Grove is prepaid, Grove expects Central to bill in arrears | AFK | P1 | M | CB-46 |
 | [188](../../issues/188-storage-price-and-unit.md) | Object storage is metered but priced at zero, and its GiB figure is labelled GB | HITL | P2 | S | CB-47 |
 | [189](../../issues/189-bundled-transfer-unmetered.md) | Every server promises 1 TB of transfer a month, and nothing measures transfer | HITL | P3 | S | CB-49 |

@@ -42,8 +42,9 @@ A.
 - [ ] The storage job writes one Usage Day per bucket per day with that day's reading.
 - [ ] The monthly run builds each metered Usage Rollup from the period's Usage Days and stamps the invoice on them.
 - [ ] A rerun of the job or the month writes no duplicate row and bills no day twice.
+- [ ] A day with no reading bills the last reading, flagged estimated on the Usage Day.
 - [ ] Tests cover a missed day, a bucket deleted mid-month, and a month-end boundary.
 
 ## Dependencies
 
-D-23 decided: GB (10⁹). D-24 decided: bill what is stored, as S3 and R2 do; an empty bucket bills nothing. D-27 (a missed reading) open. #186 and #188 build on it.
+D-23 decided: GB (10⁹). D-24 decided: bill what is stored, as S3 and R2 do; an empty bucket bills nothing. D-27 decided: a missed reading bills the last reading, marked estimated. #186 and #188 build on it.

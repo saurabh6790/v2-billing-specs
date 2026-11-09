@@ -1,12 +1,10 @@
 # 186 — AI usage is never billed: Central thinks Grove is prepaid, Grove expects Central to bill in arrears
 
-**Type:** HITL · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:bug` `priority:p1` `area:metering`
+**Type:** AFK · **Milestone:** TD · **Priority:** P1 · **Size:** M · **Labels:** `type:bug` `priority:p1` `area:metering`
 **Area:** central/services/doctype/team_service/team_service.py, central/integrations/grove.py, central/billing/revenue/metering.py, catalog (AI Tokens plan)
 **Source:** [CB-46](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
-> **Decided (9 Nov 2026):** D-20, Grove's USD price. D-21, converted at the billing day's rate.
->
-> **HITL:** needs decision D-26 (how the Overview shows INR) in [product-decisions-required.md](../central-billing-teardown/13-brainstorming/product-decisions-required.md) before the parts it governs are built.
+> **Decided (9 Nov 2026):** D-20, Grove's USD price. D-21, converted at the billing day's rate. D-26, one rate per month: the billing day's rate (1st, ERPNext Currency Exchange) is fixed for the month that starts and used by the Overview, the AI price list and that month's invoice.
 
 ## Problem
 
@@ -38,17 +36,17 @@ Compared in [solution-alternatives.md](../central-billing-teardown/13-brainstorm
 
 ## Recommended approach
 
-A (D-20 decided). For INR, one rate per month (D-26, recommended). First, export Grove's Revenue report per team since 8 Oct so nothing is lost to the 90-day purge, whatever is decided.
+A (D-20 decided). For INR, one rate per month (D-26 decided). First, export Grove's Revenue report per team since 8 Oct so nothing is lost to the 90-day purge, whatever is decided.
 
 ## Acceptance criteria
 
 - [ ] Grove usage per team is stored as Usage Days by an hourly landing-window pull, at least daily, idempotent on drain id + key + day.
 - [ ] Every active AI Team Service has a subscription on an AI plan; the “prepaid at Grove” rule and comment are gone.
 - [ ] The monthly invoice has one AI line per model with quantity and amount, in the team currency, with the conversion rate when converted.
-- [ ] An INR team's Overview shows AI usage in INR at the rate D-26 sets, and the invoice uses the rate it shows.
+- [ ] An INR team's Overview shows AI usage in INR at the month's rate with the rate shown ("Rate for November: ₹84.10 per US$1"), and that month's invoice uses the same rate.
 - [ ] Grove's Usage Corrections arrive as negative Usage Days.
 - [ ] Usage since the first AI service is reconciled against Grove's Revenue report before the first AI invoice.
 
 ## Dependencies
 
-#187. D-26 (INR display).
+#187.
