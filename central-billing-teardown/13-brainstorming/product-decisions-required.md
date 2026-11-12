@@ -33,5 +33,6 @@ suggestion; nobody is assigned.
 | D-25 | ~~Stop: bill the disk or a snapshot?~~ **Decided 9 Nov 2026 (provisional, business not final):** the Stop dialog offers two choices. **Stop** keeps the disk and bills disk only (D-16). **Snapshot and release** snapshots the server, deletes the server and its disk, and bills the snapshot; restoring creates a new server with a new IP. Suggest it after 7 days stopped | — | CB-35 | User | Snapshot ₹6.50 / $0.08 per GB-month on used size; disk ₹20 / $0.20 per GB-month |
 | D-26 | ~~Overview for INR teams using AI?~~ **Decided 9 Nov 2026:** one rate per month. The rate on the billing day (1st), from ERPNext Currency Exchange, is fixed for the month that starts; the Overview, AI price list and that month's invoice all use it. No margin unless decided later | — | CB-46 | User | 94 → 96 in a month costs Frappe about 2.1 % of that month's AI revenue; 96 → 94 gains the same |
 | D-27 | ~~Missed storage reading?~~ **Decided 9 Nov 2026:** bill the last reading, marked estimated on the Usage Day | — | CB-48 | User | — |
+| D-28 | ~~Remove `start_auto_charge` (#150)?~~ **Decided 12 Nov 2026:** yes. One rule for every team: wallet first, then the added method (card or UPI) | — | CB-04 | User | All 143 profiles in the backup are Prepaid |
 
 Recommendations for each open decision: [decision-briefs.md](decision-briefs.md).

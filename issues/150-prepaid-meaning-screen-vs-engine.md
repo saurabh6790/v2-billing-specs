@@ -4,6 +4,8 @@
 **Area:** `dashboard/src/components/billing/`, `dashboard/src/components/AddMethodDialog.vue`, `central/billing/api/dashboard/`, `central/billing/payments/`
 **Source:** [CB-04](../central-billing-teardown/12-problem-discovery/problem-register.md) in the central billing teardown (code at central `a95b491e`; production counts from the backup of 3 Nov 2026).
 
+> **Decided (12 Nov 2026):** one rule: the wallet pays first; when it is short, the added method (card or UPI) is charged. `start_auto_charge` is removed; a team keeps the mode it has. Production backup: all 143 Billing Profiles are Prepaid, so no team was ever moved and none needs a data change.
+
 ## Problem
 
 The console was written for a meaning of Prepaid the product does not use. Customers choosing Prepaid are not told their method is charged when credit runs out.
@@ -40,11 +42,12 @@ A now; B with the collection-mode card.
 
 - [ ] The Action-required Prepaid option says credit pays first and the saved method pays the rest.
 - [ ] Promoting a payment method no longer calls `setCollectionMode`.
-- [ ] A Prepaid team whose first method becomes active stays Prepaid (`start_auto_charge` removed or limited to teams that asked for Auto Charge). Confirm with product before merging: this changes what new teams get.
+- [ ] A Prepaid team whose first method becomes active stays Prepaid (`start_auto_charge` removed or limited to teams that asked for Auto Charge). Signed off 12 Nov 2026.
 - [ ] Teams already moved from Prepaid to Auto Charge by `start_auto_charge` are listed for product to decide; no data is changed by this issue.
+- [ ] A Prepaid INR team whose remainder after the wallet is above ₹15,000 gets the same Action Required prompt as an Auto Charge team (pay on-session). Today `charges.py:118-128` skips the charge and moves only Auto Charge teams (H-06).
 - [ ] The comment block in `PaymentMethodsCard.vue` describes the decided rule.
 - [ ] A test asserts a Prepaid team with a method is debited for the remainder (engine behaviour, already true).
 
 ## Dependencies
 
-D-12 decided (keep separate). The `start_auto_charge` change needs product sign-off; the copy fix does not.
+D-12 decided; sign-off given 12 Nov 2026.

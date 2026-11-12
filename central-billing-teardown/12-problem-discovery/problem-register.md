@@ -97,6 +97,7 @@ Grove AI** (open-points pass).
 | H-02 | Manual Checkout says "We email you each bill"; sending not traced | UX | D1 | **Refuted** | E2 | — | — |
 | H-03 | Side panel at phone width covers the list with no focus move or Escape | UX (a11y) | D2 | **Partly confirmed → CB-43** | Seen | — | — |
 | H-04 | Prepaid teams are not warned before promotional credit expires | UX | D4 | **Confirmed → CB-45** | E2 | — | — |
+| H-06 | A Prepaid INR team whose remainder after the wallet is above ₹15,000 is never charged and never told | `charges.py:118-128` skips a charge the gateway cannot take silently and calls `trip_auto_charge`, which moves only Auto Charge teams | Probe on test-central.local: Prepaid INR team, wallet ₹0, invoice ₹16,000. Production backup: 2 INR invoices above ₹15,000, both settled |
 | H-05 | Operator alerts reach no one in production (Raven and email unset) | Operational | D7 | Hypothesis | E4 (backup, settings touched by local migrate) | — | — |
 | S-01 | Warn before a saved card expires | Suggestion | D1 | — | — | — | — |
 | S-02 | Extra invoice recipients (accounts team) | Suggestion | D2 | — | — | — | — |
