@@ -79,7 +79,7 @@ requested set: Workstream A had no named file.
 
 ### A4. Payment day
 
-1. **Purpose.** Let a customer align the charge with their cash cycle (day 1–7).
+1. **Purpose.** Let a customer align the charge with their cash cycle (day 1–10).
 2. **Users.** Customer admin.
 3. **Current behaviour.** A select in the Payment schedule tray; changes per cycle are
    capped; days after the retry window get one retry, stated before saving
