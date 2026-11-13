@@ -181,3 +181,22 @@ or team attributes join out to those masters; they do not reconstruct history fr
   authority.
 - The module layout, the shrinking of `Invoice`, the pricing entry point and the API packaging that
   follow from this decision are described in [v2-architecture.md](../../v2-architecture.md).
+
+## Exception: the failed-setup lock reads Billing Event (13 Nov 2026)
+
+The lock after repeated failed payment-method setups and wallet top-ups (issue 146, decision D-05)
+counts failures from Billing Event: `Payment Method Setup Failed`, `Payment Method Failed` and
+`Top-up Order Declined`, with the decline code in `payload`. It also writes and reads
+`Setup Lock Alerted` to send the operator alert at most once a day.
+
+This is allowed because the lock moves no money and changes no status: it only refuses to start a
+new setup or top-up. Each failure event is written in the same transaction as the failure, so the
+count cannot miss one that happened.
+
+The cost is a retention constraint. A failure run can span up to 10 failures, each within 7 days of
+the next, so a job that deletes Billing Event rows, or prunes their `payload`, must keep these
+event types, with their `payload`, for at least 77 days. If it does not, the lock opens without
+warning.
+
+No pricing, invoicing, settlement, dunning or entitlement code may read Billing Event. This
+exception does not change that.
